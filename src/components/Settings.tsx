@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Settings as SettingsIcon, Clock, Download, Upload, Shield,
   AlertTriangle, Lock, Eye, EyeOff, FileText, Key, Moon, Sun,
-  Database, Save
+  Database, Save, ShieldAlert
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import { importFromCSV } from '@/utils/importer';
@@ -26,10 +26,63 @@ export default function Settings() {
   const [showPasswords, setShowPasswords] = useState(false);
   const [exportMessage, setExportMessage] = useState('');
   const [backupInProgress, setBackupInProgress] = useState(false);
+  const [auditResults, setAuditResults] = useState<{title: string, count: number}[]>([]);
+  const [auditing, setAuditing] = useState(false);
+  const [auditMessage, setAuditMessage] = useState('');
 
   const strength = evaluatePasswordStrength(newPassword);
   const policy = validateMasterPassword(newPassword);
   const canChange = oldPassword.length >= 1 && policy.valid && newPassword === confirmPassword && strength.score >= 2;
+
+  const runSecurityAudit = async () => {
+    setAuditing(true);
+    setAuditResults([]);
+    setAuditMessage('Auditing passwords securely using k-Anonymity...');
+    try {
+      const breachedList: {title: string, count: number}[] = [];
+      
+      for (const cred of credentials) {
+        if (!cred.password) continue;
+        
+        // Calculate SHA-1 hash of the password
+        const encoder = new TextEncoder();
+        const data = encoder.encode(cred.password);
+        const hashBuffer = await window.crypto.subtle.digest('SHA-1', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+        
+        const prefix = hashHex.slice(0, 5);
+        const suffix = hashHex.slice(5);
+        
+        const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+        if (!response.ok) continue;
+        
+        const text = await response.text();
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const [lineSuffix, countStr] = line.split(':');
+          if (lineSuffix.trim() === suffix) {
+            breachedList.push({
+              title: cred.title,
+              count: parseInt(countStr.trim(), 10)
+            });
+            break;
+          }
+        }
+      }
+      
+      setAuditResults(breachedList);
+      if (breachedList.length === 0) {
+        setAuditMessage('Good news! No breached passwords detected in your vault.');
+      } else {
+        setAuditMessage(`Found ${breachedList.length} breached password(s). We recommend changing them immediately:`);
+      }
+    } catch (err) {
+      setAuditMessage('Security audit failed. Check your network connection.');
+    } finally {
+      setAuditing(false);
+    }
+  };
 
   const handleChangePassword = async () => {
     if (!canChange) return;
@@ -391,6 +444,38 @@ export default function Settings() {
               <p className="text-xs text-emerald-400 text-center py-1" role="status" aria-live="polite">{exportMessage}</p>
             )}
           </div>
+        </div>
+
+        {/* Security Audit (k-Anonymity) */}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-amber-500" aria-hidden="true" /> Security Health Audit (k-Anonymity)
+          </h3>
+          <p className="text-xs text-gray-500">
+            Check if your stored passwords have appeared in public data breaches. SafeVault uses the secure k-Anonymity model: your passwords are hashed, and only the first 5 characters of the hash are transmitted. The actual passwords never leave your device.
+          </p>
+          <button
+            onClick={runSecurityAudit}
+            disabled={auditing}
+            className="w-full py-2.5 px-4 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 disabled:bg-white/5 disabled:text-gray-500 text-white font-semibold rounded-xl transition-colors text-sm"
+          >
+            {auditing ? 'Auditing Vault...' : 'Run Security Audit'}
+          </button>
+          
+          {auditMessage && (
+            <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-2">
+              <p className="text-xs font-medium text-gray-300">{auditMessage}</p>
+              {auditResults.length > 0 && (
+                <ul className="text-xs text-red-400 space-y-1 pl-4 list-disc max-h-40 overflow-y-auto">
+                  {auditResults.map((r, i) => (
+                    <li key={i}>
+                      <strong>{r.title}</strong>: leaked {r.count.toLocaleString()} times in data breaches.
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Privacy Policy */}

@@ -13,6 +13,7 @@ const os = require('os');
 const crypto = require('crypto');
 const readline = require('readline');
 const { execSync } = require('child_process');
+const https = require('https');
 
 const VAULT_PATH = path.join(os.homedir(), '.safevault.db');
 const PBKDF2_ITERATIONS = 600000;
@@ -148,6 +149,21 @@ function generateTOTP(secret) {
   } catch {
     return 'ERROR';
   }
+}
+
+// HTTPS range request helper for k-Anonymity
+function checkPwned(prefix) {
+  return new Promise((resolve, reject) => {
+    https.get(`https://api.pwnedpasswords.com/range/${prefix}`, (res) => {
+      if (res.statusCode !== 200) {
+        resolve('');
+        return;
+      }
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(data));
+    }).on('error', err => reject(err));
+  });
 }
 
 // Main Commands
@@ -381,6 +397,69 @@ async function get(title, flags = {}) {
   }
 }
 
+async function audit() {
+  if (!fs.existsSync(VAULT_PATH)) {
+    console.log("No vault found. Run 'safevault init' to create one.");
+    return;
+  }
+
+  const password = await prompt('Enter Master Password: ', true);
+  console.log('\n');
+  const vault = JSON.parse(fs.readFileSync(VAULT_PATH, 'utf8'));
+
+  const verHash = createVerificationHash(password, vault.verificationSalt);
+  if (verHash !== vault.verificationHash) {
+    console.log('Error: Incorrect password.');
+    return;
+  }
+
+  const key = deriveKey(password, vault.salt);
+  try {
+    const decrypted = decrypt(vault.encryptedData, vault.iv, key);
+    const credentials = JSON.parse(decrypted);
+
+    if (credentials.length === 0) {
+      console.log('No credentials to audit.');
+      return;
+    }
+
+    console.log('Auditing passwords securely using k-Anonymity...');
+    let breachesFound = 0;
+
+    for (const c of credentials) {
+      if (!c.password) continue;
+      
+      const sha1 = crypto.createHash('sha1').update(c.password).digest('hex').toUpperCase();
+      const prefix = sha1.slice(0, 5);
+      const suffix = sha1.slice(5);
+
+      try {
+        const text = await checkPwned(prefix);
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const [lineSuffix, countStr] = line.split(':');
+          if (lineSuffix.trim() === suffix) {
+            const count = parseInt(countStr.trim(), 10);
+            console.log(`\x1b[31m[BREACHED]\x1b[0m ${c.title} - Password appeared ${count.toLocaleString()} times in leaks!`);
+            breachesFound++;
+            break;
+          }
+        }
+      } catch (err) {
+        console.log(`Failed to audit ${c.title}: Network error.`);
+      }
+    }
+
+    if (breachesFound === 0) {
+      console.log('\x1b[32m[SAFE]\x1b[0m All passwords are secure! No leaks found.');
+    } else {
+      console.log(`\nAudit finished: Found ${breachesFound} breached password(s). Please update them immediately.`);
+    }
+  } catch (err) {
+    console.log('Error: Decryption failed.');
+  }
+}
+
 async function importBackup(filePath) {
   if (!filePath || !fs.existsSync(filePath)) {
     console.log('Usage: safevault import <path-to-json-file>');
@@ -453,6 +532,9 @@ async function main() {
       await get(searchTitle, flags);
       break;
     }
+    case 'audit':
+      await audit();
+      break;
     case 'import':
       await importBackup(args[1]);
       break;
@@ -468,6 +550,7 @@ Commands:
   add                      Add a new credential entry
   list                     List all stored credential titles
   get <title> [options]    Retrieve credential details and copy password
+  audit                    Run offline security breach checks using k-Anonymity
 
 Options for 'get':
   -u, --username           Directly print only the username
