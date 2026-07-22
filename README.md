@@ -30,6 +30,7 @@
 - **Auto-lock** on inactivity + system sleep/hibernate detection
 - **Clipboard auto-clear** after 30 seconds
 - **Anti-debugging** in production builds
+- **Anti-Screen Capture / Screenshot Blocking** (`setContentProtection(true)`) in desktop builds
 
 ### 📱 Full Feature Set
 - Store credentials with title, URL, username, password, notes, TOTP secret
@@ -38,9 +39,10 @@
 - **Categories** and **favorites**
 - **Search & filter** across all fields
 - **Encrypted backups** (.json) and CSV export (with warning)
-- **Import** from encrypted backups
+- **Universal CSV Importer** supporting Bitwarden, ProtonPass, Brave, DuckDuckGo, Chrome, and 40+ formats
+- **Smart Initials Avatar Fallback** for offline website logos/favicons
 - **Master password change** with full re-encryption
-- **Dark/Light theme** (persisted)
+- **Dark/Light theme** (fully functional & persisted)
 - **Keyboard shortcuts** (Ctrl+Shift+L, Ctrl+N, Ctrl+K, etc.)
 - **Accessibility** (ARIA labels, keyboard navigation, screen reader support)
 
