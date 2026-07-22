@@ -2,19 +2,22 @@ import { useEffect, useCallback } from 'react';
 import { useVaultStore } from '@/stores/vaultStore';
 
 export function useAutoLock() {
-  const { vaultState, autoLockMinutes, lastActivity, lockVault, resetActivity } = useVaultStore();
+  const vaultState = useVaultStore(state => state.vaultState);
+  const autoLockMinutes = useVaultStore(state => state.autoLockMinutes);
+  const lockVault = useVaultStore(state => state.lockVault);
+  const resetActivity = useVaultStore(state => state.resetActivity);
 
   const handleActivity = useCallback(() => {
-    if (vaultState === 'unlocked') {
+    if (useVaultStore.getState().vaultState === 'unlocked') {
       resetActivity();
     }
-  }, [vaultState, resetActivity]);
+  }, [resetActivity]);
 
   useEffect(() => {
     if (vaultState !== 'unlocked' || autoLockMinutes <= 0) return;
 
     const checkLock = setInterval(() => {
-      const elapsed = Date.now() - lastActivity;
+      const elapsed = Date.now() - useVaultStore.getState().lastActivity;
       const timeout = autoLockMinutes * 60 * 1000;
       if (elapsed >= timeout) {
         lockVault();
@@ -33,5 +36,5 @@ export function useAutoLock() {
       window.removeEventListener('click', handleActivity);
       window.removeEventListener('scroll', handleActivity);
     };
-  }, [vaultState, autoLockMinutes, lastActivity, lockVault, handleActivity]);
+  }, [vaultState, autoLockMinutes, lockVault, handleActivity]);
 }
