@@ -4,10 +4,11 @@ import { useVaultStore } from '@/stores/vaultStore';
 import TOTPDisplay from './TOTPDisplay';
 
 export default function CredentialList() {
-  const {
-    credentials, selectedCredentialId, searchQuery, sidebarView,
-    setSelectedCredential,
-  } = useVaultStore();
+  const credentials = useVaultStore(state => state.credentials);
+  const selectedCredentialId = useVaultStore(state => state.selectedCredentialId);
+  const searchQuery = useVaultStore(state => state.searchQuery);
+  const sidebarView = useVaultStore(state => state.sidebarView);
+  const setSelectedCredential = useVaultStore(state => state.setSelectedCredential);
 
   const filteredCredentials = useMemo(() => {
     let filtered = [...credentials];
