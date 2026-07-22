@@ -53,6 +53,29 @@ flowchart TD
 
 ---
 
+## 💻 CLI Command-Line Utility
+
+SafeVault features a developer-friendly command-line companion tool. The CLI uses identical local cryptographic implementations (PBKDF2 600K iterations + AES-256-GCM) and is fully compatible with desktop backups.
+
+### CLI Features
+* **Case-Insensitive Fuzzy Matching:** Searching for `github` matches entries like `GitHub Personal` or `github-work` automatically. If multiple matches are found, it lists options to help refine selection.
+* **Granular Extraction Flags:** Extract specific data properties instantly without printing full entries:
+  * `safevault get <title> -u` (Print only username to stdout)
+  * `safevault get <title> -p` (Directly copy password to clipboard and wipe in 15 seconds)
+  * `safevault get <title> -t` (Generate and print the dynamic 6-digit TOTP 2FA code)
+
+### Commands
+```bash
+safevault init               # Setup and create a new offline vault
+safevault add                # Securely add a new credential entry
+safevault list               # View all credential titles and usernames
+safevault get <title>        # Fetch details, copy password, generate active TOTP
+safevault import <file.json> # Load GUI-exported backup payloads
+safevault export <file.json> # Save current data as GUI-importable backup
+```
+
+---
+
 ## 📈 Long-Term Releases Roadmap
 
 This roadmap outlines our transition from a local desktop client to a multi-device, sync-enabled, browser-integrated ecosystem.
