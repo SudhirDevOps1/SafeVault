@@ -63,42 +63,58 @@ Here is how the SafeVault application looks when running on a web browser:
 
 ---
 
-## ✨ Features
+## ✨ Key Features & Cryptographic Architecture
 
-### 🔒 Security First
-- **AES-GCM 256-bit** encryption via Web Crypto API
-- **PBKDF2** with 600,000 iterations + SHA-512 for key derivation
-- **Zero-Knowledge** architecture — master password never stored
-- **Constant-time comparison** to prevent timing attacks
-- **Auto-lock** on inactivity + system sleep/hibernate detection
-- **Clipboard auto-clear** after 30 seconds
-- **Anti-debugging** in production builds
-- **Anti-Screen Capture / Screenshot Blocking** (`setContentProtection(true)`) in desktop builds
+SafeVault is engineered with zero-trust principles. Below is the structured breakdown of our core capabilities:
 
-### 📱 Full Feature Set
-- Store credentials with title, URL, username, password, notes, TOTP secret
-- **TOTP 2FA** with live 6-digit codes & countdown timer
-- **Secure password generator** (configurable length, charsets, ambiguous exclusion)
-- **Categories** and **favorites**
-- **Search & filter** across all fields
-- **Encrypted backups** (.json) and CSV export (with warning)
-- **Universal CSV Importer** supporting Bitwarden, ProtonPass, Brave, DuckDuckGo, Chrome, and 40+ formats
-- **Smart Initials Avatar Fallback** for offline website logos/favicons
-- **Security Health Audit** local scanner checking passwords against data breaches using k-Anonymity privacy protocols
-- **Developer CLI Companion Tool** featuring fuzzy searches, clipboard wiping, and field extraction flags
-- **Master password change** with full re-encryption
-- **Dark/Light theme** (fully functional & persisted)
-- **Keyboard shortcuts** (Ctrl+Shift+L, Ctrl+N, Ctrl+K, etc.)
-- **Accessibility** (ARIA labels, keyboard navigation, screen reader support)
-
-### 🌐 Privacy & Network Control
-- **Offline-First:** Runs entirely locally. No telemetry, analytics, or background tracking.
-- **Strict Permission Prompts:** Network access for optional features (checking updates, k-Anonymity security audits) is strictly blocked by default. The application prompts for permission every time it starts (non-persistent transient session consent).
-- **Local Storage:** Vault databases are stored locally via IndexedDB (Dexie).
+<table>
+  <thead>
+    <tr>
+      <th width="33%">🔒 Security Hardening</th>
+      <th width="33%">⚙️ Full Feature Set</th>
+      <th width="33%">🌐 Privacy & Localism</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td valign="top">
+        <ul>
+          <li><b>AES-GCM 256-bit</b> encryption via Web Crypto API.</li>
+          <li><b>PBKDF2 key derivation</b> with 600,000 iterations + SHA-512.</li>
+          <li><b>Zero-Knowledge:</b> Master password never stored or transmitted.</li>
+          <li><b>Screenshot Blocking:</b> Prevent screen captures on desktop.</li>
+          <li><b>Clipboard Scrubbing:</b> Auto-clear copies after 30s.</li>
+          <li><b>Constant-Time Comparison</b> to block timing attacks.</li>
+        </ul>
+      </td>
+      <td valign="top">
+        <ul>
+          <li><b>TOTP 2FA Authenticator:</b> Live codes with countdown timer.</li>
+          <li><b>Universal CSV Importer:</b> 40+ password managers supported.</li>
+          <li><b>Security Audit Scanner:</b> k-Anonymity local leak checks.</li>
+          <li><b>Fuzzy CLI Tool:</b> Complete terminal credential manager companion.</li>
+          <li><b>Smart Logos:</b> Initials logo fallbacks when offline.</li>
+          <li><b>Theme Engine:</b> Fully functional light/dark modes.</li>
+        </ul>
+      </td>
+      <td valign="top">
+        <ul>
+          <li><b>100% Offline-First:</b> No central servers or cloud db syncs.</li>
+          <li><b>No Telemetry:</b> Zero analytics, user tracking, or call homes.</li>
+          <li><b>IndexedDB Sandbox:</b> Local local-first browser storage.</li>
+          <li><b>Transient Network Consent:</b> Startup toggle for optional updates.</li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
-## 🛡️ Security Architecture
+## 🛡️ Security Architecture & Privacy Policy
+
+> [!IMPORTANT]
+> **Zero-Knowledge Principle:** All cryptographic processes occur locally. Your master password is used solely to derive your local encryption key and is never written to disk or sent across any network.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -116,35 +132,34 @@ Here is how the SafeVault application looks when running on a web browser:
 └─────────────────────────────────────────────────────┘
 ```
 
-**What SafeVault does NOT do:**
-- ❌ Send any data over the network
-- ❌ Store your master password (only a verification hash)
-- ❌ Collect telemetry or analytics
-- ❌ Load external resources (CDN, fonts, etc.)
-- ❌ Allow remote access to your data
+### 🚫 Non-Negotiable Network Rules:
+* ❌ **No Telemetry/Analytics:** SafeVault never collects usage statistics or diagnostic data.
+* ❌ **Zero Server Calls:** All credentials remain offline. No cloud syncing or external database calls.
+* ❌ **No Third-Party CDNs:** Fonts, icons, and libraries are locally bundled in the distribution.
+* ❌ **Secure audits:** Breach audits use `k-Anonymity` matching, sending only the first 5 chars of a SHA-1 hash (never full passwords/hashes).
 
 ---
 
 ## 🚀 Installation & Downloads
 
-### Official Pre-built Binaries (v1.1.0)
+### Official Pre-built Binaries (v1.1.2)
 
 Download the latest release files directly from the [GitHub Releases Page](https://github.com/SudhirDevOps1/SafeVault/releases/latest).
 
 #### 🪟 Windows (Windows 10/11)
-- **Installer (Recommended):** Download `SafeVault.Setup.1.1.0.exe`. Double-click to install. This automatically registers start menu entries, desktop shortcuts, and links the application icons.
-- **Portable Version:** Download `SafeVault.1.1.0.exe`. A single standalone binary that runs instantly without installation (useful for USB drives).
+- **Installer (Recommended):** Download `SafeVault Setup 1.1.2.exe`. Double-click to install. This automatically registers start menu entries, desktop shortcuts, and links the application icons.
+- **Portable Version:** Download `SafeVault 1.1.2.exe`. A single standalone binary that runs instantly without installation (useful for USB drives).
 
 #### 🍎 macOS (Apple Silicon M1/M2/M3)
-- **DMG Installer:** Download `SafeVault-1.1.0-arm64.dmg`. Double-click to open, and drag **SafeVault** to your `Applications` folder.
-- **ZIP Archive:** Download `SafeVault-1.1.0-arm64-mac.zip`. Unpack and run the application directly.
+- **DMG Installer:** Download `SafeVault-1.1.2-arm64.dmg`. Double-click to open, and drag **SafeVault** to your `Applications` folder.
+- **ZIP Archive:** Download `SafeVault-1.1.2-arm64-mac.zip`. Unpack and run the application directly.
 *Note: If macOS blocks launch with a "Developer cannot be verified" warning, right-click the app, select **Open**, and confirm.*
 
 #### 🐧 Linux (Ubuntu, Debian, Fedora, Arch, etc.)
-- **AppImage:** Download `SafeVault.1.1.0.AppImage`. Run the following command in your terminal to make it executable and launch:
+- **AppImage:** Download `SafeVault-1.1.2.AppImage`. Run the following command in your terminal to make it executable and launch:
   ```bash
-  chmod +x SafeVault.1.1.0.AppImage
-  ./SafeVault.1.1.0.AppImage
+  chmod +x SafeVault-1.1.2.AppImage
+  ./SafeVault-1.1.2.AppImage
   ```
 
 ### Build from Source
