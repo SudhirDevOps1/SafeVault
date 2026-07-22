@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldCheck, Eye, EyeOff, Lock, AlertTriangle, Check, X } from 'lucide-react';
+import { ShieldCheck, Eye, EyeOff, Lock, AlertTriangle, Check, X, Download } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import { evaluatePasswordStrength } from '@/utils/crypto';
 import { validateMasterPassword } from '@/utils/policy';
@@ -200,6 +200,43 @@ export default function VaultSetup() {
         <p className="text-center text-xs text-gray-600 mt-6">
           All data is encrypted locally. Nothing leaves your device.
         </p>
+
+        {/* Desktop App Download Options (Web Only) */}
+        {!(typeof window !== 'undefined' && 'electron' in window) && (
+          <div className="mt-8 p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Download className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Download Desktop Apps</span>
+            </div>
+            <p className="text-xs text-gray-400 mb-3 leading-relaxed">For offline access, global shortcuts, and CLI loop wizard.</p>
+            <div className="grid grid-cols-3 gap-2">
+              <a
+                href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 py-1.5 bg-white/5 hover:bg-emerald-500/20 text-white rounded-lg text-xs font-medium transition-all"
+              >
+                Windows
+              </a>
+              <a
+                href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 py-1.5 bg-white/5 hover:bg-emerald-500/20 text-white rounded-lg text-xs font-medium transition-all"
+              >
+                macOS
+              </a>
+              <a
+                href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 py-1.5 bg-white/5 hover:bg-emerald-500/20 text-white rounded-lg text-xs font-medium transition-all"
+              >
+                Linux
+              </a>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

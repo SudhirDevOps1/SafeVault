@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import {
-  Shield, Key, Star, Wand2, Settings, Lock, Plus, Search, Keyboard
+  Shield, Key, Star, Wand2, Settings, Lock, Plus, Search, Keyboard, Download
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import type { SidebarView } from '@/types';
@@ -102,6 +102,43 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
           </button>
         ))}
       </nav>
+
+      {/* Desktop App Download Options (Web Only) */}
+      {!(typeof window !== 'undefined' && 'electron' in window) && (
+        <div className="mx-3 my-2 p-3 bg-white/5 border border-white/5 rounded-xl">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Download Desktop</span>
+          </div>
+          <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">Run securely offline on your device</p>
+          <div className="grid grid-cols-3 gap-1">
+            <a
+              href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-1 py-1 bg-white/5 hover:bg-emerald-500/20 text-white rounded text-[10px] text-center font-medium transition-all"
+            >
+              Windows
+            </a>
+            <a
+              href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-1 py-1 bg-white/5 hover:bg-emerald-500/20 text-white rounded text-[10px] text-center font-medium transition-all"
+            >
+              macOS
+            </a>
+            <a
+              href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-1 py-1 bg-white/5 hover:bg-emerald-500/20 text-white rounded text-[10px] text-center font-medium transition-all"
+            >
+              Linux
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Open Source / GitHub repository link */}
       <div className="px-3 py-2 border-t border-white/5">
