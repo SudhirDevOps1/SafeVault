@@ -16,6 +16,8 @@
 
 [Features & Roadmap](docs/features.md) • [CLI Guide](docs/cli-guide.md) • [Changelog](docs/CHANGELOG.md) • [Security](docs/SECURITY.md) • [Contributing](docs/CONTRIBUTING.md) • [Installation](#-installation--downloads)
 
+</div>
+
 ---
 
 ## 📸 App Showcase
