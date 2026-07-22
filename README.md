@@ -22,92 +22,70 @@
 
 Here is how the SafeVault application looks when running on a web browser:
 
-<table width="100%">
-  <tr>
-    <td width="50%" align="center" valign="top">
-      <b>1. Zero-Knowledge Split Landing Screen</b><br/>
-      <p style="font-size: 12px; color: #888;">Split layout featuring auto-detected OS desktop download options next to the forms.</p>
-      <img src="docs/screenshots/split_showcase.png" alt="SafeVault Split Landing Showcase" width="100%" />
-    </td>
-    <td width="50%" align="center" valign="top">
-      <b>2. Main Dashboard & Active TOTP 2FA</b><br/>
-      <p style="font-size: 12px; color: #888;">Primary vault view with categories, quick searches, and dynamic desktop download sidebar card.</p>
-      <img src="docs/screenshots/dashboard.png" alt="SafeVault Main Dashboard" width="100%" />
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center" valign="top">
-      <b>3. Add New Credential Form</b><br/>
-      <p style="font-size: 12px; color: #888;">Standard modal to save credential records with custom category and TOTP keys.</p>
-      <img src="docs/screenshots/add_credential.png" alt="SafeVault Add Credential Form" width="100%" />
-    </td>
-    <td width="50%" align="center" valign="top">
-      <b>4. Credential Detail & Decryption View</b><br/>
-      <p style="font-size: 12px; color: #888;">Hidden password decryption view, copy helpers, and live 2FA countdown meters.</p>
-      <img src="docs/screenshots/credential_details.png" alt="SafeVault Credential Details View" width="100%" />
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center" valign="top">
-      <b>5. Security Settings & Theme Toggles</b><br/>
-      <p style="font-size: 12px; color: #888;">Statistics dashboards, Light/Dark styling preferences, auto-lock sliders, and backups.</p>
-      <img src="docs/screenshots/settings.png" alt="SafeVault Security Settings" width="100%" />
-    </td>
-    <td width="50%" align="center" valign="top">
-      <b>6. Configurable Password Generator</b><br/>
-      <p style="font-size: 12px; color: #888;">High-entropy cryptographically secure string generator with character filter selections.</p>
-      <img src="docs/screenshots/password_generator.png" alt="SafeVault Password Generator" width="100%" />
-    </td>
-  </tr>
-</table>
+### 🔐 1. Zero-Knowledge Split Landing Screen
+On standard web browsers, SafeVault displays a split showcase layout featuring direct, auto-detected OS desktop download options next to the unlock/setup forms.
+
+![SafeVault Split Landing Showcase](docs/screenshots/split_showcase.png)
 
 ---
 
-## ✨ Key Features & Cryptographic Architecture
+### 📊 2. Main Dashboard & Active TOTP 2FA
+The primary dashboard lists all credential cards, categorized items, search utilities, and a secure desktop download card in the sidebar.
 
-SafeVault is engineered with zero-trust principles. Below is the structured breakdown of our core capabilities:
+![SafeVault Main Dashboard](docs/screenshots/dashboard.png)
 
-<table>
-  <thead>
-    <tr>
-      <th width="33%">🔒 Security Hardening</th>
-      <th width="33%">⚙️ Full Feature Set</th>
-      <th width="33%">🌐 Privacy & Localism</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td valign="top">
-        <ul>
-          <li><b>AES-GCM 256-bit</b> encryption via Web Crypto API.</li>
-          <li><b>PBKDF2 key derivation</b> with 600,000 iterations + SHA-512.</li>
-          <li><b>Zero-Knowledge:</b> Master password never stored or transmitted.</li>
-          <li><b>Screenshot Blocking:</b> Prevent screen captures on desktop.</li>
-          <li><b>Clipboard Scrubbing:</b> Auto-clear copies after 30s.</li>
-          <li><b>Constant-Time Comparison</b> to block timing attacks.</li>
-        </ul>
-      </td>
-      <td valign="top">
-        <ul>
-          <li><b>TOTP 2FA Authenticator:</b> Live codes with countdown timer.</li>
-          <li><b>Universal CSV Importer:</b> 40+ password managers supported.</li>
-          <li><b>Security Audit Scanner:</b> k-Anonymity local leak checks.</li>
-          <li><b>Fuzzy CLI Tool:</b> Complete terminal credential manager companion.</li>
-          <li><b>Smart Logos:</b> Initials logo fallbacks when offline.</li>
-          <li><b>Theme Engine:</b> Fully functional light/dark modes.</li>
-        </ul>
-      </td>
-      <td valign="top">
-        <ul>
-          <li><b>100% Offline-First:</b> No central servers or cloud db syncs.</li>
-          <li><b>No Telemetry:</b> Zero analytics, user tracking, or call homes.</li>
-          <li><b>IndexedDB Sandbox:</b> Local local-first browser storage.</li>
-          <li><b>Transient Network Consent:</b> Startup toggle for optional updates.</li>
-        </ul>
-      </td>
-    </tr>
-  </tbody>
-</table>
+---
+
+### ✍️ 3. Add New Credential Form
+A clean dialog allows creating logins, cards, and secure notes with optional website URL and TOTP token configurations.
+
+![SafeVault Add Credential Form](docs/screenshots/add_credential.png)
+
+---
+
+### 🔍 4. Credential Detail & Decryption View
+Provides click-to-copy fields, hidden password inspection toggles, notes, and live 2FA countdown meters.
+
+![SafeVault Credential Details View](docs/screenshots/credential_details.png)
+
+---
+
+### ⚙️ 5. Security Settings & Theme Toggles
+Features responsive statistics panels, Light/Dark appearance triggers, inactivity auto-lock sliders, and local encrypted backup utilities.
+
+![SafeVault Security Settings](docs/screenshots/settings.png)
+
+---
+
+### 🔑 6. Password Generator
+Allows generating extremely strong cryptographically random strings with specific length and ambiguous character exclusions.
+
+![SafeVault Password Generator](docs/screenshots/password_generator.png)
+
+---
+
+## ✨ Key Features
+
+SafeVault is engineered with zero-trust principles. Below is the breakdown of our core capabilities:
+
+### 🔒 Security Hardening
+* **AES-GCM 256-Bit Cryptography:** Keys derived securely via PBKDF2 with 600K iterations directly in your browser. Your master password never leaves your memory.
+* **Anti-Screen Capture / Screenshot Blocking:** Built-in protection in desktop clients to prevent local malware from grabbing vault data.
+* **Transient Session Network Consent:** App starts completely offline and blocks all update checks until explicit transient permission is granted via startup banner.
+* **Constant-Time Comparison:** Blocks timing attack probes.
+* **Clipboard Scrubbing:** Automatically clears copied secrets after 30 seconds.
+
+### 📱 Full Feature Set
+* **TOTP 2FA Authenticator:** Real-time generation of 6-digit codes with visual countdown meters.
+* **Universal CSV Importer:** Directly parse and import credentials from Bitwarden, ProtonPass, Brave, DuckDuckGo, Chrome, and 40+ other formats.
+* **Security Health Audit:** Local zero-knowledge scanner checking passwords against leaked breach lists using the k-Anonymity privacy protocol.
+* **Interactive CLI Companion:** Global console tool (`safevault`) featuring case-insensitive fuzzy matching and specific property flags (`-u`, `-p`, `-t`).
+* **Appearance Customization:** Fully responsive light/dark styling preferences, dynamically saved and persisted.
+
+### 🌐 Privacy & Network Control
+* **100% Offline-First:** Runs entirely locally inside your browser's sandboxed storage (IndexedDB via Dexie) or your desktop client.
+* **Zero Telemetry or Analytics:** No diagnostic tracking, user metrics, or background pings.
+* **No Third-Party CDNs:** Fonts, icons, and libraries are locally bundled in the distribution.
 
 ---
 
