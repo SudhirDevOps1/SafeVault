@@ -81,17 +81,27 @@
 
 ---
 
-## 🚀 Installation
+## 🚀 Installation & Downloads
 
-### Pre-built Releases (Recommended)
+### Official Pre-built Binaries (v1.1.0)
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/SudhirDevOps1/SafeVault/releases):
+Download the latest release files directly from the [GitHub Releases Page](https://github.com/SudhirDevOps1/SafeVault/releases/latest).
 
-| Platform | File |
-|----------|------|
-| Windows | `SafeVault-Setup-1.0.0.exe` |
-| macOS | `SafeVault-1.0.0.dmg` |
-| Linux | `SafeVault-1.0.0.AppImage` |
+#### 🪟 Windows (Windows 10/11)
+- **Installer (Recommended):** Download `SafeVault.Setup.1.1.0.exe`. Double-click to install. This automatically registers start menu entries, desktop shortcuts, and links the application icons.
+- **Portable Version:** Download `SafeVault.1.1.0.exe`. A single standalone binary that runs instantly without installation (useful for USB drives).
+
+#### 🍎 macOS (Apple Silicon M1/M2/M3)
+- **DMG Installer:** Download `SafeVault-1.1.0-arm64.dmg`. Double-click to open, and drag **SafeVault** to your `Applications` folder.
+- **ZIP Archive:** Download `SafeVault-1.1.0-arm64-mac.zip`. Unpack and run the application directly.
+*Note: If macOS blocks launch with a "Developer cannot be verified" warning, right-click the app, select **Open**, and confirm.*
+
+#### 🐧 Linux (Ubuntu, Debian, Fedora, Arch, etc.)
+- **AppImage:** Download `SafeVault.1.1.0.AppImage`. Run the following command in your terminal to make it executable and launch:
+  ```bash
+  chmod +x SafeVault.1.1.0.AppImage
+  ./SafeVault.1.1.0.AppImage
+  ```
 
 ### Build from Source
 
