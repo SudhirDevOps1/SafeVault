@@ -1,0 +1,47 @@
+{
+  "name": "safevault-desktop",
+  "productName": "SafeVault",
+  "appId": "com.safevault.app",
+  "copyright": "Copyright © 2024 SafeVault Contributors",
+  "asar": true,
+  "directories": {
+    "output": "release",
+    "buildResources": "resources"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "resources/**/*"
+  ],
+  "win": {
+    "target": ["nsis", "portable"],
+    "icon": "resources/icon.ico",
+    "signingHashAlgorithms": ["sha256"],
+    "publisherName": "SafeVault"
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "resources/icon.icns",
+    "category": "public.app-category.productivity",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "entitlements": "resources/entitlements.mac.plist",
+    "entitlementsInherit": "resources/entitlements.mac.plist"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "icon": "resources/icons",
+    "category": "Utility"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "shortcutName": "SafeVault"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "SudhirDevOps1",
+    "repo": "SafeVault"
+  }
+}
