@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="public/images/safevault-logo.png" alt="SafeVault Logo" width="160" height="160" />
+
 # 🔐 SafeVault
 
 ### Zero-Knowledge, Offline-First Credential Manager
