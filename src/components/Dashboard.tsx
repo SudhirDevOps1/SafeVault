@@ -17,6 +17,7 @@ export default function Dashboard() {
   const {
     selectedCredentialId, credentials, sidebarView, showPrivacyPolicy,
     setSidebarView, lockVault, setSelectedCredential, updateAvailable,
+    checkForUpdates, networkApprovedThisSession, approveNetworkThisSession,
   } = useVaultStore();
   
   const [showAddForm, setShowAddForm] = useState(false);
@@ -202,6 +203,19 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="flex-1 h-full pt-14 md:pt-0 overflow-hidden flex flex-col">
+        {checkForUpdates && !networkApprovedThisSession && (
+          <div className="bg-amber-600/20 border-b border-amber-500/30 px-6 py-2.5 flex items-center justify-between text-xs text-amber-300">
+            <span>SafeVault is requesting temporary network access to check for updates. Do you allow this connection for this session?</span>
+            <div className="flex gap-2">
+              <button 
+                onClick={approveNetworkThisSession}
+                className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-1 rounded transition-colors"
+              >
+                Allow Once
+              </button>
+            </div>
+          </div>
+        )}
         {updateAvailable && (
           <div className="bg-blue-600/20 border-b border-blue-500/30 px-6 py-2.5 flex items-center justify-between text-xs text-blue-300">
             <span>A new update <strong>({updateAvailable})</strong> is available on GitHub!</span>

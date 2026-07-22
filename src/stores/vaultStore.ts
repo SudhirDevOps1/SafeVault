@@ -47,6 +47,7 @@ interface VaultStore {
   lastBackup: number | null;
   checkForUpdates: boolean;
   updateAvailable: string | null;
+  networkApprovedThisSession: boolean;
 
   // Actions
   initializeVault: () => Promise<void>;
@@ -70,6 +71,7 @@ interface VaultStore {
   setAutoBackupEnabled: (enabled: boolean) => Promise<void>;
   setCheckForUpdates: (enabled: boolean) => Promise<void>;
   checkLatestRelease: () => Promise<void>;
+  approveNetworkThisSession: () => void;
   
   saveVault: () => Promise<void>;
   exportEncryptedBackup: () => Promise<string>;
@@ -95,6 +97,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   lastBackup: null,
   checkForUpdates: localStorage.getItem('safevault_check_updates') === 'true',
   updateAvailable: null,
+  networkApprovedThisSession: false,
 
   initializeVault: async () => {
     const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
@@ -341,6 +344,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     set({ checkForUpdates: enabled });
     localStorage.setItem('safevault_check_updates', String(enabled));
     if (enabled) {
+      set({ networkApprovedThisSession: true }); // Explicit toggling in UI approves network for this session
       await get().checkLatestRelease();
     } else {
       set({ updateAvailable: null });
@@ -348,13 +352,13 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   },
 
   checkLatestRelease: async () => {
-    if (!get().checkForUpdates) return;
+    if (!get().checkForUpdates || !get().networkApprovedThisSession) return;
     try {
       const response = await fetch('https://api.github.com/repos/SudhirDevOps1/SafeVault/releases/latest');
       if (!response.ok) return;
       const data = await response.json();
       const latestVersion = data.tag_name;
-      const currentVersion = 'v1.1.0';
+      const currentVersion = 'v1.1.1'; // Bumped version to 1.1.1
       
       const cleanLatest = latestVersion.replace(/^v/, '');
       const cleanCurrent = currentVersion.replace(/^v/, '');
@@ -368,6 +372,11 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     } catch (err) {
       logger.error('Failed to check latest release', err);
     }
+  },
+
+  approveNetworkThisSession: () => {
+    set({ networkApprovedThisSession: true });
+    get().checkLatestRelease();
   },
 
   performAutoBackup: async () => {

@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [1.1.0] - 2026-07-22
+## [1.1.1] - 2026-07-22
 
 ### Added
 - **Universal CSV Importer:** Dynamically parses and imports credentials from Bitwarden, ProtonPass, Brave, DuckDuckGo, Chrome, and 40+ other standard formats.
@@ -97,5 +97,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Encrypted key derivation with 600K PBKDF2 iterations
 - Clipboard auto-clearing
 
-[1.1.0]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.0
+[1.1.1]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.1
 [1.0.0]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.0.0
