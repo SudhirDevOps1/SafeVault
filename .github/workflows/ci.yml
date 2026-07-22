@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
 jobs:
   lint-and-test:
     name: Lint & Test
@@ -55,6 +60,11 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
+      - name: Enable Symlinks (Windows)
+        if: matrix.os == 'windows-latest'
+        run: git config --global core.symlinks true
+        shell: pwsh
+
       - name: Checkout
         uses: actions/checkout@v4
 
