@@ -205,6 +205,9 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       searchQuery: '',
       error: null,
     });
+    try {
+      navigator.clipboard.writeText('');
+    } catch { /* ignore */ }
   },
 
   changeMasterPassword: async (oldPassword: string, newPassword: string) => {

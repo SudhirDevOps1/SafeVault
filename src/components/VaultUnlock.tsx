@@ -72,6 +72,9 @@ export default function VaultUnlock() {
                     placeholder="Enter master password..."
                     aria-label="Master password"
                     autoComplete="current-password"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     autoFocus
                     className="w-full pl-11 pr-11 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
                     onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
