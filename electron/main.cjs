@@ -88,10 +88,17 @@ function createWindow() {
   });
 
   // Load the app
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+  const fs = require('fs');
+  const distPath = path.join(__dirname, '../dist/index.html');
+  
+  if (fs.existsSync(distPath)) {
+    mainWindow.loadFile(distPath);
+  } else if (isDev) {
+    mainWindow.loadURL('http://localhost:5173').catch(() => {
+      mainWindow.loadFile(distPath);
+    });
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(distPath);
   }
 
   mainWindow.once('ready-to-show', () => {
