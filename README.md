@@ -16,7 +16,35 @@
 
 [Features & Roadmap](docs/features.md) • [CLI Guide](docs/cli-guide.md) • [Changelog](docs/CHANGELOG.md) • [Security](docs/SECURITY.md) • [Contributing](docs/CONTRIBUTING.md) • [Installation](#-installation--downloads)
 
-</div>
+---
+
+## 📸 App Showcase & Screenshots
+
+Here is how the SafeVault application looks when running on a web browser:
+
+### 1. Zero-Knowledge Split Landing Screen
+On standard web browsers, SafeVault displays a split showcase layout featuring direct, auto-detected OS desktop download options and security details next to the unlock/setup forms.
+![SafeVault Split Landing Showcase](docs/screenshots/split_showcase.png)
+
+### 2. Main Dashboard & Active TOTP 2FA
+The primary dashboard lists all credential cards, categorized items, search utilities, and a secure desktop download card in the sidebar.
+![SafeVault Main Dashboard](docs/screenshots/dashboard.png)
+
+### 3. Add New Credential Form
+A clean dialog allows creating logins, cards, and secure notes with optional website URL and TOTP token configurations.
+![SafeVault Add Credential Form](docs/screenshots/add_credential.png)
+
+### 4. Credential Detail & Decryption View
+Provides click-to-copy fields, hidden password inspection toggles, notes, and live 2FA countdown meters.
+![SafeVault Credential Details View](docs/screenshots/credential_details.png)
+
+### 5. Configurable Security Settings & Theme Toggles
+Features responsive statistics panels, Light/Dark appearance triggers, inactivity auto-lock sliders, and local encrypted backup utilities.
+![SafeVault Security Settings](docs/screenshots/settings.png)
+
+### 6. Configurable Password Generator
+Allows generating extremely strong cryptographically random strings with specific length and ambiguous character exclusions.
+![SafeVault Password Generator](docs/screenshots/password_generator.png)
 
 ---
 
