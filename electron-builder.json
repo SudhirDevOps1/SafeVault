@@ -13,10 +13,8 @@
     "resources/**/*"
   ],
   "win": {
-    "target": ["nsis", "portable"],
-    "icon": "resources/icon.png",
-    "signingHashAlgorithms": ["sha256"],
-    "publisherName": "SafeVault"
+    "target": ["portable"],
+    "icon": "resources/icon.png"
   },
   "mac": {
     "target": ["dmg", "zip"],
