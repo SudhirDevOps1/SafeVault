@@ -543,23 +543,38 @@ async function main() {
       break;
     default:
       console.log(`
-SafeVault CLI Tool v1.1.0
+\x1b[1m\x1b[32m🔒 SafeVault CLI Tool v1.1.0\x1b[0m - Premium Offline-First Authenticator
 
-Commands:
-  init                     Initialize a new vault database
-  add                      Add a new credential entry
-  list                     List all stored credential titles
-  get <title> [options]    Retrieve credential details and copy password
-  audit                    Run offline security breach checks using k-Anonymity
+\x1b[1m⚙️ Core Commands:\x1b[0m
+  \x1b[36minit\x1b[0m                     Setup and create a new local encrypted database (\x1b[33m~/.safevault.db\x1b[0m)
+  \x1b[36madd\x1b[0m                      Add a new credential entry (Title, Username, Password, URL, Notes, TOTP)
+  \x1b[36mlist\x1b[0m                     Display all stored credential titles and usernames
+  \x1b[36mget <title> [options]\x1b[0m    Retrieve details, copy password, and generate active TOTP tokens
+  \x1b[36maudit\x1b[0m                    Run offline security data breach scans using secure k-Anonymity
 
-Options for 'get':
-  -u, --username           Directly print only the username
-  -p, --password           Directly copy the password without displaying info
-  -t, --totp               Generate and print only the 2FA TOTP token
-  
-Backups:
-  import <file.json>       Import a SafeVault GUI backup file
-  export <file.json>       Export a SafeVault GUI-compatible backup file
+\x1b[1m💡 Options for 'get':\x1b[0m
+  \x1b[35m-u, --username\x1b[0m           Directly print only the username to stdout (perfect for scripting/piping)
+  \x1b[35m-p, --password\x1b[0m           Copy the password directly to the system clipboard and wipe in 15 seconds
+  \x1b[35m-t, --totp\x1b[0m               Generate and print the live 6-digit 2FA TOTP token instantly
+
+\x1b[1m📦 Backups:\x1b[0m
+  \x1b[36mimport <file.json>\x1b[0m       Import a backup exported from the SafeVault desktop GUI application
+  \x1b[36mexport <file.json>\x1b[0m       Export the CLI database as a GUI-compatible encrypted JSON backup file
+
+\x1b[1m📝 Examples:\x1b[0m
+  \x1b[90m# Initialize your secure database:\x1b[0m
+  $ safevault init
+
+  \x1b[90m# Fetch password & dynamic 2FA code (Fuzzy/case-insensitive):\x1b[0m
+  $ safevault get github
+
+  \x1b[90m# Fetch only the dynamic 6-digit TOTP token:\x1b[0m
+  $ safevault get github -t
+
+\x1b[1m🔒 Privacy Architecture:\x1b[0m
+  * 100% Client-Side. Master password derived locally using PBKDF2 (600,000 iterations + SHA-512).
+  * Data encrypted locally using AES-256-GCM. 
+  * 'audit' uses k-Anonymity (only the first 5 characters of password SHA-1 hashes are sent to API).
       `);
       break;
   }
