@@ -48,7 +48,7 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       devTools: isDev, // Disable DevTools in production
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       // Disable remote module
       enableRemoteModule: false,
       // Disable popups

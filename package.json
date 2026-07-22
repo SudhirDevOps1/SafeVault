@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "SafeVault - Zero-Knowledge, Offline-First Credential Manager",
   "author": "Sudhir Singh",
-  "main": "electron/main.js",
+  "main": "electron/main.cjs",
   "private": true,
   "type": "module",
   "scripts": {
