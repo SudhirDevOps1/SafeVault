@@ -7,6 +7,9 @@
   "main": "electron/main.cjs",
   "private": true,
   "type": "module",
+  "bin": {
+    "safevault": "./bin/safevault.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
