@@ -203,11 +203,19 @@ async function init() {
   console.log(`Vault initialized successfully at ${VAULT_PATH}`);
 }
 
-async function add() {
-  if (!fs.existsSync(VAULT_PATH)) {
-    console.log("No vault found. Run 'safevault init' to create one.");
-    return;
+async function ensureVaultExists() {
+  if (fs.existsSync(VAULT_PATH)) return true;
+  const choice = await prompt("No vault database found. Initialize a new vault now? (Y/n): ");
+  if (choice.toLowerCase() === 'n') {
+    console.log('Aborted.');
+    return false;
   }
+  await init();
+  return fs.existsSync(VAULT_PATH);
+}
+
+async function add() {
+  if (!(await ensureVaultExists())) return;
 
   const password = await prompt('Enter Master Password: ', true);
   console.log('\n');
@@ -259,10 +267,7 @@ async function add() {
 }
 
 async function list() {
-  if (!fs.existsSync(VAULT_PATH)) {
-    console.log("No vault found. Run 'safevault init' to create one.");
-    return;
-  }
+  if (!(await ensureVaultExists())) return;
 
   const password = await prompt('Enter Master Password: ', true);
   console.log('\n');
@@ -301,10 +306,7 @@ async function get(title, flags = {}) {
     return;
   }
 
-  if (!fs.existsSync(VAULT_PATH)) {
-    console.log("No vault found. Run 'safevault init' to create one.");
-    return;
-  }
+  if (!(await ensureVaultExists())) return;
 
   const password = await prompt('Enter Master Password: ', true);
   console.log('\n');
@@ -398,10 +400,7 @@ async function get(title, flags = {}) {
 }
 
 async function audit() {
-  if (!fs.existsSync(VAULT_PATH)) {
-    console.log("No vault found. Run 'safevault init' to create one.");
-    return;
-  }
+  if (!(await ensureVaultExists())) return;
 
   const password = await prompt('Enter Master Password: ', true);
   console.log('\n');
@@ -486,10 +485,7 @@ async function exportBackup(filePath) {
     return;
   }
 
-  if (!fs.existsSync(VAULT_PATH)) {
-    console.log('No vault found to export.');
-    return;
-  }
+  if (!(await ensureVaultExists())) return;
 
   try {
     const vault = JSON.parse(fs.readFileSync(VAULT_PATH, 'utf8'));
