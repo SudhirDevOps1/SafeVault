@@ -16,7 +16,7 @@ import { SHORTCUT_DESCRIPTIONS } from '@/hooks/useKeyboardShortcuts';
 export default function Dashboard() {
   const {
     selectedCredentialId, credentials, sidebarView, showPrivacyPolicy,
-    setSidebarView, lockVault, setSelectedCredential,
+    setSidebarView, lockVault, setSelectedCredential, updateAvailable,
   } = useVaultStore();
   
   const [showAddForm, setShowAddForm] = useState(false);
@@ -201,8 +201,23 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 h-full pt-14 md:pt-0 overflow-hidden">
-        {renderContent()}
+      <div className="flex-1 h-full pt-14 md:pt-0 overflow-hidden flex flex-col">
+        {updateAvailable && (
+          <div className="bg-blue-600/20 border-b border-blue-500/30 px-6 py-2.5 flex items-center justify-between text-xs text-blue-300">
+            <span>A new update <strong>({updateAvailable})</strong> is available on GitHub!</span>
+            <a 
+              href="https://github.com/SudhirDevOps1/SafeVault/releases/latest" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="bg-blue-500 hover:bg-blue-400 text-white font-semibold px-3 py-1 rounded transition-colors"
+            >
+              Download
+            </a>
+          </div>
+        )}
+        <div className="flex-1 overflow-hidden">
+          {renderContent()}
+        </div>
       </div>
 
       {/* Add/Edit Credential Modal */}

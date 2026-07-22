@@ -45,6 +45,8 @@ interface VaultStore {
   theme: Theme;
   autoBackupEnabled: boolean;
   lastBackup: number | null;
+  checkForUpdates: boolean;
+  updateAvailable: string | null;
 
   // Actions
   initializeVault: () => Promise<void>;
@@ -66,6 +68,8 @@ interface VaultStore {
   resetActivity: () => void;
   setTheme: (theme: Theme) => void;
   setAutoBackupEnabled: (enabled: boolean) => Promise<void>;
+  setCheckForUpdates: (enabled: boolean) => Promise<void>;
+  checkLatestRelease: () => Promise<void>;
   
   saveVault: () => Promise<void>;
   exportEncryptedBackup: () => Promise<string>;
@@ -89,6 +93,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   theme: (localStorage.getItem(THEME_KEY) as Theme) || 'dark',
   autoBackupEnabled: localStorage.getItem('safevault_auto_backup') === 'true',
   lastBackup: null,
+  checkForUpdates: localStorage.getItem('safevault_check_updates') === 'true',
+  updateAvailable: null,
 
   initializeVault: async () => {
     const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
@@ -103,6 +109,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         logger.info('No vault found, starting setup');
         set({ vaultState: 'setup', showPrivacyPolicy: !seen });
       }
+      get().checkLatestRelease();
     } catch (err) {
       logger.error('Failed to initialize vault', err);
       set({ vaultState: 'setup' });
@@ -324,6 +331,39 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     localStorage.setItem('safevault_auto_backup', String(enabled));
     if (enabled) {
       await get().performAutoBackup();
+    }
+  },
+
+  setCheckForUpdates: async (enabled) => {
+    set({ checkForUpdates: enabled });
+    localStorage.setItem('safevault_check_updates', String(enabled));
+    if (enabled) {
+      await get().checkLatestRelease();
+    } else {
+      set({ updateAvailable: null });
+    }
+  },
+
+  checkLatestRelease: async () => {
+    if (!get().checkForUpdates) return;
+    try {
+      const response = await fetch('https://api.github.com/repos/SudhirDevOps1/SafeVault/releases/latest');
+      if (!response.ok) return;
+      const data = await response.json();
+      const latestVersion = data.tag_name;
+      const currentVersion = 'v1.1.0';
+      
+      const cleanLatest = latestVersion.replace(/^v/, '');
+      const cleanCurrent = currentVersion.replace(/^v/, '');
+
+      if (cleanLatest !== cleanCurrent && cleanLatest > cleanCurrent) {
+        set({ updateAvailable: latestVersion });
+        logger.info(`Update available: ${latestVersion}`);
+      } else {
+        set({ updateAvailable: null });
+      }
+    } catch (err) {
+      logger.error('Failed to check latest release', err);
     }
   },
 

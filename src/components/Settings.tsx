@@ -16,6 +16,7 @@ export default function Settings() {
     exportEncryptedBackup, exportCSV, setShowPrivacyPolicy,
     loading, error, setError, credentials, theme, setTheme,
     autoBackupEnabled, setAutoBackupEnabled, lastBackup, performAutoBackup,
+    checkForUpdates, setCheckForUpdates,
   } = useVaultStore();
 
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -393,13 +394,30 @@ export default function Settings() {
         </div>
 
         {/* Privacy Policy */}
-        <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
             <Shield className="w-4 h-4" aria-hidden="true" /> Privacy & Security
           </h3>
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+            <div className="flex-1 pr-4">
+              <p className="text-sm font-medium text-gray-200">Check for Updates (Optional)</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Query GitHub API on startup to detect newer releases. Disabled by default to ensure 100% offline privacy.
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={checkForUpdates}
+                onChange={(e) => setCheckForUpdates(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white peer-checked:after:border-white"></div>
+            </label>
+          </div>
           <button
             onClick={() => setShowPrivacyPolicy(true)}
-            className="py-2.5 px-4 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors text-sm"
+            className="w-full py-2.5 px-4 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors text-sm text-left"
             aria-label="Open privacy policy"
           >
             View Privacy Policy
