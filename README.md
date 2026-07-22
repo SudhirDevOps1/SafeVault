@@ -18,33 +18,48 @@
 
 ---
 
-## 📸 App Showcase & Screenshots
+## 📸 App Showcase
 
 Here is how the SafeVault application looks when running on a web browser:
 
-### 1. Zero-Knowledge Split Landing Screen
-On standard web browsers, SafeVault displays a split showcase layout featuring direct, auto-detected OS desktop download options and security details next to the unlock/setup forms.
-![SafeVault Split Landing Showcase](docs/screenshots/split_showcase.png)
-
-### 2. Main Dashboard & Active TOTP 2FA
-The primary dashboard lists all credential cards, categorized items, search utilities, and a secure desktop download card in the sidebar.
-![SafeVault Main Dashboard](docs/screenshots/dashboard.png)
-
-### 3. Add New Credential Form
-A clean dialog allows creating logins, cards, and secure notes with optional website URL and TOTP token configurations.
-![SafeVault Add Credential Form](docs/screenshots/add_credential.png)
-
-### 4. Credential Detail & Decryption View
-Provides click-to-copy fields, hidden password inspection toggles, notes, and live 2FA countdown meters.
-![SafeVault Credential Details View](docs/screenshots/credential_details.png)
-
-### 5. Configurable Security Settings & Theme Toggles
-Features responsive statistics panels, Light/Dark appearance triggers, inactivity auto-lock sliders, and local encrypted backup utilities.
-![SafeVault Security Settings](docs/screenshots/settings.png)
-
-### 6. Configurable Password Generator
-Allows generating extremely strong cryptographically random strings with specific length and ambiguous character exclusions.
-![SafeVault Password Generator](docs/screenshots/password_generator.png)
+<table width="100%">
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <b>1. Zero-Knowledge Split Landing Screen</b><br/>
+      <p style="font-size: 12px; color: #888;">Split layout featuring auto-detected OS desktop download options next to the forms.</p>
+      <img src="docs/screenshots/split_showcase.png" alt="SafeVault Split Landing Showcase" width="100%" />
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>2. Main Dashboard & Active TOTP 2FA</b><br/>
+      <p style="font-size: 12px; color: #888;">Primary vault view with categories, quick searches, and dynamic desktop download sidebar card.</p>
+      <img src="docs/screenshots/dashboard.png" alt="SafeVault Main Dashboard" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <b>3. Add New Credential Form</b><br/>
+      <p style="font-size: 12px; color: #888;">Standard modal to save credential records with custom category and TOTP keys.</p>
+      <img src="docs/screenshots/add_credential.png" alt="SafeVault Add Credential Form" width="100%" />
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>4. Credential Detail & Decryption View</b><br/>
+      <p style="font-size: 12px; color: #888;">Hidden password decryption view, copy helpers, and live 2FA countdown meters.</p>
+      <img src="docs/screenshots/credential_details.png" alt="SafeVault Credential Details View" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <b>5. Security Settings & Theme Toggles</b><br/>
+      <p style="font-size: 12px; color: #888;">Statistics dashboards, Light/Dark styling preferences, auto-lock sliders, and backups.</p>
+      <img src="docs/screenshots/settings.png" alt="SafeVault Security Settings" width="100%" />
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>6. Configurable Password Generator</b><br/>
+      <p style="font-size: 12px; color: #888;">High-entropy cryptographically secure string generator with character filter selections.</p>
+      <img src="docs/screenshots/password_generator.png" alt="SafeVault Password Generator" width="100%" />
+    </td>
+  </tr>
+</table>
 
 ---
 
