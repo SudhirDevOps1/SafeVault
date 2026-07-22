@@ -80,3 +80,6 @@ pnpm-debug.log*
 ehthumbs.db
 Thumbs.db
 Desktop.ini
+
+# Custom Development Directives
+rule.txt
