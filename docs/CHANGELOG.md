@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.1] - 2026-07-22
 
 ### Added
+- **Security Health Audit:** Secure local scanning in settings and CLI (`safevault audit`) checking stored passwords against leaked breach lists using the k-Anonymity privacy protocol.
+- **Transient Session Network Consent:** App starts completely offline and blocks all update checks until explicit transient permission is granted via startup banner (consent resets on app reload).
+
+### Changed
+- Bumped version configurations to v1.1.1 across desktop packages, CLI binaries, and specifications.
+
+---
+
+## [1.1.0] - 2026-07-22
+
+### Added
 - **Universal CSV Importer:** Dynamically parses and imports credentials from Bitwarden, ProtonPass, Brave, DuckDuckGo, Chrome, and 40+ other standard formats.
 - **Smart Initials Avatar:** Colored initials fallback avatars for credential logos when website favicons fail to load or are offline.
-- **Optional Update Checker:** Privacy-first optional toggle in Settings to query GitHub Releases API on startup and display a banner alert when newer versions are available.
+- **Developer CLI Companion Tool:** Global console tool (`safevault`) featuring case-insensitive fuzzy matching and specific property flags (`-u`, `-p`, `-t`).
+- **Optional Update Checker:** Privacy-first optional toggle in Settings to query GitHub Releases API on startup.
 - **Unit Tests Expansion:** Introduced comprehensive unit tests specs for `crypto`, `totp`, and `importer` engines using Vitest.
 
 ### Fixed
@@ -98,4 +110,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clipboard auto-clearing
 
 [1.1.1]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.1
+[1.1.0]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.0
 [1.0.0]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.0.0
