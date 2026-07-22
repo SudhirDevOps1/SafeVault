@@ -507,10 +507,110 @@ async function exportBackup(filePath) {
   }
 }
 
+function printHelp() {
+  console.log(`
+\x1b[1m\x1b[32m🔒 SafeVault CLI Tool v1.1.1\x1b[0m - Premium Offline-First Authenticator
+
+\x1b[1m⚙️ Core Commands:\x1b[0m
+  \x1b[36minit\x1b[0m                     Setup and create a new local encrypted database (\x1b[33m~/.safevault.db\x1b[0m)
+  \x1b[36madd\x1b[0m                      Add a new credential entry (Title, Username, Password, URL, Notes, TOTP)
+  \x1b[36mlist\x1b[0m                     Display all stored credential titles and usernames
+  \x1b[36mget <title> [options]\x1b[0m    Retrieve details, copy password, and generate active TOTP tokens
+  \x1b[36maudit\x1b[0m                    Run offline security data breach scans using secure k-Anonymity
+
+\x1b[1m💡 Options for 'get':\x1b[0m
+  \x1b[35m-u, --username\x1b[0m           Directly print only the username to stdout (perfect for scripting/piping)
+  \x1b[35m-p, --password\x1b[0m           Copy the password directly to the system clipboard and wipe in 15 seconds
+  \x1b[35m-t, --totp\x1b[0m               Generate and print the live 6-digit 2FA TOTP token instantly
+
+\x1b[1m📦 Backups:\x1b[0m
+  \x1b[36mimport <file.json>\x1b[0m       Import a backup exported from the SafeVault desktop GUI application
+  \x1b[36mexport <file.json>\x1b[0m       Export the CLI database as a GUI-compatible encrypted JSON backup file
+
+\x1b[1m🔒 Privacy Architecture:\x1b[0m
+  * 100% Client-Side. Master password derived locally using PBKDF2 (600,000 iterations + SHA-512).
+  * Data encrypted locally using AES-256-GCM. 
+  * 'audit' uses k-Anonymity (only the first 5 characters of password SHA-1 hashes are sent to API).
+  `);
+}
+
+async function interactiveMenu() {
+  console.clear();
+  console.log(`
+\x1b[36m  ██████╗  █████╗ ███████╗███████╗██╗   ██╗ █████╗ ██╗   ██╗██╗  ████████╗
+ ██╔════╝ ██╔══██╗██╔════╝██╔════╝██║   ██║██╔══██╗██║   ██║██║  ╚══██╔══╝
+ ╚█████╗  ███████║█████╗  █████╗  ██║   ██║███████║██║   ██║██║     ██║   
+  ╚═══██╗ ██╔══██║██╔══╝  ██╔══╝  ╚██╗ ██╔╝██╔══██║██║   ██║██║     ██║   
+ ██████╔╝ ██║  ██║██║     ███████╗ ╚████╔╝ ██║  ██║╚██████╔╝███████╗██║   
+ ╚══════╝  ╚═╝  ╚═╝╚═╝     ╚══════╝  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝\x1b[0m
+\x1b[1m\x1b[32m       🔒 Premium Offline-First Zero-Knowledge Password Vault\x1b[0m
+`);
+
+  console.log('\x1b[1mSelect an action:\x1b[0m');
+  console.log('  1) List stored credentials');
+  console.log('  2) Search & retrieve a credential');
+  console.log('  3) Add a new credential entry');
+  console.log('  4) Run Security Health Audit (k-Anonymity)');
+  console.log('  5) Initialize a new database vault');
+  console.log('  6) Import database backup');
+  console.log('  7) Export database backup');
+  console.log('  8) Show help manual');
+  console.log('  9) Exit');
+  console.log('');
+
+  const choice = await prompt('Enter option number (1-9): ');
+  console.log('\n');
+
+  switch (choice.trim()) {
+    case '1':
+      await list();
+      break;
+    case '2': {
+      const search = await prompt('Enter search title: ');
+      if (search) {
+        await get(search);
+      } else {
+        console.log('Search cancelled.');
+      }
+      break;
+    }
+    case '3':
+      await add();
+      break;
+    case '4':
+      await audit();
+      break;
+    case '5':
+      await init();
+      break;
+    case '6': {
+      const pathStr = await prompt('Enter JSON backup file path to import: ');
+      if (pathStr) await importBackup(pathStr);
+      break;
+    }
+    case '7': {
+      const pathStr = await prompt('Enter destination JSON backup file path: ');
+      if (pathStr) await exportBackup(pathStr);
+      break;
+    }
+    case '8':
+      printHelp();
+      break;
+    default:
+      console.log('Exiting SafeVault. Goodbye!');
+      break;
+  }
+}
+
 // Command router
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
+
+  if (!command) {
+    await interactiveMenu();
+    return;
+  }
 
   switch (command) {
     case 'init':
@@ -541,41 +641,9 @@ async function main() {
     case 'export':
       await exportBackup(args[1]);
       break;
+    case 'help':
     default:
-      console.log(`
-\x1b[1m\x1b[32m🔒 SafeVault CLI Tool v1.1.1\x1b[0m - Premium Offline-First Authenticator
-
-\x1b[1m⚙️ Core Commands:\x1b[0m
-  \x1b[36minit\x1b[0m                     Setup and create a new local encrypted database (\x1b[33m~/.safevault.db\x1b[0m)
-  \x1b[36madd\x1b[0m                      Add a new credential entry (Title, Username, Password, URL, Notes, TOTP)
-  \x1b[36mlist\x1b[0m                     Display all stored credential titles and usernames
-  \x1b[36mget <title> [options]\x1b[0m    Retrieve details, copy password, and generate active TOTP tokens
-  \x1b[36maudit\x1b[0m                    Run offline security data breach scans using secure k-Anonymity
-
-\x1b[1m💡 Options for 'get':\x1b[0m
-  \x1b[35m-u, --username\x1b[0m           Directly print only the username to stdout (perfect for scripting/piping)
-  \x1b[35m-p, --password\x1b[0m           Copy the password directly to the system clipboard and wipe in 15 seconds
-  \x1b[35m-t, --totp\x1b[0m               Generate and print the live 6-digit 2FA TOTP token instantly
-
-\x1b[1m📦 Backups:\x1b[0m
-  \x1b[36mimport <file.json>\x1b[0m       Import a backup exported from the SafeVault desktop GUI application
-  \x1b[36mexport <file.json>\x1b[0m       Export the CLI database as a GUI-compatible encrypted JSON backup file
-
-\x1b[1m📝 Examples:\x1b[0m
-  \x1b[90m# Initialize your secure database:\x1b[0m
-  $ safevault init
-
-  \x1b[90m# Fetch password & dynamic 2FA code (Fuzzy/case-insensitive):\x1b[0m
-  $ safevault get github
-
-  \x1b[90m# Fetch only the dynamic 6-digit TOTP token:\x1b[0m
-  $ safevault get github -t
-
-\x1b[1m🔒 Privacy Architecture:\x1b[0m
-  * 100% Client-Side. Master password derived locally using PBKDF2 (600,000 iterations + SHA-512).
-  * Data encrypted locally using AES-256-GCM. 
-  * 'audit' uses k-Anonymity (only the first 5 characters of password SHA-1 hashes are sent to API).
-      `);
+      printHelp();
       break;
   }
 }
