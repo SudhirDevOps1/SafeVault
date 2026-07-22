@@ -14,7 +14,7 @@
 [![React](https://img.shields.io/badge/React-19-blue)](https://react.dev/)
 [![Electron](https://img.shields.io/badge/Electron-30+-blue)](https://www.electronjs.org/)
 
-[Features](#-features) • [Security](#-security-architecture) • [Installation](#-installation) • [Usage](#-usage) • [Development](#-development) • [Contributing](#-contributing)
+[Features & Roadmap](docs/features.md) • [Changelog](docs/CHANGELOG.md) • [Security](docs/SECURITY.md) • [Contributing](docs/CONTRIBUTING.md) • [Installation](#-installation--downloads)
 
 </div>
 
@@ -245,7 +245,7 @@ MIT License - See [LICENSE](LICENSE) for details.
 - 📖 [Documentation](https://github.com/SudhirDevOps1/SafeVault/wiki)
 - 🐛 [Report a bug](https://github.com/SudhirDevOps1/SafeVault/issues/new?template=bug_report.md)
 - 💡 [Request a feature](https://github.com/SudhirDevOps1/SafeVault/issues/new?template=feature_request.md)
-- 🔒 [Report security issue](SECURITY.md)
+- 🔒 [Report security issue](docs/SECURITY.md)
 
 ---
 
