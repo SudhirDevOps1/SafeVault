@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Security Health Audit:** Secure local scanning in settings and CLI (`safevault audit`) checking stored passwords against leaked breach lists using the k-Anonymity privacy protocol.
 - **Transient Session Network Consent:** App starts completely offline and blocks all update checks until explicit transient permission is granted via startup banner (consent resets on app reload).
+- **Auto-OS Detecting Download Buttons:** Added dynamic Web UI cards on Sidebar, Setup, and Unlock screens to auto-detect client OS and serve direct desktop app download links (Windows, macOS, Linux).
 
 ### Changed
 - Bumped version configurations to v1.1.1 across desktop packages, CLI binaries, and specifications.
