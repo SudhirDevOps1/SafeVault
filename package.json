@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "electron:build": "electron-builder"
+    "electron:build": "electron-builder",
+    "electron:dev": "electron ."
   },
   "dependencies": {
     "@testing-library/jest-dom": "^6.9.1",
