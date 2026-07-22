@@ -47,7 +47,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
-      devTools: true, // Enable DevTools for debugging
+      devTools: isDev, // Enable DevTools only in development mode
       preload: path.join(__dirname, 'preload.cjs'),
       // Disable remote module
       enableRemoteModule: false,
@@ -60,6 +60,11 @@ function createWindow() {
     autoHideMenuBar: true,
     show: false,
   });
+
+  // Strict Security Hardening: Prevent screen capture, screenshots, and recording of the vault
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    mainWindow.setContentProtection(true);
+  }
 
   // Content Security Policy
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
-  Shield, Key, Star, Wand2, Settings, Lock, Plus, Search, Keyboard
+  Shield, Key, Star, Wand2, Settings, Lock, Plus, Search, Keyboard,
+  Github
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import type { SidebarView } from '@/types';
@@ -102,6 +103,20 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
           </button>
         ))}
       </nav>
+
+      {/* Open Source / GitHub repository link */}
+      <div className="px-3 py-2 border-t border-white/5">
+        <a
+          href="https://github.com/SudhirDevOps1/SafeVault"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-150"
+          aria-label="Open GitHub Repository"
+        >
+          <Github className="w-4 h-4" aria-hidden="true" />
+          <span>GitHub Repository</span>
+        </a>
+      </div>
 
       {/* Shortcuts hint */}
       <div className="px-3 py-1 text-center">
