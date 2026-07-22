@@ -14,7 +14,7 @@
   ],
   "win": {
     "target": ["portable"],
-    "icon": "resources/icon.png"
+    "icon": "resources/icon.ico"
   },
   "mac": {
     "target": ["dmg", "zip"],
