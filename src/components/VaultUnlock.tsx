@@ -206,41 +206,51 @@ export default function VaultUnlock() {
         </p>
 
         {/* Desktop App Download Options (Web Only) */}
-        {!(typeof window !== 'undefined' && 'electron' in window) && (
-          <div className="mt-8 p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Download className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Download Desktop Apps</span>
+        {!(typeof window !== 'undefined' && 'electron' in window) && (() => {
+          const APP_VERSION = '1.1.1';
+          const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
+          let detectedOS = 'Windows';
+          let directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault%20Setup%20${APP_VERSION}.exe`;
+          
+          if (userAgent.includes('mac')) {
+            detectedOS = 'macOS';
+            directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}.dmg`;
+          } else if (userAgent.includes('linux')) {
+            detectedOS = 'Linux';
+            directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}.AppImage`;
+          }
+
+          return (
+            <div className="mt-8 p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Download Desktop App</span>
+              </div>
+              <p className="text-xs text-gray-400 mb-3.5 leading-relaxed">For offline access, global shortcuts, and CLI loop wizard.</p>
+              
+              {/* Direct Download Button */}
+              <a
+                href={directUrl}
+                className="block w-full py-2.5 mb-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold text-center transition-all shadow shadow-emerald-600/20"
+              >
+                Download for {detectedOS}
+              </a>
+
+              {/* Alternative Links */}
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Other platforms:</span>
+                <a
+                  href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-400 hover:underline"
+                >
+                  View all releases
+                </a>
+              </div>
             </div>
-            <p className="text-xs text-gray-400 mb-3 leading-relaxed">For offline access, global shortcuts, and CLI loop wizard.</p>
-            <div className="grid grid-cols-3 gap-2">
-              <a
-                href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2 py-1.5 bg-white/5 hover:bg-emerald-500/20 text-white rounded-lg text-xs font-medium transition-all"
-              >
-                Windows
-              </a>
-              <a
-                href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2 py-1.5 bg-white/5 hover:bg-emerald-500/20 text-white rounded-lg text-xs font-medium transition-all"
-              >
-                macOS
-              </a>
-              <a
-                href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2 py-1.5 bg-white/5 hover:bg-emerald-500/20 text-white rounded-lg text-xs font-medium transition-all"
-              >
-                Linux
-              </a>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
