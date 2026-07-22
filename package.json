@@ -8,7 +8,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "safevault": "./bin/safevault.js"
+    "safevault": "./bin/safevault.cjs"
   },
   "scripts": {
     "dev": "vite",
