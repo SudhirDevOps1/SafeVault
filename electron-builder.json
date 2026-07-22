@@ -34,8 +34,15 @@
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
-    "shortcutName": "SafeVault"
+    "shortcutName": "SafeVault",
+    "include": "resources/installer.nsh"
   },
+  "extraFiles": [
+    {
+      "from": "resources/safevault.cmd",
+      "to": "safevault.cmd"
+    }
+  ],
   "publish": {
     "provider": "github",
     "owner": "SudhirDevOps1",
