@@ -17,10 +17,27 @@ If you have Node.js installed, you can link the CLI tool globally:
    ```
 2. Now, you can use the `safevault` command anywhere in your terminal!
 
-### 2. Desktop Installer Integration (Windows / NSIS)
-When you build the production app using `npm run electron:build`, the installer copies the CLI files into the application directory.
-* During installation, ensure the installation directory is added to your system **PATH** environment variable.
-* A convenience batch runner `safevault.cmd` is provided in the installation root, allowing you to call `safevault` from any Command Prompt or PowerShell window.
+### 2. Desktop Installer Integration (Cross-Platform)
+When you build the production app using `npm run electron:build`, the installer packages the CLI files directly into the application directory.
+
+#### 🪟 Windows (100% Automatic)
+* The NSIS installer automatically registers the installation directory to your user **PATH** environment variable during setup.
+* A wrapper runner `safevault.cmd` is copied into the installation root directory, allowing you to run `safevault` immediately from any Command Prompt or PowerShell window.
+
+#### 🍎 macOS (Symlink Setup)
+Due to macOS Gatekeeper sandboxing security policies, the installer cannot modify shell environment variables directly. To link the CLI globally:
+1. Run the following command in your terminal:
+   ```bash
+   sudo ln -s /Applications/SafeVault.app/Contents/Resources/app/bin/safevault.cjs /usr/local/bin/safevault
+   ```
+2. You can now run `safevault` from any terminal directory.
+
+#### 🐧 Linux (Symlink Setup)
+To expose the CLI utility globally on Linux:
+1. Run this command to symlink the package to `/usr/local/bin`:
+   ```bash
+   sudo ln -s /usr/share/safevault/resources/app/bin/safevault.cjs /usr/local/bin/safevault
+   ```
 
 ---
 
