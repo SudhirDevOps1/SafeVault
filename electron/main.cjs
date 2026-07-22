@@ -110,12 +110,9 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Minimize to tray instead of close
-  mainWindow.on('close', (event) => {
-    if (!app.isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-    }
+  // Close the app when window is closed
+  mainWindow.on('close', () => {
+    app.isQuitting = true;
   });
 
   mainWindow.on('closed', () => {
