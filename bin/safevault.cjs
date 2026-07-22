@@ -535,8 +535,10 @@ function printHelp() {
 }
 
 async function interactiveMenu() {
-  console.clear();
-  console.log(`
+  let running = true;
+  while (running) {
+    console.clear();
+    console.log(`
 \x1b[36m  ██████╗  █████╗ ███████╗███████╗██╗   ██╗ █████╗ ██╗   ██╗██╗  ████████╗
  ██╔════╝ ██╔══██╗██╔════╝██╔════╝██║   ██║██╔══██╗██║   ██║██║  ╚══██╔══╝
  ╚█████╗  ███████║█████╗  █████╗  ██║   ██║███████║██║   ██║██║     ██║   
@@ -546,59 +548,68 @@ async function interactiveMenu() {
 \x1b[1m\x1b[32m       🔒 Premium Offline-First Zero-Knowledge Password Vault\x1b[0m
 `);
 
-  console.log('\x1b[1mSelect an action:\x1b[0m');
-  console.log('  1) List stored credentials');
-  console.log('  2) Search & retrieve a credential');
-  console.log('  3) Add a new credential entry');
-  console.log('  4) Run Security Health Audit (k-Anonymity)');
-  console.log('  5) Initialize a new database vault');
-  console.log('  6) Import database backup');
-  console.log('  7) Export database backup');
-  console.log('  8) Show help manual');
-  console.log('  9) Exit');
-  console.log('');
+    console.log('\x1b[1mSelect an action:\x1b[0m');
+    console.log('  1) List stored credentials');
+    console.log('  2) Search & retrieve a credential');
+    console.log('  3) Add a new credential entry');
+    console.log('  4) Run Security Health Audit (k-Anonymity)');
+    console.log('  5) Initialize a new database vault');
+    console.log('  6) Import database backup');
+    console.log('  7) Export database backup');
+    console.log('  8) Show help manual');
+    console.log('  9) Exit');
+    console.log('');
 
-  const choice = await prompt('Enter option number (1-9): ');
-  console.log('\n');
+    const choice = await prompt('Enter option number (1-9): ');
+    console.log('\n');
 
-  switch (choice.trim()) {
-    case '1':
-      await list();
-      break;
-    case '2': {
-      const search = await prompt('Enter search title: ');
-      if (search) {
-        await get(search);
-      } else {
-        console.log('Search cancelled.');
+    switch (choice.trim()) {
+      case '1':
+        await list();
+        break;
+      case '2': {
+        const search = await prompt('Enter search title: ');
+        if (search) {
+          await get(search);
+        } else {
+          console.log('Search cancelled.');
+        }
+        break;
       }
-      break;
+      case '3':
+        await add();
+        break;
+      case '4':
+        await audit();
+        break;
+      case '5':
+        await init();
+        break;
+      case '6': {
+        const pathStr = await prompt('Enter JSON backup file path to import: ');
+        if (pathStr) await importBackup(pathStr);
+        break;
+      }
+      case '7': {
+        const pathStr = await prompt('Enter destination JSON backup file path: ');
+        if (pathStr) await exportBackup(pathStr);
+        break;
+      }
+      case '8':
+        printHelp();
+        break;
+      case '9':
+        console.log('Exiting SafeVault. Goodbye!');
+        running = false;
+        break;
+      default:
+        console.log('Invalid option. Please enter 1-9.');
+        break;
     }
-    case '3':
-      await add();
-      break;
-    case '4':
-      await audit();
-      break;
-    case '5':
-      await init();
-      break;
-    case '6': {
-      const pathStr = await prompt('Enter JSON backup file path to import: ');
-      if (pathStr) await importBackup(pathStr);
-      break;
+
+    if (running) {
+      await prompt('\nPress Enter to return to menu...');
     }
-    case '7': {
-      const pathStr = await prompt('Enter destination JSON backup file path: ');
-      if (pathStr) await exportBackup(pathStr);
-      break;
-    }
-    case '8':
-      printHelp();
-      break;
-    default:
-      console.log('Exiting SafeVault. Goodbye!');
-      break;
   }
 }
 
