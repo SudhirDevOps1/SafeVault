@@ -47,7 +47,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
-      devTools: isDev, // Disable DevTools in production
+      devTools: true, // Enable DevTools for debugging
       preload: path.join(__dirname, 'preload.cjs'),
       // Disable remote module
       enableRemoteModule: false,
@@ -67,7 +67,7 @@ function createWindow() {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.google.com; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
+          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.google.com; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
         ],
       },
     });
