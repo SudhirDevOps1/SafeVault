@@ -109,6 +109,47 @@ function decrypt(ciphertextBase64, ivBase64, keyBuffer) {
   return decrypted;
 }
 
+// Base32 Decoder for TOTP
+function base32Decode(base32) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const cleaned = base32.replace(/[\s=-]/g, '').toUpperCase();
+  let bits = '';
+  for (const char of cleaned) {
+    const val = alphabet.indexOf(char);
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, '0');
+  }
+  const bytes = Buffer.alloc(Math.floor(bits.length / 8));
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(bits.substring(i * 8, i * 8 + 8), 2);
+  }
+  return bytes;
+}
+
+// Dynamic TOTP generator helper
+function generateTOTP(secret) {
+  if (!secret) return '';
+  try {
+    const key = base32Decode(secret);
+    const counter = Math.floor(Date.now() / 1000 / 30);
+    const counterBuffer = Buffer.alloc(8);
+    counterBuffer.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
+    counterBuffer.writeUInt32BE(counter & 0xffffffff, 4);
+
+    const hmac = crypto.createHmac('sha1', key).update(counterBuffer).digest();
+    const offset = hmac[hmac.length - 1] & 0x0f;
+    const code =
+      ((hmac[offset] & 0x7f) << 24) |
+      ((hmac[offset + 1] & 0xff) << 16) |
+      ((hmac[offset + 2] & 0xff) << 8) |
+      (hmac[offset + 3] & 0xff);
+    const otp = code % 1000000;
+    return otp.toString().padStart(6, '0');
+  } catch {
+    return 'ERROR';
+  }
+}
+
 // Main Commands
 async function init() {
   if (fs.existsSync(VAULT_PATH)) {
@@ -177,6 +218,7 @@ async function add() {
   const credPassword = await prompt('Password: ');
   const url = await prompt('URL: ');
   const notes = await prompt('Notes: ');
+  const totpSecret = await prompt('TOTP Secret (optional): ');
 
   const newCredential = {
     id: crypto.randomBytes(16).toString('hex'),
@@ -185,6 +227,7 @@ async function add() {
     password: credPassword,
     url,
     notes,
+    totpSecret: totpSecret || undefined,
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -236,9 +279,9 @@ async function list() {
   }
 }
 
-async function get(title) {
+async function get(title, flags = {}) {
   if (!title) {
-    console.log('Usage: safevault get <title>');
+    console.log('Usage: safevault get <title> [options]');
     return;
   }
 
@@ -262,18 +305,63 @@ async function get(title) {
     const decrypted = decrypt(vault.encryptedData, vault.iv, key);
     const credentials = JSON.parse(decrypted);
 
-    const match = credentials.find(c => c.title.toLowerCase() === title.toLowerCase());
-    if (!match) {
+    // Case-insensitive fuzzy search matching
+    const matches = credentials.filter(c => c.title.toLowerCase().includes(title.toLowerCase()));
+
+    if (matches.length === 0) {
       console.log(`No credential found matching: ${title}`);
+      process.exit(0);
+    }
+
+    if (matches.length > 1) {
+      console.log(`Multiple credentials found matching "${title}". Please be more specific:`);
+      matches.forEach(m => console.log(`  * ${m.title} (${m.username || 'no username'})`));
+      process.exit(0);
+    }
+
+    const match = matches[0];
+
+    // Specific property outputs via flags
+    if (flags.username) {
+      console.log(match.username || '');
+      process.exit(0);
+    }
+
+    if (flags.totp) {
+      if (!match.totpSecret) {
+        console.log('No TOTP secret configured for this entry.');
+        process.exit(1);
+      }
+      const token = generateTOTP(match.totpSecret);
+      console.log(token);
+      process.exit(0);
+    }
+
+    if (flags.password) {
+      if (copyToClipboard(match.password)) {
+        console.log('Password copied to clipboard securely! Auto-clearing in 15 seconds...');
+        setTimeout(() => {
+          copyToClipboard('');
+          process.exit(0);
+        }, 15000);
+      } else {
+        console.log(match.password);
+        process.exit(0);
+      }
       return;
     }
 
+    // Default detailed printout
     console.log('\nCredential details:');
     console.log('--------------------------------------------------');
     console.log(`Title:    ${match.title}`);
     console.log(`Username: ${match.username}`);
     console.log(`URL:      ${match.url || 'N/A'}`);
     console.log(`Notes:    ${match.notes || 'N/A'}`);
+    if (match.totpSecret) {
+      const code = generateTOTP(match.totpSecret);
+      console.log(`2FA Code: ${code} (Updates every 30s)`);
+    }
     console.log('--------------------------------------------------');
 
     if (copyToClipboard(match.password)) {
@@ -342,7 +430,8 @@ async function exportBackup(filePath) {
 
 // Command router
 async function main() {
-  const [,, command, arg] = process.argv;
+  const args = process.argv.slice(2);
+  const command = args[0];
 
   switch (command) {
     case 'init':
@@ -354,14 +443,21 @@ async function main() {
     case 'list':
       await list();
       break;
-    case 'get':
-      await get(arg);
+    case 'get': {
+      const searchTitle = args[1];
+      const flags = {
+        username: args.includes('--username') || args.includes('-u'),
+        password: args.includes('--password') || args.includes('-p'),
+        totp: args.includes('--totp') || args.includes('-t'),
+      };
+      await get(searchTitle, flags);
       break;
+    }
     case 'import':
-      await importBackup(arg);
+      await importBackup(args[1]);
       break;
     case 'export':
-      await exportBackup(arg);
+      await exportBackup(args[1]);
       break;
     default:
       console.log(`
@@ -371,7 +467,14 @@ Commands:
   init                     Initialize a new vault database
   add                      Add a new credential entry
   list                     List all stored credential titles
-  get <title>              Retrieve credential details and copy password
+  get <title> [options]    Retrieve credential details and copy password
+
+Options for 'get':
+  -u, --username           Directly print only the username
+  -p, --password           Directly copy the password without displaying info
+  -t, --totp               Generate and print only the 2FA TOTP token
+  
+Backups:
   import <file.json>       Import a SafeVault GUI backup file
   export <file.json>       Export a SafeVault GUI-compatible backup file
       `);
