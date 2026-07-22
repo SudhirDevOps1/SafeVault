@@ -14,7 +14,7 @@
 [![React](https://img.shields.io/badge/React-19-blue)](https://react.dev/)
 [![Electron](https://img.shields.io/badge/Electron-30+-blue)](https://www.electronjs.org/)
 
-[Features & Roadmap](docs/features.md) • [Changelog](docs/CHANGELOG.md) • [Security](docs/SECURITY.md) • [Contributing](docs/CONTRIBUTING.md) • [Installation](#-installation--downloads)
+[Features & Roadmap](docs/features.md) • [CLI Guide](docs/cli-guide.md) • [Changelog](docs/CHANGELOG.md) • [Security](docs/SECURITY.md) • [Contributing](docs/CONTRIBUTING.md) • [Installation](#-installation--downloads)
 
 </div>
 

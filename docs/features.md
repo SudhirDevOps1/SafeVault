@@ -124,6 +124,7 @@ gantt
 
 ## 📂 Documentation Navigator
 - [README.md](../README.md) - Main Page
+- [cli-guide.md](cli-guide.md) - CLI Installation & Usage Guide
 - [CHANGELOG.md](CHANGELOG.md) - Release History
 - [CONTRIBUTING.md](CONTRIBUTING.md) - How to contribute
 - [SECURITY.md](SECURITY.md) - Responsible Disclosure
