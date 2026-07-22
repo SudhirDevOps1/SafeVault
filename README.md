@@ -41,16 +41,17 @@
 - **Encrypted backups** (.json) and CSV export (with warning)
 - **Universal CSV Importer** supporting Bitwarden, ProtonPass, Brave, DuckDuckGo, Chrome, and 40+ formats
 - **Smart Initials Avatar Fallback** for offline website logos/favicons
+- **Security Health Audit** local scanner checking passwords against data breaches using k-Anonymity privacy protocols
+- **Developer CLI Companion Tool** featuring fuzzy searches, clipboard wiping, and field extraction flags
 - **Master password change** with full re-encryption
 - **Dark/Light theme** (fully functional & persisted)
 - **Keyboard shortcuts** (Ctrl+Shift+L, Ctrl+N, Ctrl+K, etc.)
 - **Accessibility** (ARIA labels, keyboard navigation, screen reader support)
 
-### 🌐 Privacy
-- **100% offline** — no network calls, ever
-- **No telemetry** — no analytics, no crash reporting, no tracking
-- **Local-only storage** via IndexedDB (Dexie)
-- **Open source** — fully auditable
+### 🌐 Privacy & Network Control
+- **Offline-First:** Runs entirely locally. No telemetry, analytics, or background tracking.
+- **Strict Permission Prompts:** Network access for optional features (checking updates, k-Anonymity security audits) is strictly blocked by default. The application prompts for permission every time it starts (non-persistent transient session consent).
+- **Local Storage:** Vault databases are stored locally via IndexedDB (Dexie).
 
 ---
 

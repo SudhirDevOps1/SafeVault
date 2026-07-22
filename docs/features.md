@@ -44,12 +44,14 @@ flowchart TD
 * **RFC-6238 TOTP Engine:** Full-fledged secondary 2FA authenticator with dynamic countdown UI and Base32 checks.
 * **Memory Auto-Lock:** System inactivity, sleep, and hibernate events automatically trigger vault memory wipes.
 
-### 🛡️ v1.1.0: OS Hardening & CSV Importer
+### 🛡️ v1.1.1: Hardening, Importer, & Security Audits
 * **Universal CSV Importer:** Maps custom headers dynamically from 40+ browsers and password managers (Brave, Bitwarden, ProtonPass, Chrome, Safari, etc.).
 * **Anti-Screen Capture:** Leverages Electron's native window filters (`setContentProtection(true)`) to block screen sharing/screenshots.
 * **Clipboard scrubbing on lock:** Locking the vault instantly wipes the OS clipboard, protecting copied passwords from history-snooping scripts.
 * **Keylogger protections:** Set `spellCheck={false}`, `autoCorrect="off"`, and `autoCapitalize="none"` on password fields to disable OS-level keyboard logs.
-* **Optional Update Checks:** Privacy-first toggle in settings to query GitHub API for releases on startup (disabled by default).
+* **Transient Session Network Consent:** In compliance with strict 2026 privacy models, no network requests start automatically on app launch. The application prompts the user for network permission on startup. Permission is memory-only (transient) and resets on app relaunch.
+* **Security Health Audit:** Local scanner checking passwords against data breaches using k-Anonymity privacy protocols (first 5 characters of SHA-1 hash sent, processing complete client-side).
+* **Optional Update Checks:** Privacy-first toggle in settings to query GitHub API for releases on startup (disabled by default, requires session-level network consent).
 
 ---
 
@@ -88,7 +90,7 @@ gantt
     
     section Completed
     v1.0.0 Core Engine          :done, milestone, 2024-01-01, 2024-06-01
-    v1.1.0 Hardening & Import   :done, milestone, 2026-07-01, 2026-07-22
+    v1.1.1 Hardening & Import   :done, milestone, 2026-07-01, 2026-07-22
     
     section Q3 2026 (Sync)
     E2E Encrypted Custom Sync   :active, des1, 2026-08-01, 30d
