@@ -13,7 +13,7 @@
     "resources/**/*"
   ],
   "win": {
-    "target": ["portable"],
+    "target": ["nsis", "portable"],
     "icon": "resources/icon.ico"
   },
   "mac": {

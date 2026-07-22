@@ -5,6 +5,7 @@ import {
   Database, Save
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
+import { importFromCSV } from '@/utils/importer';
 import { evaluatePasswordStrength } from '@/utils/crypto';
 import { validateMasterPassword } from '@/utils/policy';
 import { logger } from '@/utils/logger';
@@ -62,6 +63,33 @@ export default function Settings() {
     downloadFile(data, `safevault-export-${Date.now()}.csv`, 'text/csv');
     setExportMessage('⚠️ CSV exported (plain text)');
     setTimeout(() => setExportMessage(''), 5000);
+  };
+
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setExportMessage('Importing credentials...');
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const imported = importFromCSV(text);
+        
+        for (const cred of imported) {
+          await useVaultStore.getState().addCredential(cred);
+        }
+        
+        setExportMessage(`✓ Successfully imported ${imported.length} credentials!`);
+        setTimeout(() => setExportMessage(''), 5000);
+      } catch (err) {
+        logger.error('Failed to import CSV', err);
+        setExportMessage('Import failed. Check file format.');
+        setTimeout(() => setExportMessage(''), 5000);
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
   };
 
   const handleManualBackup = async () => {
@@ -335,10 +363,27 @@ export default function Settings() {
               <FileText className="w-4 h-4" aria-hidden="true" />
               Export as CSV (⚠️ Plain Text)
             </button>
+            <div className="relative">
+              <input
+                type="file"
+                id="import-csv-input"
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+              />
+              <button
+                onClick={() => document.getElementById('import-csv-input')?.click()}
+                className="w-full py-2.5 px-4 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-xl transition-colors text-sm flex items-center gap-2"
+                aria-label="Import credentials from CSV"
+              >
+                <Upload className="w-4 h-4" aria-hidden="true" />
+                Import Credentials (CSV)
+              </button>
+            </div>
             <div className="flex gap-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
               <p className="text-xs text-amber-300/80">
-                CSV export contains passwords in plain text. Use only for migration and delete immediately.
+                CSV import supports Bitwarden, ProtonPass, Brave, DuckDuckGo, and 40+ other standard formats.
               </p>
             </div>
             {exportMessage && (
@@ -363,7 +408,7 @@ export default function Settings() {
 
         {/* App Info */}
         <div className="text-center py-4 text-xs text-gray-600 space-y-1" role="contentinfo">
-          <p>SafeVault v1.0.0 — Zero-Knowledge Credential Manager</p>
+          <p>SafeVault v1.1.0 — Zero-Knowledge Credential Manager</p>
           <p>All data encrypted locally · No telemetry · No tracking</p>
           <p className="text-gray-700">AES-GCM 256-bit · PBKDF2 600K iterations · SHA-512</p>
         </div>

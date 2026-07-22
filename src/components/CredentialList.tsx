@@ -47,6 +47,27 @@ export default function CredentialList() {
     }
   };
 
+  const getInitials = (title: string) => {
+    return title.trim().charAt(0).toUpperCase() || '?';
+  };
+
+  const getInitialsBg = (title: string) => {
+    const colors = [
+      'bg-red-500/20 text-red-400',
+      'bg-blue-500/20 text-blue-400',
+      'bg-emerald-500/20 text-emerald-400',
+      'bg-amber-500/20 text-amber-400',
+      'bg-indigo-500/20 text-indigo-400',
+      'bg-purple-500/20 text-purple-400',
+      'bg-pink-500/20 text-pink-400',
+    ];
+    let sum = 0;
+    for (let i = 0; i < title.length; i++) {
+      sum += title.charCodeAt(i);
+    }
+    return colors[sum % colors.length];
+  };
+
   if (filteredCredentials.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20 px-4 text-center">
@@ -86,11 +107,17 @@ export default function CredentialList() {
             }`}
           >
             {/* Icon */}
-            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0 overflow-hidden">
-              {favicon ? (
-                <img src={favicon} alt="" className="w-5 h-5" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              ) : (
-                <Globe className="w-5 h-5 text-gray-500" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden font-semibold text-sm relative ${getInitialsBg(cred.title)}`}>
+              <span className="absolute inset-0 flex items-center justify-center">{getInitials(cred.title)}</span>
+              {favicon && (
+                <img 
+                  src={favicon} 
+                  alt="" 
+                  className="w-full h-full object-cover relative z-10 bg-gray-900" 
+                  onError={(e) => { 
+                    (e.target as HTMLImageElement).remove(); 
+                  }} 
+                />
               )}
             </div>
 

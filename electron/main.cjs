@@ -41,7 +41,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: 'SafeVault',
-    icon: path.join(__dirname, 'resources/icon.png'),
+    icon: path.join(__dirname, '../resources/icon.png'),
     backgroundColor: '#0a0a0a',
     webPreferences: {
       nodeIntegration: false,

@@ -91,6 +91,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   lastBackup: null,
 
   initializeVault: async () => {
+    const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
+    document.documentElement.classList.toggle('dark', theme === 'dark');
     try {
       const vaultRecord = await db.vault.get('main');
       if (vaultRecord) {
