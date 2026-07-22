@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.1.2] - 2026-07-22
+
+### Added
+- **Split-Screen Web Showcase Landing:** Created a high-fidelity features showcase panel (Zero-Knowledge, Offline-First, PBKDF2/AES-GCM details) on the left side of Setup & Unlock pages for browser users.
+- **Above-the-Fold OS-Detecting Download:** Displayed the auto-detected OS desktop download button prominent and centered directly in the showcase panel, eliminating the need to scroll.
+
+### Changed
+- Bumped project package versions, CLI binaries, settings screens, and store variables to v1.1.2.
+- Disabled/bypassed the showcase panel inside Electron desktop client to preserve standard centered screen layouts.
+
+---
+
 ## [1.1.1] - 2026-07-22
 
 ### Added
@@ -110,6 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Encrypted key derivation with 600K PBKDF2 iterations
 - Clipboard auto-clearing
 
+[1.1.2]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.2
 [1.1.1]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.1
 [1.1.0]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.0
 [1.0.0]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.0.0

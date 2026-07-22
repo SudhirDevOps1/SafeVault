@@ -105,7 +105,7 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
 
       {/* Desktop App Download Options (Web Only) */}
       {!(typeof window !== 'undefined' && 'electron' in window) && (() => {
-        const APP_VERSION = '1.1.1';
+        const APP_VERSION = '1.1.2';
         const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
         let detectedOS = 'Windows';
         let directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault%20Setup%20${APP_VERSION}.exe`;

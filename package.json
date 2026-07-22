@@ -1,7 +1,7 @@
 {
   "name": "safevault-desktop",
   "productName": "SafeVault",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "SafeVault - Zero-Knowledge, Offline-First Credential Manager",
   "author": "Sudhir Singh",
   "main": "electron/main.cjs",
