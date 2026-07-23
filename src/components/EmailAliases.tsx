@@ -162,6 +162,19 @@ export default function EmailAliases() {
     setGeneratedPassword(pass);
   };
 
+  const handleCopyFullProfile = () => {
+    let text = `Email Alias: ${generatedAlias}\n`;
+    text += `Password: ${generatedPassword}\n`;
+    if (generateProfile && profileData) {
+      text += `Username: ${generatedUsername}\n`;
+      text += `First Name: ${profileData.firstName}\n`;
+      text += `Last Name: ${profileData.lastName}\n`;
+      text += `Gender: ${profileData.gender}\n`;
+      text += `Birthdate: ${profileData.birthdate}`;
+    }
+    copyToClipboard(text, 'full-profile');
+  };
+
   // Re-generate password when length changes or handle becomes active
   useEffect(() => {
     if (parsedHandle) {
@@ -525,14 +538,26 @@ export default function EmailAliases() {
                   </div>
                 </div>
 
-                {/* Save to Vault Action */}
-                <button
-                  onClick={handleSaveToVault}
-                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center justify-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Save as Card in Vault
-                </button>
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCopyFullProfile}
+                    className="flex-1 py-3 bg-white/5 border border-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    {copiedField === 'full-profile' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    Copy All Profile Details
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveToVault}
+                    className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save as Card in Vault
+                  </button>
+                </div>
               </div>
             )}
           </div>
