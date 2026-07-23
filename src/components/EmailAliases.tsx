@@ -176,14 +176,22 @@ export default function EmailAliases() {
     copyToClipboard(text, 'full-profile');
   };
 
-  // Re-generate password when length changes or handle becomes active
+  // Re-generate password and profile when a new domain name is parsed
   useEffect(() => {
     if (parsedHandle) {
       handleGeneratePassword();
+      handleGenerateFakeProfile();
     } else {
       setGeneratedPassword('');
     }
-  }, [parsedHandle, passwordLength]);
+  }, [parsedHandle]);
+
+  // Re-generate only password when length changes
+  useEffect(() => {
+    if (parsedHandle) {
+      handleGeneratePassword();
+    }
+  }, [passwordLength]);
 
   const handleAddBase = (e: React.FormEvent) => {
     e.preventDefault();
@@ -457,21 +465,64 @@ export default function EmailAliases() {
 
                 {profileData && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
-                    <div className="p-2.5 bg-black/40 border border-white/5 rounded-xl">
-                      <span className="text-[10px] text-gray-500 block">First Name</span>
-                      <span className="text-white font-semibold">{profileData.firstName}</span>
+                    <div className="p-2.5 bg-black/40 border border-white/5 rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-gray-500 block">First Name</span>
+                        <span className="text-white font-semibold">{profileData.firstName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(profileData.firstName, 'fname')}
+                        className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors shrink-0"
+                        title="Copy First Name"
+                      >
+                        {copiedField === 'fname' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      </button>
                     </div>
-                    <div className="p-2.5 bg-black/40 border border-white/5 rounded-xl">
-                      <span className="text-[10px] text-gray-500 block">Last Name</span>
-                      <span className="text-white font-semibold">{profileData.lastName}</span>
+
+                    <div className="p-2.5 bg-black/40 border border-white/5 rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-gray-500 block">Last Name</span>
+                        <span className="text-white font-semibold">{profileData.lastName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(profileData.lastName, 'lname')}
+                        className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors shrink-0"
+                        title="Copy Last Name"
+                      >
+                        {copiedField === 'lname' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      </button>
                     </div>
-                    <div className="p-2.5 bg-black/40 border border-white/5 rounded-xl">
-                      <span className="text-[10px] text-gray-500 block">Gender</span>
-                      <span className="text-white font-semibold">{profileData.gender}</span>
+
+                    <div className="p-2.5 bg-black/40 border border-white/5 rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-gray-500 block">Gender</span>
+                        <span className="text-white font-semibold">{profileData.gender}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(profileData.gender, 'gender')}
+                        className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors shrink-0"
+                        title="Copy Gender"
+                      >
+                        {copiedField === 'gender' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      </button>
                     </div>
-                    <div className="p-2.5 bg-black/40 border border-white/5 rounded-xl">
-                      <span className="text-[10px] text-gray-500 block">Birthdate</span>
-                      <span className="text-white font-semibold">{profileData.birthdate}</span>
+
+                    <div className="p-2.5 bg-black/40 border border-white/5 rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-gray-500 block">Birthdate</span>
+                        <span className="text-white font-semibold">{profileData.birthdate}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(profileData.birthdate, 'bdate')}
+                        className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors shrink-0"
+                        title="Copy Birthdate"
+                      >
+                        {copiedField === 'bdate' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      </button>
                     </div>
                   </div>
                 )}
