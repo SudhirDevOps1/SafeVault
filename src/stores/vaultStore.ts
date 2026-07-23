@@ -382,7 +382,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       if (!response.ok) return;
       const data = await response.json();
       const latestVersion = data.tag_name;
-      const currentVersion = 'v1.1.4'; // Bumped version to 1.1.4
+      const currentVersion = 'v1.1.5'; // Bumped version to 1.1.5
       
       const cleanLatest = latestVersion.replace(/^v/, '');
       const cleanCurrent = currentVersion.replace(/^v/, '');

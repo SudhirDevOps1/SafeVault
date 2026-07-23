@@ -505,7 +505,7 @@ async function exportBackup(filePath) {
 
 function printHelp() {
   console.log(`
-\x1b[1m\x1b[32m🔒 SafeVault CLI Tool v1.1.4\x1b[0m - Premium Offline-First Authenticator
+\x1b[1m\x1b[32m🔒 SafeVault CLI Tool v1.1.5\x1b[0m - Premium Offline-First Authenticator
 
 \x1b[1m⚙️ Core Commands:\x1b[0m
   \x1b[36minit\x1b[0m                     Setup and create a new local encrypted database (\x1b[33m~/.safevault.db\x1b[0m)
