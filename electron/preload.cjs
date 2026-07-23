@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('safevault', {
   // Dialog
   showSaveDialog: (options) => ipcRenderer.invoke('safevault:show-save-dialog', options),
   showOpenDialog: (options) => ipcRenderer.invoke('safevault:show-open-dialog', options),
+  selectDirectory: () => ipcRenderer.invoke('safevault:select-directory'),
+  writeBackupFile: (folderPath, filename, content) => ipcRenderer.invoke('safevault:write-backup-file', folderPath, filename, content),
 
   // Clipboard
   clearClipboard: () => ipcRenderer.invoke('safevault:clear-clipboard'),

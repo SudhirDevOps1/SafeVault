@@ -44,6 +44,9 @@ interface VaultStore {
   loading: boolean;
   theme: Theme;
   autoBackupEnabled: boolean;
+  autoBackupInterval: 'change' | '1' | '2' | '7' | 'manual';
+  backupDirectory: string;
+  backupFormat: 'encrypted' | 'decrypted';
   lastBackup: number | null;
   checkForUpdates: boolean;
   updateAvailable: string | null;
@@ -70,6 +73,9 @@ interface VaultStore {
   resetActivity: () => void;
   setTheme: (theme: Theme) => void;
   setAutoBackupEnabled: (enabled: boolean) => Promise<void>;
+  setAutoBackupInterval: (interval: 'change' | '1' | '2' | '7' | 'manual') => void;
+  setBackupDirectory: (path: string) => void;
+  setBackupFormat: (format: 'encrypted' | 'decrypted') => void;
   setCheckForUpdates: (enabled: boolean) => Promise<void>;
   checkLatestRelease: () => Promise<void>;
   approveNetworkThisSession: () => void;
@@ -99,7 +105,10 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   loading: false,
   theme: (localStorage.getItem(THEME_KEY) as Theme) || 'dark',
   autoBackupEnabled: localStorage.getItem('safevault_auto_backup') === 'true',
-  lastBackup: null,
+  autoBackupInterval: (localStorage.getItem('safevault_auto_backup_interval') as any) || 'change',
+  backupDirectory: localStorage.getItem('safevault_backup_directory') || '',
+  backupFormat: (localStorage.getItem('safevault_backup_format') as any) || 'encrypted',
+  lastBackup: localStorage.getItem('safevault_last_backup') ? Number(localStorage.getItem('safevault_last_backup')) : null,
   checkForUpdates: localStorage.getItem('safevault_check_updates') === 'true',
   updateAvailable: null,
   networkApprovedThisSession: false,
@@ -369,6 +378,21 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     }
   },
 
+  setAutoBackupInterval: (interval) => {
+    set({ autoBackupInterval: interval });
+    localStorage.setItem('safevault_auto_backup_interval', interval);
+  },
+
+  setBackupDirectory: (path) => {
+    set({ backupDirectory: path });
+    localStorage.setItem('safevault_backup_directory', path);
+  },
+
+  setBackupFormat: (format) => {
+    set({ backupFormat: format });
+    localStorage.setItem('safevault_backup_format', format);
+  },
+
   setCheckForUpdates: async (enabled) => {
     set({ checkForUpdates: enabled });
     localStorage.setItem('safevault_check_updates', String(enabled));
@@ -421,13 +445,42 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   },
 
   performAutoBackup: async () => {
-    const { autoBackupEnabled, encryptionKey } = get();
+    const { autoBackupEnabled, autoBackupInterval, backupDirectory, backupFormat, encryptionKey, lastBackup } = get();
     if (!autoBackupEnabled || !encryptionKey) return;
+
+    // Check interval condition (if not 'change' or 'manual')
+    if (autoBackupInterval !== 'change' && autoBackupInterval !== 'manual' && lastBackup) {
+      const days = Number(autoBackupInterval);
+      if (!isNaN(days)) {
+        const msDiff = Date.now() - lastBackup;
+        const msThreshold = days * 24 * 60 * 60 * 1000;
+        if (msDiff < msThreshold) {
+          // Time threshold not reached, skip automatic execution
+          return;
+        }
+      }
+    }
+
     try {
-      const backup = await get().exportEncryptedBackup();
-      localStorage.setItem(AUTO_BACKUP_KEY, backup);
+      const backupData = backupFormat === 'decrypted' ? get().exportCSV() : await get().exportEncryptedBackup();
+      const ext = backupFormat === 'decrypted' ? 'csv' : 'json';
+      const filename = `safevault-autobackup-${Date.now()}.${ext}`;
+
+      // Save to local cache
+      localStorage.setItem(AUTO_BACKUP_KEY, backupData);
       localStorage.setItem('safevault_last_backup', String(Date.now()));
       set({ lastBackup: Date.now() });
+
+      // Save to custom directory on Desktop (Electron)
+      const isElectron = typeof window !== 'undefined' && 'safevault' in window && (window as any).safevault?.isElectron;
+      if (isElectron && backupDirectory) {
+        const result = await (window as any).safevault.writeBackupFile(backupDirectory, filename, backupData);
+        if (result?.success) {
+          logger.info(`Silent backup saved to ${result.path}`);
+        } else {
+          logger.error(`Silent backup failed: ${result?.error}`);
+        }
+      }
     } catch (err) {
       logger.error('Auto-backup failed', err);
     }

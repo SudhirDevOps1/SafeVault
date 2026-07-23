@@ -192,6 +192,12 @@ ipcMain.handle('safevault:show-open-dialog', async (event, options) => {
   return dialog.showOpenDialog(mainWindow, safeOptions);
 });
 
+ipcMain.handle('safevault:select-directory', async (event) => {
+  return dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+  });
+});
+
 // Prevent GPU process from being compromised
 app.commandLine.appendSwitch('disable-gpu-sandbox');
 
@@ -228,6 +234,22 @@ ipcMain.handle('safevault:clear-clipboard', () => {
   const { clipboard } = require('electron');
   clipboard.writeText('');
   return true;
+});
+
+// Secure background file writer for backups
+ipcMain.handle('safevault:write-backup-file', async (event, folderPath, filename, content) => {
+  const fs = require('fs');
+  const path = require('path');
+  try {
+    if (!fs.existsSync(folderPath)) {
+      return { success: false, error: 'Directory does not exist' };
+    }
+    const fullPath = path.join(folderPath, filename);
+    fs.writeFileSync(fullPath, content, 'utf8');
+    return { success: true, path: fullPath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 // Wi-Fi Sync Server Handlers

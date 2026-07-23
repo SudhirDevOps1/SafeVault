@@ -17,6 +17,9 @@ export default function Settings() {
     exportEncryptedBackup, exportCSV, setShowPrivacyPolicy,
     loading, error, setError, credentials, theme, setTheme,
     autoBackupEnabled, setAutoBackupEnabled, lastBackup, performAutoBackup,
+    autoBackupInterval, setAutoBackupInterval,
+    backupDirectory, setBackupDirectory,
+    backupFormat, setBackupFormat,
     checkForUpdates, setCheckForUpdates,
   } = useVaultStore();
 
@@ -169,6 +172,19 @@ export default function Settings() {
     setBackupInProgress(false);
   };
 
+  const selectBackupFolder = async () => {
+    const isElectron = typeof window !== 'undefined' && 'safevault' in window && (window as any).safevault?.isElectron;
+    if (!isElectron) return;
+    try {
+      const res = await (window as any).safevault.selectDirectory();
+      if (res && !res.canceled && res.filePaths && res.filePaths.length > 0) {
+        setBackupDirectory(res.filePaths[0]);
+      }
+    } catch (err) {
+      logger.error('Failed to select backup directory', err);
+    }
+  };
+
   const downloadFile = (content: string, filename: string, mimeType: string) => {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
@@ -272,39 +288,130 @@ export default function Settings() {
         </div>
 
         {/* Auto-Backup */}
-        <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-            <Database className="w-4 h-4" aria-hidden="true" /> Auto-Backup
-          </h3>
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoBackupEnabled}
-              onChange={(e) => setAutoBackupEnabled(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded accent-emerald-500"
-              aria-label="Enable automatic encrypted backups to local storage"
-            />
-            <div className="flex-1">
-              <div className="text-sm text-white">Enable auto-backup to local storage</div>
-              <div className="text-xs text-gray-500 mt-1">
-                Creates an encrypted snapshot in localStorage after each change. Never leaves your device.
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+              <Database className="w-4 h-4" aria-hidden="true" /> Auto-Backup Settings
+            </h3>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoBackupEnabled}
+                onChange={(e) => setAutoBackupEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white"></div>
+            </label>
+          </div>
+
+          <p className="text-xs text-gray-500">
+            Automatically create local snapshots of your encrypted credentials. Keep backups safe on your own local filesystems.
+          </p>
+
+          {autoBackupEnabled && (
+            <div className="pt-3 border-t border-white/5 space-y-4 animate-fade-in text-xs">
+              {/* Backup Format */}
+              <div className="space-y-1.5">
+                <span className="block text-gray-400 font-medium">Backup File Format</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBackupFormat('encrypted')}
+                    className={`flex-1 py-2 px-3 rounded-lg border text-center transition-all ${
+                      backupFormat === 'encrypted'
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-semibold'
+                        : 'bg-white/5 text-gray-400 border-white/5 hover:border-white/10'
+                    }`}
+                  >
+                    Encrypted (JSON)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBackupFormat('decrypted')}
+                    className={`flex-1 py-2 px-3 rounded-lg border text-center transition-all ${
+                      backupFormat === 'decrypted'
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 font-semibold'
+                        : 'bg-white/5 text-gray-400 border-white/5 hover:border-white/10'
+                    }`}
+                  >
+                    Plaintext (CSV)
+                  </button>
+                </div>
+                {backupFormat === 'decrypted' && (
+                  <p className="text-[10px] text-amber-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    Warning: Decrypted plaintext backups contain plain passwords. Keep them strictly safe.
+                  </p>
+                )}
               </div>
-              {lastBackup && (
-                <div className="text-xs text-emerald-400 mt-2">
-                  Last backup: {new Date(lastBackup).toLocaleString()}
+
+              {/* Backup Interval */}
+              <div className="space-y-1.5">
+                <label htmlFor="backup-interval" className="block text-gray-400 font-medium">Auto-Backup Frequency</label>
+                <select
+                  id="backup-interval"
+                  value={autoBackupInterval}
+                  onChange={(e) => setAutoBackupInterval(e.target.value as any)}
+                  className="w-full bg-[#161616] border border-white/10 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 text-xs"
+                >
+                  <option value="change">Every single change</option>
+                  <option value="1">Every 1 day</option>
+                  <option value="2">Every 2 days (Proton style)</option>
+                  <option value="7">Every 7 days</option>
+                  <option value="manual">Manual only</option>
+                </select>
+              </div>
+
+              {/* Folder Selector - Electron Only */}
+              {typeof window !== 'undefined' && 'safevault' in window && (window as any).safevault?.isElectron && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="block text-gray-400 font-medium">Backup Folder Destination</span>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 bg-[#161616] border border-white/10 rounded-lg py-2 px-3 text-gray-400 truncate max-w-[280px]">
+                      {backupDirectory || 'LocalStorage Cache (Default)'}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={selectBackupFolder}
+                      className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors font-medium shrink-0"
+                    >
+                      Browse
+                    </button>
+                    {backupDirectory && (
+                      <button
+                        type="button"
+                        onClick={() => setBackupDirectory('')}
+                        className="py-2 px-3 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-colors shrink-0"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-500">
+                    Backups will be written silently to this directory on scheduled triggers.
+                  </p>
                 </div>
               )}
+
+              {/* Timestamp & Trigger */}
+              <div className="flex items-center justify-between pt-2">
+                <div>
+                  {lastBackup && (
+                    <span className="text-[10px] text-emerald-400">
+                      Last backup: {new Date(lastBackup).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={handleManualBackup}
+                  disabled={backupInProgress}
+                  className="py-1.5 px-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg transition-colors text-[11px] flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" aria-hidden="true" />
+                  {backupInProgress ? 'Saving...' : 'Backup Now'}
+                </button>
+              </div>
             </div>
-          </label>
-          {autoBackupEnabled && (
-            <button
-              onClick={handleManualBackup}
-              disabled={backupInProgress}
-              className="mt-3 py-2 px-4 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" aria-hidden="true" />
-              {backupInProgress ? 'Saving...' : 'Backup Now'}
-            </button>
           )}
         </div>
 
