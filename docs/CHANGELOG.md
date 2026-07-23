@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Email & Identity Alias Generator (AliasVault Style):** Dynamic generation tool with base email registry, automated URL subdomain extraction, Plus/Dot suffix selectors, and custom domain catch-all configs.
+- **Auto-Regenerate on Domain Change:** Tied target website URL handle updates to trigger automatic regeneration of fake profile details and password sequences, ensuring each domain starts with distinct fake details.
+- **Individual Copy Controls:** Integrated dedicated 1-click clipboard copy buttons next to First Name, Last Name, Gender, and Birthdate in the fake identity generator panel.
+- **DuckDuckGo Icons API Integration:** Replaced the legacy Google s2 favicon service with the anonymous DuckDuckGo Icons API, loading real, high-quality website logos while maintaining offline privacy boundaries.
+- **Universal Form Autofill Support:** Wrapped Setup, Unlock, and CredentialForm modals in standard HTML `<form>` tags with submit triggers and correct semantic `autoComplete` attributes (`current-password`, `new-password`, `username`) to support OS-level and third-party password manager autofill systems (e.g. Bitwarden, Proton Pass).
 - **Fake Profile Identity Generator:** Auto-generates anonymous profile templates (First/Last Names, Birthdate, Gender, and Usernames) with custom length password sliders.
 - **Active Aliases Tracker Card:** Live table view on the Email Aliases panel to display, search, and 1-click copy active stored aliases directly.
 - **Real App Launcher Icons:** Auto-generated 74 native adaptive icons, round-icons, and splash-screens from high-res logo source for Android targets.
