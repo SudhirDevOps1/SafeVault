@@ -7,6 +7,7 @@ import CredentialForm from './CredentialForm';
 import PasswordGenerator from './PasswordGenerator';
 import Settings from './Settings';
 import PrivacyPolicy from './PrivacyPolicy';
+import EmailAliases from './EmailAliases';
 import { useAutoLock } from '@/hooks/useAutoLock';
 import { useSystemSleepLock } from '@/hooks/useSystemSleepLock';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -110,6 +111,16 @@ export default function Dashboard() {
       return (
         <div className="h-full overflow-y-auto" role="main" aria-label="Settings">
           <Settings />
+        </div>
+      );
+    }
+
+    if (sidebarView === 'aliases') {
+      return (
+        <div className="h-full overflow-y-auto p-6" role="main" aria-label="Email Aliases">
+          <div className="max-w-2xl mx-auto">
+            <EmailAliases />
+          </div>
         </div>
       );
     }

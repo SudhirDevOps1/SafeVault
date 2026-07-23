@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import {
-  Shield, Key, Star, Wand2, Settings, Lock, Plus, Search, Keyboard, Download
+  Shield, Key, Star, Wand2, Settings, Lock, Plus, Search, Keyboard, Download, Mail
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import type { SidebarView } from '@/types';
@@ -29,6 +29,7 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
   const navItems: { view: SidebarView; icon: React.ReactNode; label: string; count?: number; ariaLabel: string }[] = [
     { view: 'all', icon: <Key className="w-4 h-4" aria-hidden="true" />, label: 'All Items', count: credentials.length, ariaLabel: 'Show all credentials' },
     { view: 'favorites', icon: <Star className="w-4 h-4" aria-hidden="true" />, label: 'Favorites', count: credentials.filter(c => c.favorite).length, ariaLabel: 'Show favorite credentials' },
+    { view: 'aliases', icon: <Mail className="w-4 h-4" aria-hidden="true" />, label: 'Email Aliases', ariaLabel: 'Open email alias generator' },
     { view: 'generator', icon: <Wand2 className="w-4 h-4" aria-hidden="true" />, label: 'Generator', ariaLabel: 'Open password generator' },
     { view: 'settings', icon: <Settings className="w-4 h-4" aria-hidden="true" />, label: 'Settings', ariaLabel: 'Open settings' },
   ];

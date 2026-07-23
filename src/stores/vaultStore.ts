@@ -48,6 +48,7 @@ interface VaultStore {
   checkForUpdates: boolean;
   updateAvailable: string | null;
   networkApprovedThisSession: boolean;
+  baseEmails: string[];
 
   // Actions
   initializeVault: () => Promise<void>;
@@ -72,6 +73,9 @@ interface VaultStore {
   setCheckForUpdates: (enabled: boolean) => Promise<void>;
   checkLatestRelease: () => Promise<void>;
   approveNetworkThisSession: () => void;
+  
+  addBaseEmail: (email: string) => void;
+  removeBaseEmail: (email: string) => void;
   
   saveVault: () => Promise<void>;
   exportEncryptedBackup: () => Promise<string>;
@@ -99,6 +103,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   checkForUpdates: localStorage.getItem('safevault_check_updates') === 'true',
   updateAvailable: null,
   networkApprovedThisSession: false,
+  baseEmails: JSON.parse(localStorage.getItem('safevault_base_emails') || '["Sudhir@gmail.com"]'),
 
   initializeVault: async () => {
     const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
@@ -401,6 +406,18 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   approveNetworkThisSession: () => {
     set({ networkApprovedThisSession: true });
     get().checkLatestRelease();
+  },
+
+  addBaseEmail: (email) => {
+    const updated = [...new Set([...get().baseEmails, email.trim()])];
+    localStorage.setItem('safevault_base_emails', JSON.stringify(updated));
+    set({ baseEmails: updated });
+  },
+
+  removeBaseEmail: (email) => {
+    const updated = get().baseEmails.filter(e => e !== email);
+    localStorage.setItem('safevault_base_emails', JSON.stringify(updated));
+    set({ baseEmails: updated });
   },
 
   performAutoBackup: async () => {

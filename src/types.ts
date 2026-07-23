@@ -42,4 +42,4 @@ export interface PasswordGeneratorOptions {
 }
 
 export type VaultState = 'loading' | 'setup' | 'locked' | 'unlocked';
-export type SidebarView = 'all' | 'favorites' | 'trash' | 'generator' | 'settings';
+export type SidebarView = 'all' | 'favorites' | 'trash' | 'generator' | 'settings' | 'aliases';
