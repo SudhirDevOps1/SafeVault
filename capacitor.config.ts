@@ -5,7 +5,11 @@ const config: CapacitorConfig = {
   appName: 'SafeVault',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'http',
+    cleartext: true
+  },
+  android: {
+    allowMixedContent: true
   }
 };
 
