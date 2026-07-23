@@ -118,7 +118,7 @@ gantt
   * **Sub-addressing Generator:** Instantly choose between Plus subaddressing (`Sudhir+uniapp@gmail.com`) or Dot subaddressing (`Sudhir.uniapp@gmail.com`) based on provider support.
   * **Direct Vault Integration:** Generates the alias, spawns a strong random password, and saves the new credential card into the vault with a single click.
 * **Web Extension Packaging:** Porting SafeVault frontend as an extension for Chrome, Firefox, Edge, and Safari.
-* **FIDO2 / WebAuthn Passkeys:** Storing and unlocking credentials using hardware security tokens (e.g., YubiKeys) or system passkeys.
+* **FIDO2 / WebAuthn Passkeys:** Enable app unlocking and credentials storage using biometric hardware (Windows Hello, macOS TouchID, FaceID) via WebAuthn PRF (Pseudo-Random Function) keys derivation (completely offline-first, no cloud servers required).
 * **Contextual Autofill:** Inline dropdown prompts on username/password login forms.
 
 ### 📱 3. v1.3.0: Mobile Biometrics & Advanced Auditing (Q1 2027)
