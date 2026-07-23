@@ -108,10 +108,15 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
       {!(typeof window !== 'undefined' && 'electron' in window) && (() => {
         const APP_VERSION = '1.1.5';
         const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
+        const isMobile = /android|iphone|ipad|ipod/i.test(userAgent);
+        
         let detectedOS = 'Windows';
         let directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault.Setup.${APP_VERSION}.exe`;
         
-        if (userAgent.includes('mac')) {
+        if (isMobile) {
+          detectedOS = 'Android';
+          directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-v${APP_VERSION}.apk`;
+        } else if (userAgent.includes('mac')) {
           detectedOS = 'macOS';
           directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}-arm64.dmg`;
         } else if (userAgent.includes('linux')) {
@@ -123,21 +128,25 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
           <div className="mx-3 my-2 p-3 bg-white/5 border border-white/5 rounded-xl">
             <div className="flex items-center gap-2 mb-1.5">
               <Download className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Download Desktop</span>
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                {isMobile ? 'Download Mobile App' : 'Download Desktop'}
+              </span>
             </div>
-            <p className="text-[11px] text-gray-500 mb-2.5 leading-relaxed">Run securely offline on your device</p>
+            <p className="text-[11px] text-gray-500 mb-2.5 leading-relaxed">
+              {isMobile ? 'Install SafeVault directly on Android' : 'Run securely offline on your device'}
+            </p>
             
             {/* Direct Download Button */}
             <a
               href={directUrl}
               className="block w-full py-2 mb-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold text-center transition-all shadow shadow-emerald-600/20"
             >
-              Download for {detectedOS}
+              {isMobile ? 'Download Android APK' : `Download for ${detectedOS}`}
             </a>
 
             {/* Alternative Links */}
             <div className="flex items-center justify-between gap-1 text-[10px] text-gray-500">
-              <span>Other platforms:</span>
+              <span>{isMobile ? 'Alternative Downloads:' : 'Other platforms:'}</span>
               <a
                 href="https://github.com/SudhirDevOps1/SafeVault/releases/latest"
                 target="_blank"

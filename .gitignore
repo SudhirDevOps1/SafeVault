@@ -84,3 +84,15 @@ Desktop.ini
 # Custom Development Directives
 rule.txt
 appdev.md
+
+# Android Platform Builds & Local Configurations
+.gradle/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/public/
+*.apk
+*.aar
+*.ap_
+
