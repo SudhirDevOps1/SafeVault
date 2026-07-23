@@ -47,7 +47,7 @@ export default function VaultSetup() {
         <p className="text-gray-400">Create your secure, encrypted vault</p>
       </div>
 
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl" role="form" aria-label="Vault setup form">
+      <form onSubmit={(e) => { e.preventDefault(); handleCreate(); }} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl" role="form" aria-label="Vault setup form">
         <div className="space-y-5">
           <div>
             <label htmlFor="master-password" className="block text-sm font-medium text-gray-300 mb-2">
@@ -65,7 +65,6 @@ export default function VaultSetup() {
                 aria-describedby="password-strength"
                 autoComplete="new-password"
                 className="w-full pl-11 pr-11 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
-                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               />
               <button
                 type="button"
@@ -149,7 +148,6 @@ export default function VaultSetup() {
                 aria-label="Confirm password"
                 autoComplete="new-password"
                 className="w-full pl-11 pr-11 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
-                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               />
               <button
                 type="button"
@@ -179,7 +177,7 @@ export default function VaultSetup() {
           )}
 
           <button
-            onClick={handleCreate}
+            type="submit"
             disabled={!canCreate || loading}
             className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
             aria-label="Create secure vault"
@@ -197,7 +195,7 @@ export default function VaultSetup() {
             )}
           </button>
         </div>
-      </div>
+      </form>
 
       <p className="text-center text-xs text-gray-600 mt-6">
         All data is encrypted locally. Nothing leaves your device.

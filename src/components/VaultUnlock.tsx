@@ -59,7 +59,7 @@ export default function VaultUnlock() {
       </div>
 
       {!showImport ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl" role="form" aria-label="Vault unlock form">
+        <form onSubmit={(e) => { e.preventDefault(); handleUnlock(); }} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl" role="form" aria-label="Vault unlock form">
           <div className="space-y-5">
             <div>
               <label htmlFor="unlock-password" className="block text-sm font-medium text-gray-300 mb-2">
@@ -80,7 +80,6 @@ export default function VaultUnlock() {
                   spellCheck={false}
                   autoFocus
                   className="w-full pl-11 pr-11 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
-                  onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
                 />
                 <button
                   type="button"
@@ -111,7 +110,7 @@ export default function VaultUnlock() {
             )}
 
             <button
-              onClick={handleUnlock}
+              type="submit"
               disabled={!password.trim() || loading}
               className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
               aria-label="Unlock vault"
@@ -131,6 +130,7 @@ export default function VaultUnlock() {
 
             <div className="pt-2 border-t border-white/5">
               <button
+                type="button"
                 onClick={() => setShowImport(true)}
                 className="w-full py-2.5 text-sm text-gray-400 hover:text-gray-200 flex items-center justify-center gap-2 transition-colors"
                 aria-label="Import from backup"
@@ -140,7 +140,7 @@ export default function VaultUnlock() {
               </button>
             </div>
           </div>
-        </div>
+        </form>
       ) : (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl" role="form" aria-label="Import backup form">
           <h3 className="text-lg font-semibold text-white mb-4">Import Encrypted Backup</h3>

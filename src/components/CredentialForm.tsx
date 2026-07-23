@@ -63,7 +63,10 @@ export default function CredentialForm({ credential, onClose }: CredentialFormPr
       aria-modal="true"
       aria-labelledby="credential-form-title"
     >
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-gradient-to-br from-gray-900 to-gray-950 border border-white/10 rounded-2xl shadow-2xl">
+      <form
+        onSubmit={(e) => { e.preventDefault(); handleSave(); }}
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-gradient-to-br from-gray-900 to-gray-950 border border-white/10 rounded-2xl shadow-2xl"
+      >
         <div className="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-white/10 px-6 py-4 flex items-center justify-between z-10">
           <h2 id="credential-form-title" className="text-lg font-bold text-white">
             {isEditing ? 'Edit Credential' : 'Add New Credential'}
@@ -123,7 +126,7 @@ export default function CredentialForm({ credential, onClose }: CredentialFormPr
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="user@example.com"
-                autoComplete="off"
+                autoComplete="username"
                 className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-sm"
               />
             </div>
@@ -250,6 +253,7 @@ export default function CredentialForm({ credential, onClose }: CredentialFormPr
 
         <div className="sticky bottom-0 bg-gray-900/95 backdrop-blur-sm border-t border-white/10 px-6 py-4 flex gap-3">
           <button
+            type="button"
             onClick={onClose}
             className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
             aria-label="Cancel"
@@ -257,7 +261,7 @@ export default function CredentialForm({ credential, onClose }: CredentialFormPr
             Cancel
           </button>
           <button
-            onClick={handleSave}
+            type="submit"
             disabled={!title.trim() || saving}
             className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
             aria-label={isEditing ? 'Save changes' : 'Add credential'}
@@ -275,7 +279,7 @@ export default function CredentialForm({ credential, onClose }: CredentialFormPr
             )}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
