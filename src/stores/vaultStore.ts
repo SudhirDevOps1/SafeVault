@@ -78,6 +78,7 @@ interface VaultStore {
   exportCSV: () => string;
   importEncryptedBackup: (data: string, password: string) => Promise<void>;
   performAutoBackup: () => Promise<void>;
+  mergeCredentials: (incoming: Credential[]) => Promise<Credential[]>;
 }
 
 export const useVaultStore = create<VaultStore>((set, get) => ({
@@ -287,6 +288,29 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     await get().saveVault();
     await get().performAutoBackup();
     logger.info('Credential deleted');
+  },
+
+  mergeCredentials: async (incoming) => {
+    const { credentials } = get();
+    const map = new Map();
+    
+    // Index local credentials
+    credentials.forEach(c => map.set(c.id, c));
+    
+    // Merge incoming credentials
+    incoming.forEach(c => {
+      const existing = map.get(c.id);
+      if (!existing || c.updatedAt > existing.updatedAt) {
+        map.set(c.id, c);
+      }
+    });
+    
+    const merged = Array.from(map.values());
+    set({ credentials: merged });
+    await get().saveVault();
+    await get().performAutoBackup();
+    logger.info('Vault credentials synchronized and merged');
+    return merged;
   },
 
   saveVault: async () => {

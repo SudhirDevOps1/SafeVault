@@ -12,6 +12,7 @@
 
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeTheme, shell, dialog } = require('electron');
 const path = require('path');
+const syncServer = require('./sync-server.cjs');
 
 // Prevent debug in production
 if (!app.isPackaged) {
@@ -72,7 +73,7 @@ function createWindow() {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.google.com; connect-src 'self' https://api.github.com https://api.pwnedpasswords.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
+          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.google.com; connect-src 'self' https://api.github.com https://api.pwnedpasswords.com http://*:* https://*:*; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
         ],
       },
     });
@@ -227,4 +228,23 @@ ipcMain.handle('safevault:clear-clipboard', () => {
   const { clipboard } = require('electron');
   clipboard.writeText('');
   return true;
+});
+
+// Wi-Fi Sync Server Handlers
+ipcMain.handle('safevault:start-sync-server', (event, vaultData) => {
+  return syncServer.startSyncServer(vaultData, (clientVault, sendResponse) => {
+    const responseCallbackId = Math.random().toString(36).slice(2);
+    
+    // Broadcast sync request to React UI
+    mainWindow?.webContents.send('safevault:sync-request', clientVault, responseCallbackId);
+    
+    // Set up single-use listener for UI response
+    ipcMain.once(`safevault:sync-merged-response:${responseCallbackId}`, (evt, err, mergedVault) => {
+      sendResponse(err, mergedVault);
+    });
+  });
+});
+
+ipcMain.handle('safevault:stop-sync-server', () => {
+  return syncServer.stopSyncServer();
 });

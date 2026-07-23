@@ -9,6 +9,7 @@ import { importFromCSV } from '@/utils/importer';
 import { evaluatePasswordStrength } from '@/utils/crypto';
 import { validateMasterPassword } from '@/utils/policy';
 import { logger } from '@/utils/logger';
+import LocalSync from './LocalSync';
 
 export default function Settings() {
   const {
@@ -477,6 +478,9 @@ export default function Settings() {
             </div>
           )}
         </div>
+
+        {/* Local Sync Section */}
+        <LocalSync />
 
         {/* Privacy Policy */}
         <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">

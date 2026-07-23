@@ -26,6 +26,20 @@ contextBridge.exposeInMainWorld('safevault', {
   // Clipboard
   clearClipboard: () => ipcRenderer.invoke('safevault:clear-clipboard'),
 
+  // Sync Server
+  startSyncServer: (vaultData) => ipcRenderer.invoke('safevault:start-sync-server', vaultData),
+  stopSyncServer: () => ipcRenderer.invoke('safevault:stop-sync-server'),
+  onSyncRequest: (callback) => {
+    const handler = (event, clientVault, responseCallbackId) => {
+      // Allow React app to merge and return data
+      callback(clientVault, (err, mergedVault) => {
+        ipcRenderer.send(`safevault:sync-merged-response:${responseCallbackId}`, err, mergedVault);
+      });
+    };
+    ipcRenderer.on('safevault:sync-request', handler);
+    return () => ipcRenderer.removeListener('safevault:sync-request', handler);
+  },
+
   // Event listeners (from main process)
   onLockRequest: (callback) => {
     const handler = () => callback();
