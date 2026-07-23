@@ -9,6 +9,7 @@ const os = require('os');
 let server = null;
 let activePIN = null;
 let activeVaultData = null; // Stored local vault database state
+let failedAttempts = {}; // Track failed attempts per IP to prevent brute force
 
 function getLocalIPs() {
   const interfaces = os.networkInterfaces();
@@ -50,12 +51,25 @@ function startSyncServer(vaultData, callback) {
     }
 
     if (req.method === 'POST' && req.url === '/sync') {
+      const clientIp = req.socket.remoteAddress || 'unknown';
+
+      // Check if IP is already blocked
+      if (failedAttempts[clientIp] && failedAttempts[clientIp] >= 3) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden: Too many failed pairing attempts. Access Denied.' }));
+        return;
+      }
+
       const clientPIN = req.headers['x-sync-pin'];
       if (!clientPIN || clientPIN !== activePIN) {
+        failedAttempts[clientIp] = (failedAttempts[clientIp] || 0) + 1;
         res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Unauthorized: Invalid pairing code' }));
         return;
       }
+
+      // Reset on successful pairing authentication
+      failedAttempts[clientIp] = 0;
 
       let body = '';
       req.on('data', chunk => {
@@ -113,6 +127,7 @@ function stopSyncServer() {
   }
   activePIN = null;
   activeVaultData = null;
+  failedAttempts = {};
   return true;
 }
 
