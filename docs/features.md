@@ -111,7 +111,12 @@ gantt
 * **Capacitor Mobile targets:** Integrated Capacitor shell wrapping for Android app packaging (.apk compilation).
 * **6-Digit pairing code PIN check:** Secured the local server sync validation to prevent unauthorized network pairings.
 
-### 🌐 2. v1.2.0: FIDO2 Passkeys & Extensions (Q3/Q4 2026)
+### 🌐 2. v1.2.0: Email Aliases, FIDO2 Passkeys & Extensions (Q3/Q4 2026)
+* **Email Alias Generator (AliasVault Style):**
+  * **Base Email Registry:** Securely store primary email templates (e.g. `Sudhir@gmail.com`) locally.
+  * **Automatic URL Parsing:** Paste a website URL (e.g. `https://uniapp-web.pages.dev/`), and the app automatically extracts clean domain handles (e.g. `uniapp`).
+  * **Sub-addressing Generator:** Instantly choose between Plus subaddressing (`Sudhir+uniapp@gmail.com`) or Dot subaddressing (`Sudhir.uniapp@gmail.com`) based on provider support.
+  * **Direct Vault Integration:** Generates the alias, spawns a strong random password, and saves the new credential card into the vault with a single click.
 * **Web Extension Packaging:** Porting SafeVault frontend as an extension for Chrome, Firefox, Edge, and Safari.
 * **FIDO2 / WebAuthn Passkeys:** Storing and unlocking credentials using hardware security tokens (e.g., YubiKeys) or system passkeys.
 * **Contextual Autofill:** Inline dropdown prompts on username/password login forms.
