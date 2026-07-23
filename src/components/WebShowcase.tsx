@@ -4,11 +4,11 @@ export default function WebShowcase() {
   const APP_VERSION = '1.1.2';
   const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
   let detectedOS = 'Windows';
-  let directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault%20Setup%20${APP_VERSION}.exe`;
+  let directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault.Setup.${APP_VERSION}.exe`;
   
   if (userAgent.includes('mac')) {
     detectedOS = 'macOS';
-    directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}.dmg`;
+    directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}-arm64.dmg`;
   } else if (userAgent.includes('linux')) {
     detectedOS = 'Linux';
     directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}.AppImage`;
