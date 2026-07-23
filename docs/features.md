@@ -106,10 +106,13 @@ gantt
     IPC Secure Bridge (Native)  : des4, 2026-10-01, 30d
 ```
 
-### 🛰️ 1. v1.1.3: local Wi-Fi Sync & Capacitor Targets (Released)
+### 🛰️ 1. v1.1.5: local Wi-Fi Sync & Capacitor Targets (Released)
 * **Peer-to-Peer Wi-Fi Sync:** Secure local database synchronization directly between devices over local networks (no cloud required).
 * **Capacitor Mobile targets:** Integrated Capacitor shell wrapping for Android app packaging (.apk compilation).
 * **6-Digit pairing code PIN check:** Secured the local server sync validation to prevent unauthorized network pairings.
+* **Brute-Force Connection Throttling:** Enforces a local IP block list allowing maximum 3 failed pairing attempts before permanently dropping connections from that host.
+* **HTTPS Mixed Content Restriction:** Due to web browser security limitations, production Web App instances running on HTTPS cannot initiate local sync with HTTP local IPs. Synchronization works best between native Desktop and Mobile apps.
+* **Local Verification Policy:** Adheres to a developer-approved model where all changes must be verified locally before tags are uploaded or pushed.
 
 ### 🌐 2. v1.2.0: Email Aliases, FIDO2 Passkeys & Extensions (Q3/Q4 2026)
 * **Email Alias Generator (AliasVault Style):**
