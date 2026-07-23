@@ -36,15 +36,22 @@ export default function Settings() {
   const canChange = oldPassword.length >= 1 && policy.valid && newPassword === confirmPassword && strength.score >= 2;
 
   const runSecurityAudit = async () => {
+    if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
+      setAuditMessage('Security Audit requires a secure context (HTTPS or localhost) to run cryptography locally.');
+      return;
+    }
+
     setAuditing(true);
     setAuditResults([]);
     setAuditMessage('Auditing passwords securely using k-Anonymity...');
-    try {
-      const breachedList: {title: string, count: number}[] = [];
+    
+    let failedCount = 0;
+    const breachedList: {title: string, count: number}[] = [];
+
+    for (const cred of credentials) {
+      if (!cred.password) continue;
       
-      for (const cred of credentials) {
-        if (!cred.password) continue;
-        
+      try {
         // Calculate SHA-1 hash of the password
         const encoder = new TextEncoder();
         const data = encoder.encode(cred.password);
@@ -56,7 +63,10 @@ export default function Settings() {
         const suffix = hashHex.slice(5);
         
         const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
-        if (!response.ok) continue;
+        if (!response.ok) {
+          failedCount++;
+          continue;
+        }
         
         const text = await response.text();
         const lines = text.split('\n');
@@ -70,18 +80,22 @@ export default function Settings() {
             break;
           }
         }
+      } catch (err) {
+        failedCount++;
       }
-      
-      setAuditResults(breachedList);
-      if (breachedList.length === 0) {
-        setAuditMessage('Good news! No breached passwords detected in your vault.');
-      } else {
-        setAuditMessage(`Found ${breachedList.length} breached password(s). We recommend changing them immediately:`);
-      }
-    } catch (err) {
-      setAuditMessage('Security audit failed. Check your network connection.');
-    } finally {
-      setAuditing(false);
+    }
+    
+    setAuditResults(breachedList);
+    setAuditing(false);
+
+    if (failedCount > 0 && breachedList.length === 0) {
+      setAuditMessage(`Security audit completed, but ${failedCount} password check(s) failed. Check your network or disable ad-blockers.`);
+    } else if (failedCount > 0) {
+      setAuditMessage(`Found ${breachedList.length} breached password(s) (${failedCount} checks failed due to network/ad-blocker):`);
+    } else if (breachedList.length === 0) {
+      setAuditMessage('Good news! No breached passwords detected in your vault.');
+    } else {
+      setAuditMessage(`Found ${breachedList.length} breached password(s). We recommend changing them immediately:`);
     }
   };
 
