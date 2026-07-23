@@ -75,18 +75,22 @@ SafeVault does **NOT** protect against:
 
 ---
 
-## 📡 Internet Connectivity Dependencies
+## 📡 Internet Connectivity Dependencies & Zero-Telemetry Model
 
-SafeVault is designed to be **100% Offline-First**. It only makes network requests in the following specific scenarios (none of which expose your vault data to the cloud):
+SafeVault is **100% Free, Open-Source, and Zero-Telemetry**. It collects absolutely no user analytics, crash logs, diagnostic pings, or usage metadata. 
+
+External network requests are strictly gated and initiated **ONLY** in the following scenarios (all of which require explicit transient user permission):
 1. **Security Health Audits (k-Anonymity):** When running a password breach scan, the app queries the HaveIBeenPwned API. To preserve privacy, it only sends the first 5 characters of the SHA-1 hash of your password. Matching and detection happen entirely locally.
-2. **GitHub Updates Check:** If enabled in Settings (disabled by default), the app queries the GitHub API on startup to check for newer releases.
-3. **Initial App Download:** Downloading the installation packages or loading the web showcase in a browser requires an internet connection.
+2. **Website Favicon Loading:** High-quality website logos are fetched via the anonymous DuckDuckGo Icons API (`https://icons.duckduckgo.com/ip3/domain.ico`). SafeVault sends only the parsed website hostname (e.g. `icedrive.net`), never your login credentials or usernames.
+3. **GitHub Updates Check:** If enabled in Settings (disabled by default), the app queries the GitHub API on startup to check for newer releases.
+4. **Initial App Download:** Downloading the installation packages or loading the web showcase in a browser requires an internet connection.
 
 ---
 
 ## 🛰️ Local Network Sync Security Model & Limitations
 
 - **Pairing Authentication:** Connections are locked behind a screen-displayed 6-digit PIN.
+- **Subnet Restriction:** Local sync operates entirely over peer-to-peer Wi-Fi networks. It cannot cross the WAN/Internet and both devices must share the same local network subnet.
 - **Brute-Force Prevention:** The local sync server enforces an IP-based rate limit of **maximum 3 failed attempts** per IP. Reaching this limit permanently blocks the IP for that sync session.
 - **Mixed Content Limitation:** When running the Web App client in a web browser over HTTPS, local browser security models (Mixed Content block) will prevent the client from sending HTTP requests to the local network server. In this scenario, users must use the Desktop or Mobile clients to execute Wi-Fi syncing.
 
