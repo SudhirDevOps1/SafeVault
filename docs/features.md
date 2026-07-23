@@ -116,10 +116,13 @@ gantt
 
 ### 🌐 2. v1.2.0: Email Aliases, FIDO2 Passkeys & Extensions (Q3/Q4 2026)
 * **Email Alias Generator (AliasVault Style):**
-  * **Base Email Registry:** Securely store primary email templates (e.g. `Sudhir@gmail.com`) locally.
-  * **Automatic URL Parsing:** Paste a website URL (e.g. `https://uniapp-web.pages.dev/`), and the app automatically extracts clean domain handles (e.g. `uniapp`).
-  * **Sub-addressing Generator:** Instantly choose between Plus subaddressing (`Sudhir+uniapp@gmail.com`) or Dot subaddressing (`Sudhir.uniapp@gmail.com`) based on provider support.
-  * **Direct Vault Integration:** Generates the alias, spawns a strong random password, and saves the new credential card into the vault with a single click.
+  * **Base Email Registry:** Securely store primary email templates (e.g. `Sudhir@gmail.com` or custom domain addresses) locally.
+  * **Automatic URL Parsing:** Paste a website URL (e.g., `https://uniapp-web.pages.dev/`) or type a title, and the app automatically extracts clean domain handles (e.g., parsing `uniapp-web` or `uniapp` automatically).
+  * **Sub-addressing Generator:** Instantly choose between different alias creation formats based on provider support:
+    * *Plus Sub-addressing:* Generates `Sudhir+uniapp@gmail.com`
+    * *Dot Sub-addressing:* Generates `Sudhir.uniapp@gmail.com`
+    * *Custom Domain Routing:* Generates `uniapp@sudhir.com` for users with catch-all private domains.
+  * **Direct Vault Integration:** Generates the alias, spawns a strong random password, and saves the new credential card into the vault with a single click during the "Add Credential" process.
 * **Web Extension Packaging:** Porting SafeVault frontend as an extension for Chrome, Firefox, Edge, and Safari.
 * **FIDO2 / WebAuthn Passkeys:** Enable app unlocking and credentials storage using biometric hardware (Windows Hello, macOS TouchID, FaceID) via WebAuthn PRF (Pseudo-Random Function) keys derivation (completely offline-first, no cloud servers required).
 * **Contextual Autofill:** Inline dropdown prompts on username/password login forms.

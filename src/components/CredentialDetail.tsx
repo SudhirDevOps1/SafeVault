@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Copy, Check, Eye, EyeOff, Edit, Trash2, Globe, User,
   Lock, FileText, Star, ExternalLink, ArrowLeft, Key
@@ -14,12 +14,18 @@ interface CredentialDetailProps {
 }
 
 export default function CredentialDetail({ credential }: CredentialDetailProps) {
-  const { deleteCredential, updateCredential, setSelectedCredential } = useVaultStore();
+  const { deleteCredential, updateCredential, setSelectedCredential, networkApprovedThisSession } = useVaultStore();
   const { copiedField, copyToClipboard } = useClipboard();
   const [showPassword, setShowPassword] = useState(false);
   const [showTotpSecret, setShowTotpSecret] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Reset imageError when current credential changes
+  useEffect(() => {
+    setImageError(false);
+  }, [credential.id]);
 
   const handleDelete = async () => {
     await deleteCredential(credential.id);
@@ -39,7 +45,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
     }
   };
 
-  const favicon = credential.url ? getFavicon(credential.url) : null;
+  const favicon = (credential.url && networkApprovedThisSession) ? getFavicon(credential.url) : null;
 
   const CopyButton = ({ text, field }: { text: string; field: string }) => (
     <button
@@ -71,8 +77,8 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-700/20 border border-emerald-500/20 flex items-center justify-center overflow-hidden">
-                {favicon ? (
-                  <img src={favicon} alt="" className="w-7 h-7" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                {(favicon && !imageError) ? (
+                  <img src={favicon} alt="" className="w-7 h-7" onError={() => setImageError(true)} />
                 ) : (
                   <Globe className="w-6 h-6 text-emerald-400" />
                 )}

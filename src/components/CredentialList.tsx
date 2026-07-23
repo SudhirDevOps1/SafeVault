@@ -9,6 +9,7 @@ export default function CredentialList() {
   const searchQuery = useVaultStore(state => state.searchQuery);
   const sidebarView = useVaultStore(state => state.sidebarView);
   const setSelectedCredential = useVaultStore(state => state.setSelectedCredential);
+  const networkApprovedThisSession = useVaultStore(state => state.networkApprovedThisSession);
 
   const filteredCredentials = useMemo(() => {
     let filtered = [...credentials];
@@ -96,7 +97,7 @@ export default function CredentialList() {
     <div className="divide-y divide-white/5">
       {filteredCredentials.map((cred) => {
         const isSelected = selectedCredentialId === cred.id;
-        const favicon = cred.url ? getFavicon(cred.url) : null;
+        const favicon = (cred.url && networkApprovedThisSession) ? getFavicon(cred.url) : null;
 
         return (
           <button
