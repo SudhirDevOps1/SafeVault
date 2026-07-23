@@ -145,7 +145,11 @@ export default function CredentialList() {
             </div>
 
             {/* Category badge */}
-            <span className="text-[10px] font-medium text-gray-500 bg-white/5 px-2 py-0.5 rounded-full shrink-0 hidden sm:inline">
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 hidden sm:inline ${
+              cred.category === 'Alias'
+                ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400'
+                : 'bg-white/5 text-gray-500'
+            }`}>
               {cred.category}
             </span>
           </button>

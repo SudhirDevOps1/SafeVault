@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Plus, Trash2, Wand2, Copy, Check, Save, Info, Sparkles, User, RefreshCw } from 'lucide-react';
+import { Mail, Plus, Trash2, Wand2, Copy, Check, Save, Info, Sparkles, User, RefreshCw, Key, Globe, ShieldCheck } from 'lucide-react';
 import { useVaultStore } from '../stores/vaultStore';
 import { useClipboard } from '../hooks/useClipboard';
 
 export default function EmailAliases() {
-  const { baseEmails, addBaseEmail, removeBaseEmail, addCredential, setSidebarView } = useVaultStore();
+  const { credentials, baseEmails, addBaseEmail, removeBaseEmail, addCredential, setSidebarView } = useVaultStore();
   const { copiedField, copyToClipboard } = useClipboard();
 
   // Manage State
@@ -39,6 +39,9 @@ export default function EmailAliases() {
   const femaleFirstNames = ['Sylvia', 'Mary', 'Patricia', 'Linda', 'Barbara', 'Elizabeth', 'Jennifer', 'Maria', 'Susan', 'Margaret', 'Dorothy', 'Lisa', 'Nancy', 'Karen', 'Betty', 'Helen', 'Sandra', 'Donna', 'Carol', 'Ruth'];
   const maleFirstNames = ['James', 'John', 'Robert', 'Michael', 'William', 'David', 'Richard', 'Joseph', 'Thomas', 'Charles', 'Christopher', 'Daniel', 'Matthew', 'Anthony', 'Mark', 'Donald', 'Steven', 'Paul', 'Andrew', 'Joshua'];
   const lastNames = ['Payne', 'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson'];
+
+  // Get active aliases already stored in the vault
+  const activeAliases = credentials.filter(cred => cred.category === 'Alias');
 
   // Helper to generate a fake profile
   const handleGenerateFakeProfile = () => {
@@ -118,11 +121,7 @@ export default function EmailAliases() {
     }
 
     const [user, domain] = selectedBase.split('@');
-    if (!user || !domain) {
-      setGeneratedAlias('');
-      return;
-    }
-
+    
     // Determine the alias prefix to use
     let prefix = handle;
     if (aliasPrefixType === 'anonymous' && profileData) {
@@ -139,11 +138,13 @@ export default function EmailAliases() {
     const isCatchAll = selectedBase.startsWith('@');
 
     if (isCatchAll) {
-      // If catch-all (e.g. @sudhir.com), generate prefix@domain.com
       const cleanDomain = selectedBase.replace('@', '');
       setGeneratedAlias(`${prefix}@${cleanDomain}`);
     } else {
-      // Standard subaddressing
+      if (!user || !domain) {
+        setGeneratedAlias('');
+        return;
+      }
       if (aliasFormat === 'plus') {
         setGeneratedAlias(`${user}+${prefix}@${domain}`);
       } else {
@@ -219,17 +220,18 @@ export default function EmailAliases() {
     try {
       await addCredential({
         title: formattedTitle,
-        username: aliasPrefixType === 'anonymous' ? generatedUsername : generatedAlias,
+        username: generatedAlias, // Save the email alias directly as username for easy 1-click copying!
         password: generatedPassword,
         url: serviceUrl.trim(),
         notes: notesContent,
         favorite: false,
         totpSecret: '',
-        category: 'Login'
+        category: 'Alias' // Save in category 'Alias' for dynamic identification!
       });
 
       setStatusMessage({ type: 'success', text: 'Alias saved successfully to your vault!' });
       
+      // Auto reset and redirect to All list
       setTimeout(() => {
         setStatusMessage(null);
         setSidebarView('all');
@@ -241,6 +243,7 @@ export default function EmailAliases() {
 
   return (
     <div className="space-y-6">
+      {/* Title Header */}
       <div>
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <Mail className="w-5 h-5 text-emerald-400" />
@@ -260,7 +263,9 @@ export default function EmailAliases() {
         </div>
       )}
 
+      {/* Main Grid: Settings & Suffix Designer */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
         {/* Left Column: Manage Base Emails */}
         <div className="bg-[#121212]/80 border border-white/5 rounded-2xl p-5 backdrop-blur-xl h-fit space-y-4">
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
@@ -434,19 +439,19 @@ export default function EmailAliases() {
 
             {/* Profile Identity generation panel */}
             {generateProfile && (
-              <div className="p-4 bg-white/5 border border-white/5 rounded-2xl space-y-3 animate-fade-in">
+              <div className="p-4 bg-[#1a1a1a]/50 border border-white/5 rounded-2xl space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
                     <User className="w-4 h-4 text-emerald-400" />
-                    Generate Fake Suffix Identity Profile
+                    Fake Identity Details
                   </span>
                   <button
                     type="button"
                     onClick={handleGenerateFakeProfile}
-                    className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-colors"
-                    title="Generate New Profile"
+                    className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-colors flex items-center gap-1 text-[10px] font-semibold"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
+                    <RefreshCw className="w-3 h-3" />
+                    Regenerate Profile
                   </button>
                 </div>
 
@@ -539,7 +544,7 @@ export default function EmailAliases() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button
                     type="button"
                     onClick={handleCopyFullProfile}
@@ -562,6 +567,69 @@ export default function EmailAliases() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Bottom Section: Active Generated Aliases List */}
+      <div className="bg-[#121212]/80 border border-white/5 rounded-2xl p-5 backdrop-blur-xl space-y-4">
+        <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          Active Generated Aliases ({activeAliases.length})
+        </span>
+
+        {activeAliases.length === 0 ? (
+          <p className="text-xs text-gray-500 leading-normal">
+            No active aliases saved in this vault session yet. Generate and save one above to track.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-gray-400">
+              <thead className="text-[10px] text-gray-500 uppercase font-bold border-b border-white/5">
+                <tr>
+                  <th className="py-2.5 px-3">Service Name</th>
+                  <th className="py-2.5 px-3">Email Alias</th>
+                  <th className="py-2.5 px-3">Password</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 font-mono">
+                {activeAliases.map((alias) => (
+                  <tr key={alias.id} className="hover:bg-white/5 transition-colors">
+                    <td className="py-3 px-3 font-semibold text-white">
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-gray-500" />
+                        {alias.title}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-emerald-400 truncate max-w-[200px]" title={alias.username}>
+                      {alias.username}
+                    </td>
+                    <td className="py-3 px-3 text-gray-500 select-all truncate max-w-[150px]">
+                      ••••••••••••••••••
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => copyToClipboard(alias.username, `alias-list-${alias.id}`)}
+                          className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                          title="Copy Email Alias"
+                        >
+                          {copiedField === `alias-list-${alias.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          onClick={() => copyToClipboard(alias.password, `pass-list-${alias.id}`)}
+                          className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                          title="Copy Password"
+                        >
+                          {copiedField === `pass-list-${alias.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Key className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

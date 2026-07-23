@@ -84,7 +84,14 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
                 )}
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">{credential.title}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-white">{credential.title}</h2>
+                  {credential.category === 'Alias' && (
+                    <span className="text-[10px] font-bold bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Email Alias
+                    </span>
+                  )}
+                </div>
                 {credential.url && (
                   <a
                     href={credential.url.startsWith('http') ? credential.url : `https://${credential.url}`}
