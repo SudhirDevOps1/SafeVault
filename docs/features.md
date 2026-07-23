@@ -106,23 +106,22 @@ gantt
     IPC Secure Bridge (Native)  : des4, 2026-10-01, 30d
 ```
 
-### 🛰️ 1. v1.1.5: local Wi-Fi Sync & Capacitor Targets (Released)
+### 🛰️ 1. v1.1.5: local Wi-Fi Sync, Email Aliases & Capacitor Targets (Released)
 * **Peer-to-Peer Wi-Fi Sync:** Secure local database synchronization directly between devices over local networks (no cloud required).
-* **Capacitor Mobile targets:** Integrated Capacitor shell wrapping for Android app packaging (.apk compilation).
+* **Email & Identity Alias Generator (AliasVault Style):**
+  * **Base Email Registry:** Securely store primary email templates (e.g. `Sudhir@gmail.com` or custom domain addresses) locally.
+  * **Automatic URL Parsing & Subdomain Extraction:** Paste a website URL (e.g., `https://uniapp-web.pages.dev/`), and the app automatically extracts clean domain handles (e.g., parsing `uniapp`).
+  * **Sub-addressing & Suffix Configurations:** Instantly choose between Plus/Dot formats or Catch-All domains (e.g. `Sudhir+uniapp@gmail.com` or `uniapp@sudhir.com`).
+  * **Fake Profile Identity Generator:** Automatically create anonymous credentials templates (First/Last Names, Birthdate, Gender, and Usernames) with custom length password sliders.
+  * **Direct Vault Integration:** Automatically saves generated alias card into the vault with dynamic category badges ('Alias') and comprehensive notes storage.
+  * **Active Aliases Live Tracker:** Displays all currently saved email aliases in a live dashboard table with 1-click Copy actions.
+* **Capacitor Mobile targets:** Integrated Capacitor shell wrapping for Android app packaging (.apk compilation) with 74 generated launcher assets.
 * **6-Digit pairing code PIN check:** Secured the local server sync validation to prevent unauthorized network pairings.
 * **Brute-Force Connection Throttling:** Enforces a local IP block list allowing maximum 3 failed pairing attempts before permanently dropping connections from that host.
 * **HTTPS Mixed Content Restriction:** Due to web browser security limitations, production Web App instances running on HTTPS cannot initiate local sync with HTTP local IPs. Synchronization works best between native Desktop and Mobile apps.
 * **Local Verification Policy:** Adheres to a developer-approved model where all changes must be verified locally before tags are uploaded or pushed.
 
-### 🌐 2. v1.2.0: Email Aliases, FIDO2 Passkeys & Extensions (Q3/Q4 2026)
-* **Email Alias Generator (AliasVault Style):**
-  * **Base Email Registry:** Securely store primary email templates (e.g. `Sudhir@gmail.com` or custom domain addresses) locally.
-  * **Automatic URL Parsing:** Paste a website URL (e.g., `https://uniapp-web.pages.dev/`) or type a title, and the app automatically extracts clean domain handles (e.g., parsing `uniapp-web` or `uniapp` automatically).
-  * **Sub-addressing Generator:** Instantly choose between different alias creation formats based on provider support:
-    * *Plus Sub-addressing:* Generates `Sudhir+uniapp@gmail.com`
-    * *Dot Sub-addressing:* Generates `Sudhir.uniapp@gmail.com`
-    * *Custom Domain Routing:* Generates `uniapp@sudhir.com` for users with catch-all private domains.
-  * **Direct Vault Integration:** Generates the alias, spawns a strong random password, and saves the new credential card into the vault with a single click during the "Add Credential" process.
+### 🌐 2. v1.2.0: FIDO2 Passkeys & Extensions (Q3/Q4 2026)
 * **Web Extension Packaging:** Porting SafeVault frontend as an extension for Chrome, Firefox, Edge, and Safari.
 * **FIDO2 / WebAuthn Passkeys:** Enable app unlocking and credentials storage using biometric hardware (Windows Hello, macOS TouchID, FaceID) via WebAuthn PRF (Pseudo-Random Function) keys derivation (completely offline-first, no cloud servers required).
 * **Contextual Autofill:** Inline dropdown prompts on username/password login forms.

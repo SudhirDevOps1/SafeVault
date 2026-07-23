@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.5] - 2026-07-23
 
 ### Added
+- **Email & Identity Alias Generator (AliasVault Style):** Dynamic generation tool with base email registry, automated URL subdomain extraction, Plus/Dot suffix selectors, and custom domain catch-all configs.
+- **Fake Profile Identity Generator:** Auto-generates anonymous profile templates (First/Last Names, Birthdate, Gender, and Usernames) with custom length password sliders.
+- **Active Aliases Tracker Card:** Live table view on the Email Aliases panel to display, search, and 1-click copy active stored aliases directly.
+- **Real App Launcher Icons:** Auto-generated 74 native adaptive icons, round-icons, and splash-screens from high-res logo source for Android targets.
 - **Mobile Platform Support (Capacitor):** Configured Ionic Capacitor targets allowing native Android packaging (.apk generation) from the React codebase.
 - **Local Wi-Fi Peer Synchronization:** Added local network sync module to safely synchronize credentials between web, desktop, and mobile clients on the same Wi-Fi using secure HTTP requests.
 - **6-Digit Pairing Code Security:** Locked sync sessions behind a screen-displayed 6-digit PIN code to prevent unauthorized network access.
 - **Vite & Gradle CI Pipelines:** Configured GitHub Action CI/CD workflows to compile the Android APK dynamically on release pushes.
 
 ### Changed
-- Bumped app versions, CLI headers, and store variables to v1.1.3.
+- **Mobile UserAgent Detection:** Patched OS parser branch in Sidebar to prevent mobile browsers from mistakenly identifying as Linux and prompting AppImage downloads.
+- **Security Hardening (IP rate-limiting):** Added client IP connection throttling to sync server (max 3 failed PIN attempts before drop-list block).
+- **Favicon Fetch Privacy Guard:** Gated external favicon requests behind session network approval and integrated visual initials/Globe icons on loads error.
+- Bumped app versions, CLI headers, and store variables to v1.1.5.
 - Modified release workflows to overwrite duplicate assets on GitHub.
 
 ---
@@ -136,6 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Encrypted key derivation with 600K PBKDF2 iterations
 - Clipboard auto-clearing
 
+[1.1.5]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.5
 [1.1.2]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.2
 [1.1.1]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.1
 [1.1.0]: https://github.com/SudhirDevOps1/SafeVault/releases/tag/v1.1.0
