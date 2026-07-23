@@ -113,21 +113,7 @@ safevault import <file.json> # Load GUI-exported backup payloads
 safevault export <file.json> # Save current data as GUI-importable backup
 ```
 
----
 
-## 🆚 Project Comparison Matrix
-
-SafeVault is the most advanced, secure, and polished project in the portfolio. Here is how SafeVault ranks compared to other developer tools:
-
-| Project | Focus | Security Strength | Cross-Platform | Testing Coverage | Community |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **SafeVault** | **Password Vault** | ⭐ **9.5 / 10** | **Web, Windows, macOS, Linux, Android** | **Excellent (Vitest)** | **Active (v1.1.5)** |
-| FlowTrack Pro | Activity Tracker | ⭐ 5.0 / 10 | Windows only | ❌ None | Small |
-| AutoLogin-Scheduler | Auto Login scheduler | ⭐ 8.0 / 10 | Web only | ❌ None | Small |
-| SUDHI OS | Web Portfolio | ⭐ 4.0 / 10 | Web only | ❌ None | Small |
-| PrismAnalytics | Data Analytics | ⭐ 7.0 / 10 | Web + Worker | ❌ None | Small |
-
----
 
 ## 🔍 Comprehensive Evaluation & Audit (SafeVault Ecosystem)
 
