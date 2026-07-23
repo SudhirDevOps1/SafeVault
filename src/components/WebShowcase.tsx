@@ -1,7 +1,7 @@
 import { Shield, Download, Lock, Terminal, Cpu } from 'lucide-react';
 
 export default function WebShowcase() {
-  const APP_VERSION = '1.1.2';
+  const APP_VERSION = '1.1.3';
   const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
   let detectedOS = 'Windows';
   let directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault.Setup.${APP_VERSION}.exe`;

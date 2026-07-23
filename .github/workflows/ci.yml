@@ -80,6 +80,23 @@ jobs:
       - name: Build web app
         run: npm run build
 
+      - name: Setup Java JDK (Android)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Build Android APK (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          npx cap sync
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          mkdir -p ../release
+          cp app/build/outputs/apk/debug/app-debug.apk ../release/SafeVault-debug.apk
+
       - name: Build Electron (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: npm run electron:build -- --linux

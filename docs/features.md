@@ -51,7 +51,11 @@ flowchart TD
 * **Keylogger protections:** Set `spellCheck={false}`, `autoCorrect="off"`, and `autoCapitalize="none"` on password fields to disable OS-level keyboard logs.
 * **Transient Session Network Consent:** In compliance with strict 2026 privacy models, no network requests start automatically on app launch. The application prompts the user for network permission on startup. Permission is memory-only (transient) and resets on app relaunch.
 * **Security Health Audit:** Local scanner checking passwords against data breaches using k-Anonymity privacy protocols (first 5 characters of SHA-1 hash sent, processing complete client-side).
-* **Optional Update Checks:** Privacy-first toggle in settings to query GitHub API for releases on startup (disabled by default, requires session-level network consent).
+### 🛰️ v1.1.3: Capacitor Mobile Target & Local Wi-Fi Synchronization
+* **Capacitor Mobile Integration:** SafeVault now targets native mobile platforms, supporting Android packaging (.apk outputs) from the unified React codebase.
+* **Local Wi-Fi Peer-to-Peer Sync:** Encrypted credentials sync directly between web, desktop, and mobile clients on the same Wi-Fi using native Node.js HTTP servers (Electron) and HTTP clients (Capacitor/Web).
+* **6-Digit Verification PIN Security:** Transmissions are locked behind a screen-displayed 6-digit PIN. The payload is double-encrypted in transit with a session key derived from the PIN to block local Wi-Fi eavesdropping.
+* **Vite & Gradle CI Pipelines:** Added automated Android APK compiling jobs in GitHub Action CI workflows.
 
 ---
 
@@ -91,6 +95,7 @@ gantt
     section Completed
     v1.0.0 Core Engine          :done, milestone, 2024-01-01, 2024-06-01
     v1.1.1 Hardening & Import   :done, milestone, 2026-07-01, 2026-07-22
+    v1.1.3 P2P Sync & Mobile    :done, milestone, 2026-07-22, 2026-07-23
     
     section Q3 2026 (Sync)
     E2E Encrypted Custom Sync   :active, des1, 2026-08-01, 30d
@@ -99,25 +104,20 @@ gantt
     section Q4 2026 (Extensions)
     Chrome/Firefox Extension    : des3, 2026-09-15, 45d
     IPC Secure Bridge (Native)  : des4, 2026-10-01, 30d
-    
-    section Q1 2027 (Mobile)
-    iOS & Android Apps (Biometric): des5, 2027-01-01, 60d
-    HaveIBeenPwned Auditing     : des6, 2027-02-01, 30d
 ```
 
-### 🛰️ 1. v1.2.0: E2EE Sync & Passkeys (Q3 2026)
-* **Zero-Knowledge Cloud Sync:** Optional WebDAV, Nextcloud, or custom server sync. Data is encrypted locally *before* syncing to ensure the server never sees the keys.
+### 🛰️ 1. v1.1.3: local Wi-Fi Sync & Capacitor Targets (Released)
 * **Peer-to-Peer Wi-Fi Sync:** Secure local database synchronization directly between devices over local networks (no cloud required).
-* **FIDO2 / WebAuthn Passkeys:** Storing and unlocking credentials using hardware security tokens (e.g., YubiKeys) or system passkeys.
+* **Capacitor Mobile targets:** Integrated Capacitor shell wrapping for Android app packaging (.apk compilation).
+* **6-Digit pairing code PIN check:** Secured the local server sync validation to prevent unauthorized network pairings.
 
-### 🌐 2. v1.3.0: Browser Extension Integration (Q4 2026)
+### 🌐 2. v1.2.0: FIDO2 Passkeys & Extensions (Q3/Q4 2026)
 * **Web Extension Packaging:** Porting SafeVault frontend as an extension for Chrome, Firefox, Edge, and Safari.
-* **Native Message IPC Bridge:** Safe local IPC channel linking the browser extension to the background desktop vault.
+* **FIDO2 / WebAuthn Passkeys:** Storing and unlocking credentials using hardware security tokens (e.g., YubiKeys) or system passkeys.
 * **Contextual Autofill:** Inline dropdown prompts on username/password login forms.
 
-### 📱 3. v1.4.0: Mobile Apps & Advanced Auditing (Q1 2027)
+### 📱 3. v1.3.0: Mobile Biometrics & Advanced Auditing (Q1 2027)
 * **Biometric Lock Integration:** Native iOS (TouchID/FaceID) and Android biometrics integration.
-* **Offline Security Audits:** Checking stored password hashes against breach databases using k-Anonymity protocols (e.g., sending only first 5 chars of hash).
 * **Emergency Access Protocols:** Cryptographic secret-sharing (Shamir's Secret Sharing) to split master credentials for emergency family recovery.
 
 ---
