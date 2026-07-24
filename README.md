@@ -98,27 +98,69 @@ SafeVault is engineered with zero-trust principles. Below is the breakdown of ou
 > [!IMPORTANT]
 > **Zero-Knowledge Principle:** All cryptographic processes occur locally. Your master password is used solely to derive your local encryption key and is never written to disk or sent across any network.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    Master Password                  │
-└──────────────────┬──────────────────────────────────┘
-                   │ Argon2id (64MB memory, 3 iterations)
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│              Encryption Key (256-bit)               │
-└──────────────────┬──────────────────────────────────┘
-                   │ AES-GCM + random IV (12 bytes)
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│        Encrypted Vault (IndexedDB, local only)      │
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Storage [1. Data at Rest (IndexedDB)]
+        MP[Master Password] --> A[Argon2id WASM KDF<br/>64MB Memory, 3 Iterations, Parallelism: 4]
+        A --> B[Derived Key (256-bit AES)]
+        B --> C[AES-256-GCM Decryption]
+        C --> D[(Dexie IndexedDB Vault)]
+    end
+
+    subgraph Sync [2. Peer-to-Peer E2EE Transport]
+        PIN[Pairing PIN] --> E[Argon2id KDF]
+        E --> F[Transport Key (AES-256-GCM)]
+        F --> G[Encrypt Vault Payload]
+        G --> H[POST to Local IP / Relay Channel]
+    end
+
+    subgraph Memory [3. Session Lifecycle]
+        H --> I[React Memory State]
+        I --> J[Wiped on Vault Lock]
+        I --> K[Wiped on Tab Hide / Sleep]
+    end
 ```
 
-### 🚫 Non-Negotiable Network Rules:
-* ❌ **No Telemetry/Analytics:** SafeVault never collects usage statistics or diagnostic data.
-* ❌ **Zero Server Calls:** All credentials remain offline. No cloud syncing or external database calls.
-* ❌ **No Third-Party CDNs:** Fonts, icons, and libraries are locally bundled in the distribution.
-* ❌ **Secure audits:** Breach audits use `k-Anonymity` matching, sending only the first 5 chars of a SHA-1 hash (never full passwords/hashes).
+### 🔬 Deep Cryptographic Specifications
+SafeVault leverages production-grade, highly-analyzed open-source libraries for all cryptographic operations:
+* **Key Derivation (OWASP 2026 Recommended):** **Argon2id** (via [hash-wasm](https://github.com/Daninet/hash-wasm)) with 64MB memory, 3 iterations, and parallelism of 4.
+* **Legacy Derivation:** **PBKDF2-SHA512** with 600,000 iterations (silently migrated to Argon2id upon first login).
+* **Data Encryption:** **AES-256-GCM** (Galois/Counter Mode) utilizing native Web Crypto API (`crypto.subtle`) with a unique 12-byte cryptographically secure random Initialization Vector (IV) generated for every entry.
+* **Handshake Signatures:** **SHA-256** signatures verifying timestamp nonces to perform passwordless pairings on Wi-Fi sync.
+
+---
+
+### 🕵️ Honest Security Audit: What Can Be Leaked or Hacked?
+
+Although the database is strongly encrypted, no system is perfectly secure. Here is a realistic look at potential attack vectors:
+
+1. **Endpoint Compromise (Malware / Keyloggers):**
+   * **The Risk:** If your device is infected with malware, a keylogger can capture your master password while you type it.
+   * **Mitigation:** SafeVault uses input hardening (`spellCheck={false}`) but cannot prevent kernel-level keyloggers. Keep your host OS clean.
+
+2. **Cold Boot Attacks & RAM Dumping:**
+   * **The Risk:** While the vault is unlocked, decrypted passwords exist in local memory (RAM). An attacker with physical access or root level malware can dump memory to extract plaintext secrets.
+   * **Mitigation:** Lock-on-Sleep, Lock-on-Hide, and clipboard auto-scrubbing reduce the exposure window.
+
+3. **Remote Favicon Fetching (Metadata Leak):**
+   * **The Risk:** By default, SafeVault fetches website icons from `icons.duckduckgo.com`. An attacker snooping on your internet traffic can compile a history of hostnames you look up.
+   * **Mitigation:** SafeVault provides a **Disable Remote Favicons** toggle. When enabled, all external CDN icon requests are blocked, and logo rendering falls back to local text initials.
+
+4. **GitHub Update Pings (IP leak):**
+   * **The Risk:** Checking for new releases contacts `api.github.com`, exposing your IP address and client version to GitHub.
+   * **Mitigation:** Enable **Strict Offline Mode (Air-Gap)** in Settings to block all outbound update checks, HaveIBeenPwned breach queries, and Cloud Relays.
+
+---
+
+### ⚠️ Critical Warnings: What NOT to Do (Dangerous Practices)
+
+* **❌ DO NOT Reuse your Master Password:** If your master password is leaked in a public data breach, attackers can easily unlock your local database.
+* **❌ DO NOT Lose your 24-Word Recovery Phrase:** SafeVault is zero-knowledge. There is no "Forgot Password" server. If you lose both your master password and recovery phrase, your vault data is **permanently unrecoverable**.
+* **❌ DO NOT Sync over Public Wi-Fi without VPN:** Although sync traffic is fully encrypted using Argon2id + AES-GCM and authenticated using timestamp hashes, syncing over untrusted public hotspots exposes your local IP ports to port-scanners.
+* **❌ DO NOT Run SafeVault on a Rooted/Jailbroken Phone:** Root access bypasses sandbox permissions (IndexedDB isolation), allowing third-party apps to access your vault files directly.
+* **❌ DO NOT Disable Auto-Lock:** Keeping your vault unlocked indefinitely exposes plaintext RAM keys and invites unauthorized physical access (shoulder surfing).
+
+---
 
 ---
 
