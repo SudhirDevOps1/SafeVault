@@ -130,6 +130,27 @@ SafeVault leverages production-grade, highly-analyzed open-source libraries for 
 
 ---
 
+### 📡 Cloud Relay Architecture: Why We Avoid Proprietary Servers
+
+SafeVault offers a Hybrid-Offline model. If you sync over the internet, a Cloud Relay is used. Here is a direct comparison of why SafeVault migrated from `kvdb.io` to self-hostable Cloudflare Workers:
+
+| Feature | Legacy Relay (`kvdb.io`) | Modern Relay (Cloudflare Workers + KV) |
+| :--- | :--- | :--- |
+| **Open Source** | ❌ Proprietary (Closed-Source) | ✅ 100% Open-Source (`relay-worker/index.js`) |
+| **Data Control** | ❌ Third-party hosted service | ✅ User-controlled / Self-hostable |
+| **API Tracking** | ⚠️ Unknown payload logging | ✅ Zero-tracking / Zero-logging |
+| **Transport Layer** | ⚠️ Plain HTTP/HTTPS | ✅ Strict CORS + `X-Request-Source` validation |
+| **TTL (Time to Live)** | ⚠️ Managed by host configurations | ✅ Hardcoded 10-minute auto-expiry on KV |
+
+```mermaid
+flowchart LR
+    A[SafeVault Client A] -- Encrypted AES Payload --> B(Cloudflare Workers E2EE Relay)
+    B -- Auto-deleted in 10 mins --> C[(Cloudflare KV Store)]
+    D[SafeVault Client B] -- Pulls encrypted payload --> B
+```
+
+---
+
 ### 🕵️ Honest Security Audit: What Can Be Leaked or Hacked?
 
 Although the database is strongly encrypted, no system is perfectly secure. Here is a realistic look at potential attack vectors:
@@ -150,6 +171,10 @@ Although the database is strongly encrypted, no system is perfectly secure. Here
    * **The Risk:** Checking for new releases contacts `api.github.com`, exposing your IP address and client version to GitHub.
    * **Mitigation:** Enable **Strict Offline Mode (Air-Gap)** in Settings to block all outbound update checks, HaveIBeenPwned breach queries, and Cloud Relays.
 
+5. **Local Network Sniffing (Wi-Fi Sync Metadata):**
+   * **The Risk:** If syncing devices on an untrusted local network, packet sniffers can intercept the IP addresses and ports active during the sync session.
+   * **Mitigation:** SafeVault E2EE encrypts the payloads with Argon2id-derived keys and authenticates using timestamp-hashed nonces, preventing actual credential leaks or man-in-the-middle decryption.
+
 ---
 
 ### ⚠️ Critical Warnings: What NOT to Do (Dangerous Practices)
@@ -159,6 +184,7 @@ Although the database is strongly encrypted, no system is perfectly secure. Here
 * **❌ DO NOT Sync over Public Wi-Fi without VPN:** Although sync traffic is fully encrypted using Argon2id + AES-GCM and authenticated using timestamp hashes, syncing over untrusted public hotspots exposes your local IP ports to port-scanners.
 * **❌ DO NOT Run SafeVault on a Rooted/Jailbroken Phone:** Root access bypasses sandbox permissions (IndexedDB isolation), allowing third-party apps to access your vault files directly.
 * **❌ DO NOT Disable Auto-Lock:** Keeping your vault unlocked indefinitely exposes plaintext RAM keys and invites unauthorized physical access (shoulder surfing).
+* **❌ DO NOT Leave Decoy/Honeypot Alerts Unattended:** If a honeypot credential copy alert is triggered in your audit log, check for unauthorized access or screen recordings immediately.
 
 ---
 
