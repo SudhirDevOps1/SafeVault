@@ -71,13 +71,15 @@ Allows generating extremely strong cryptographically random strings with specifi
 SafeVault is engineered with zero-trust principles. Below is the breakdown of our core capabilities:
 
 ### 🔒 Security Hardening
-* **AES-GCM 256-Bit Cryptography:** Keys derived securely via PBKDF2 with 600K iterations directly in your browser. Your master password never leaves your memory.
+* **Argon2id Key Derivation (OWASP 2026 Standard):** Keys derived securely using memory-hard Argon2id (Memory: 64MB, Iterations: 3, Parallelism: 4) using fast WASM libraries. Automatic background migration seamlessly upgrades legacy PBKDF2 vaults.
+* **BIP39 24-Word Recovery Kit:** Enforces generating and validating a 24-word emergency recovery phrase during vault setup.
+* **Zero-Knowledge Key Wrapping:** Encrypts the master key with the recovery key using AES-GCM, allowing emergency unwrap/recovery unlocks without credential duplication.
 * **Anti-Screen Capture / Screenshot Blocking:** Built-in protection in desktop clients to prevent local malware from grabbing vault data.
-* **Transient Session Network Consent:** App starts completely offline and blocks all update checks until explicit transient permission is granted via startup banner.
-* **Constant-Time Comparison:** Blocks timing attack probes.
 * **Clipboard Scrubbing:** Automatically clears copied secrets after 30 seconds.
+* **Constant-Time Comparison:** Blocks timing attack probes.
 
 ### 📱 Full Feature Set
+* **Auto-Discovery Subnet Scanner:** Dynamic parallel subnet scanner check over port `58241` for quick, zero-config peer-to-peer Wi-Fi synchronization.
 * **TOTP 2FA Authenticator:** Real-time generation of 6-digit codes with visual countdown meters.
 * **Universal CSV Importer:** Directly parse and import credentials from Bitwarden, ProtonPass, Brave, DuckDuckGo, Chrome, and 40+ other formats.
 * **Security Health Audit:** Local zero-knowledge scanner checking passwords against leaked breach lists using the k-Anonymity privacy protocol.
@@ -100,7 +102,7 @@ SafeVault is engineered with zero-trust principles. Below is the breakdown of ou
 ┌─────────────────────────────────────────────────────┐
 │                    Master Password                  │
 └──────────────────┬──────────────────────────────────┘
-                   │ PBKDF2 (600K iterations, SHA-512)
+                   │ Argon2id (64MB memory, 3 iterations)
                    ▼
 ┌─────────────────────────────────────────────────────┐
 │              Encryption Key (256-bit)               │
@@ -122,28 +124,28 @@ SafeVault is engineered with zero-trust principles. Below is the breakdown of ou
 
 ## 🚀 Installation & Downloads
 
-### Official Pre-built Binaries (v1.1.3)
+### Official Pre-built Binaries (v1.2.0)
 
 Download the latest release files directly from the [GitHub Releases Page](https://github.com/SudhirDevOps1/SafeVault/releases/latest).
 
 #### 🪟 Windows (Windows 10/11)
-- **Installer (Recommended):** Download `SafeVault.Setup.1.1.3.exe`. Double-click to install. This automatically registers start menu entries, desktop shortcuts, and links the application icons.
-- **Portable Version:** Download `SafeVault.1.1.3.exe`. A single standalone binary that runs instantly without installation (useful for USB drives).
+- **Installer (Recommended):** Download `SafeVault.Setup.1.2.0.exe`. Double-click to install. This automatically registers start menu entries, desktop shortcuts, and links the application icons.
+- **Portable Version:** Download `SafeVault.1.2.0.exe`. A single standalone binary that runs instantly without installation (useful for USB drives).
 
 #### 🍎 macOS (Apple Silicon M1/M2/M3)
-- **DMG Installer:** Download `SafeVault-1.1.3-arm64.dmg`. Double-click to open, and drag **SafeVault** to your `Applications` folder.
-- **ZIP Archive:** Download `SafeVault-1.1.3-arm64-mac.zip`. Unpack and run the application directly.
+- **DMG Installer:** Download `SafeVault-1.2.0-arm64.dmg`. Double-click to open, and drag **SafeVault** to your `Applications` folder.
+- **ZIP Archive:** Download `SafeVault-1.2.0-arm64-mac.zip`. Unpack and run the application directly.
 *Note: If macOS blocks launch with a "Developer cannot be verified" warning, right-click the app, select **Open**, and confirm.*
 
 #### 🐧 Linux (Ubuntu, Debian, Fedora, Arch, etc.)
-- **AppImage:** Download `SafeVault-1.1.3.AppImage`. Run the following command in your terminal to make it executable and launch:
+- **AppImage:** Download `SafeVault-1.2.0.AppImage`. Run the following command in your terminal to make it executable and launch:
   ```bash
-  chmod +x SafeVault-1.1.3.AppImage
-  ./SafeVault-1.1.3.AppImage
+  chmod +x SafeVault-1.2.0.AppImage
+  ./SafeVault-1.2.0.AppImage
   ```
 
 #### 🤖 Android (Mobile / Tablet)
-- **APK Installer:** Download `SafeVault-v1.1.3.apk`. Install it directly on your Android phone or tablet to run SafeVault natively.
+- **APK Installer:** Download `SafeVault-v1.2.0.apk`. Install it directly on your Android phone or tablet to run SafeVault natively.
 
 ### Build from Source
 

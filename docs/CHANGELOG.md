@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.2.0] - 2026-07-24
+
+### Added
+- **Argon2id Key Derivation (OWASP 2026):** Upgraded primary credential key derivation from PBKDF2 to memory-hard Argon2id (Memory: 64MB, Iterations: 3, Parallelism: 4).
+- **PBKDF2 Silent Auto-Migration:** Implemented seamless auto-migration upgrading legacy PBKDF2 databases to Argon2id upon first successful login.
+- **BIP39 24-Word Recovery Phrase Kit:** Integrated 24-word recovery phrase generator and confirmation steps into VaultSetup wizard.
+- **Zero-Knowledge Key Wrapping:** Encrypts the master key using the derived recovery key, providing a secure, offline password-reset/recovery bypass option.
+- **Local Subnet Sync Auto-Discovery:** Integrated a parallel subnet scanner that probes local networks on port `58241` to auto-discover active peer sync host servers.
+- **Update Check Engine Upgrades:** Defaulted auto-update checker to enabled and removed complex session confirmation blocks to show update alerts directly on startup.
+
+### Changed
+- **Secure Password Changes:** Upgraded `changeMasterPassword` inside `vaultStore.ts` to derive new database credentials using Argon2id, preventing KDF downgrades, and automatically cleaning stale recovery phrase wraps.
+- Bumped app versions, package version strings, and documentation files to v1.2.0.
+
+---
+
 ## [1.1.5] - 2026-07-23
 
 ### Added

@@ -11,7 +11,7 @@ SafeVault operations run entirely client-side. The following diagram illustrates
 ```mermaid
 flowchart TD
     subgraph KDF [Key Derivation & Auth]
-        A[Master Password] --> B[PBKDF2 Key Derivation<br/>600,000 Iterations + SHA-512]
+        A[Master Password] --> B[Argon2id Key Derivation<br/>Memory: 64MB, Iterations: 3, Parallelism: 4]
         B --> C[Derived Master Key]
         C --> D[SHA-256 Hash verification]
     end
@@ -89,6 +89,13 @@ All encryption and key derivation happens on-the-fly inside volatile JavaScript 
 * **6-Digit pairing code PIN check:** Secured the local server sync validation to prevent unauthorized network pairings.
 * **Brute-Force Connection Throttling:** Enforces a local IP block list allowing maximum 3 failed pairing attempts before permanently dropping connections from that host.
 * **HTTPS Mixed Content Restriction:** Due to web browser security limitations, production Web App instances running on HTTPS cannot initiate local sync with HTTP local IPs. Synchronization works best between native Desktop and Mobile apps.
+
+### 🔒 v1.2.0: Argon2id KDF, Zero-Knowledge Recovery Phrase, & Subnet Scanner Auto-Discovery
+* **Argon2id Key Derivation (OWASP 2026):** Upgraded from PBKDF2 to Argon2id (Memory: 64MB, Iterations: 3, Parallelism: 4) using highly-optimized WASM runtimes.
+* **PBKDF2 Silent Auto-Migration:** Automatically upgrades legacy PBKDF2 databases to Argon2id in the background on the first successful login.
+* **BIP39 24-Word Recovery Phrase Kit:** Generates a 24-word recovery phrase during vault setup. Enforces verification checks before creation.
+* **Master Key Wrapping:** AES-GCM encrypts the master key using the derived recovery key, allowing offline account restoration without storing plain key text or duplicate records.
+* **Subnet Scanner Auto-Discovery:** Implemented a parallel subnet scanner checks port `58241` with a low-timeout threshold to automatically discover host sync servers on the local Wi-Fi network.
 
 ---
 
