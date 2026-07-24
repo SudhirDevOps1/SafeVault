@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-07-24
+
+### Added — Sync Security Hardening
+- **Wi-Fi Sync E2EE Strength Upgrade:** Upgraded transport key derivation function from PBKDF2 (10,000 iterations) to a memory-hard **Argon2id WASM key derivation** (matching the relay-sync security specs).
+- **Zero-Sniffing Handshake Authentication:** Replaced plain-text PIN transit (`X-Sync-PIN` header) over local HTTP requests with a cryptographic challenge signature `X-Sync-Hash: SHA-256(PIN + Timestamp)` to prevent network packet sniffers from capturing the raw PIN.
+- **Node Sync Server E2EE Bypass:** Refactored the local Node.js sync server (`sync-server.cjs`) to directly route the raw encrypted payload to the React renderer, ensuring decryption/encryption happens entirely inside the sandbox and keeping the main server process zero-knowledge.
+- **Relay Worker Spam Protection:** Added `X-Request-Source: SafeVault` origin header checks to the Cloudflare Workers script to restrict KV payload pushes to identified SafeVault clients.
+
+---
+
 ## [1.4.0] - 2026-07-24
 
 ### Added — Privacy-First Hardening Release

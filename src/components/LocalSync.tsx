@@ -26,28 +26,87 @@ export default function LocalSync() {
 
   // Listen to Server Sync requests (Desktop Only)
   useEffect(() => {
-    if (!isElectronApp || !isServerActive) return;
+    if (!isElectronApp || !isServerActive || !serverInfo) return;
 
-    const unsubscribe = (window as any).safevault.onSyncRequest((clientVault: any[], respond: (err: any, merged: any[]) => void) => {
+    const unsubscribe = (window as any).safevault.onSyncRequest(async (encryptedPayload: any, respond: (err: any, resPayload: any) => void) => {
       setSyncStatus('Pairing requested...');
       
-      mergeCredentials(clientVault)
-        .then((mergedData) => {
-          respond(null, mergedData);
-          setSyncStatus('Synchronization successful!');
-          setTimeout(() => setSyncStatus(null), 5000);
-        })
-        .catch((err) => {
-          respond(err, []);
-          setSyncStatus('Synchronization failed during data merge');
-          setTimeout(() => setSyncStatus(null), 5000);
-        });
+      try {
+        // 1. Derive the local key from the active server PIN
+        const salt = await createVerificationHashArgon2id(serverInfo.pin, 'safevault-wifi-salt');
+        const aesKey = await deriveWifiPINKey(serverInfo.pin, salt.slice(0, 16));
+
+        // 2. Decrypt client data
+        const resCiphertext = new Uint8Array(
+          atob(encryptedPayload.ciphertext).split('').map(c => c.charCodeAt(0))
+        );
+        const resIv = new Uint8Array(
+          atob(encryptedPayload.iv).split('').map(c => c.charCodeAt(0))
+        );
+        const resTag = new Uint8Array(
+          atob(encryptedPayload.tag).split('').map(c => c.charCodeAt(0))
+        );
+        
+        // Concatenate ciphertext and tag for Web Crypto decrypt
+        const combined = new Uint8Array(resCiphertext.length + resTag.length);
+        combined.set(resCiphertext);
+        combined.set(resTag, resCiphertext.length);
+        
+        const decryptedBuffer = await window.crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: resIv },
+          aesKey,
+          combined
+        );
+        
+        const decryptedJson = new TextDecoder().decode(decryptedBuffer);
+        const clientVault = JSON.parse(decryptedJson);
+
+        if (!Array.isArray(clientVault)) {
+          throw new Error('Decrypted client vault payload is not a valid list');
+        }
+
+        // 3. Merge credentials locally
+        const mergedData = await mergeCredentials(clientVault);
+
+        // 4. Encrypt merged vault data for response
+        const mergedJson = JSON.stringify(mergedData);
+        const encoder = new TextEncoder();
+        const responseBuffer = encoder.encode(mergedJson);
+        const respIv = window.crypto.getRandomValues(new Uint8Array(12));
+        
+        const encryptedResponseBuffer = await window.crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv: respIv },
+          aesKey,
+          responseBuffer
+        );
+        
+        const respUint8 = new Uint8Array(encryptedResponseBuffer);
+        const respIvBase64 = window.btoa(String.fromCharCode(...respIv));
+        
+        const respTagOffset = respUint8.length - 16;
+        const respCiphertextBytes = respUint8.slice(0, respTagOffset);
+        const respTagBytes = respUint8.slice(respTagOffset);
+        
+        const encryptedPayloadResponse = {
+          ciphertext: window.btoa(String.fromCharCode(...respCiphertextBytes)),
+          iv: respIvBase64,
+          tag: window.btoa(String.fromCharCode(...respTagBytes))
+        };
+
+        respond(null, encryptedPayloadResponse);
+        setSyncStatus('Synchronization successful!');
+        setTimeout(() => setSyncStatus(null), 5000);
+      } catch (err: any) {
+        respond(err.message || 'Decryption/merge failed', null);
+        setSyncStatus('Synchronization failed during E2EE decryption/merge');
+        setTimeout(() => setSyncStatus(null), 5000);
+      }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [isElectronApp, isServerActive, mergeCredentials]);
+  }, [isElectronApp, isServerActive, serverInfo, mergeCredentials]);
 
   // Clean up server and scanner on unmount
   useEffect(() => {
@@ -171,7 +230,10 @@ export default function LocalSync() {
       const payload = { ciphertext, iv };
       const response = await fetch(`https://safevault-sync-relay.cloudflare.workers.dev/channel/${relayChannel}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Request-Source': 'SafeVault'
+        },
         body: JSON.stringify(payload)
       });
       
@@ -197,7 +259,11 @@ export default function LocalSync() {
     setRelayLoading(true);
     setRelayStatus(null);
     try {
-      const response = await fetch(`https://safevault-sync-relay.cloudflare.workers.dev/channel/${relayChannel}`);
+      const response = await fetch(`https://safevault-sync-relay.cloudflare.workers.dev/channel/${relayChannel}`, {
+        headers: {
+          'X-Request-Source': 'SafeVault'
+        }
+      });
       if (!response.ok) throw new Error('No vault data found in this channel. Ensure the sending device pushed first.');
       
       const payload = await response.json();
@@ -306,27 +372,9 @@ export default function LocalSync() {
     setDiscovering(false);
   };
 
-  // Helper to derive AES-256 key from PIN locally in browser (E2EE Wi-Fi Sync)
-  const deriveWifiPINKey = async (pin: string): Promise<CryptoKey> => {
-    const pinKey = await window.crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(pin),
-      { name: 'PBKDF2' },
-      false,
-      ['deriveKey']
-    );
-    return window.crypto.subtle.deriveKey(
-      {
-        name: 'PBKDF2',
-        salt: new TextEncoder().encode('safevault-sync-salt'),
-        iterations: 10000,
-        hash: 'SHA-256'
-      },
-      pinKey,
-      { name: 'AES-GCM', length: 256 },
-      true,
-      ['encrypt', 'decrypt']
-    );
+  // Helper to derive AES-256 key from PIN locally in browser using Argon2id (Upgraded E2EE Wi-Fi Sync)
+  const deriveWifiPINKey = async (pin: string, saltHex: string): Promise<CryptoKey> => {
+    return deriveKeyArgon2id(pin, saltHex);
   };
 
   const handleClientSync = async (e?: React.FormEvent) => {
@@ -352,10 +400,11 @@ export default function LocalSync() {
     }
 
     try {
-      // Derive local E2EE key from pairing PIN
-      const aesKey = await deriveWifiPINKey(pairingPIN.trim());
+      // 1. Generate salt and derive transport key using Argon2id
+      const salt = await createVerificationHashArgon2id(pairingPIN.trim(), 'safevault-wifi-salt');
+      const aesKey = await deriveWifiPINKey(pairingPIN.trim(), salt.slice(0, 16));
       
-      // Encrypt the vault payload before sending
+      // 2. Encrypt the vault payload before sending
       const vaultJson = JSON.stringify(credentials);
       const encoder = new TextEncoder();
       const dataBuffer = encoder.encode(vaultJson);
@@ -381,11 +430,19 @@ export default function LocalSync() {
         tag: window.btoa(String.fromCharCode(...tagBytes))
       };
 
+      // 3. Cryptographically sign the PIN validation instead of sending raw PIN
+      const timestamp = Date.now().toString();
+      const pinMsgBuffer = encoder.encode(pairingPIN.trim() + timestamp);
+      const pinHashBuffer = await window.crypto.subtle.digest('SHA-256', pinMsgBuffer);
+      const pinHashHex = Array.from(new Uint8Array(pinHashBuffer))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Sync-PIN': pairingPIN.trim()
+          'X-Sync-Hash': pinHashHex,
+          'X-Sync-Timestamp': timestamp
         },
         body: JSON.stringify(payload)
       });

@@ -12,11 +12,20 @@ export default {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, X-Request-Source",
     };
 
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
+    }
+
+    // Validate request origin source to protect against generic API spamming
+    const requestSource = request.headers.get("X-Request-Source");
+    if (requestSource !== "SafeVault") {
+      return new Response(JSON.stringify({ error: "Forbidden: SafeVault Client Identity Required" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
     }
 
     const url = new URL(request.url);
