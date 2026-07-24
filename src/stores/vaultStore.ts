@@ -119,7 +119,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   backupDirectory: localStorage.getItem('safevault_backup_directory') || '',
   backupFormat: (localStorage.getItem('safevault_backup_format') as any) || 'encrypted',
   lastBackup: localStorage.getItem('safevault_last_backup') ? Number(localStorage.getItem('safevault_last_backup')) : null,
-  checkForUpdates: localStorage.getItem('safevault_check_updates') === 'true',
+  checkForUpdates: localStorage.getItem('safevault_check_updates') !== 'false',
   updateAvailable: null,
   updateReleaseNotes: null,
   updateDownloadUrl: null,
@@ -358,32 +358,52 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       const vaultRecord = await db.vault.get('main');
       if (!vaultRecord) throw new Error('No vault found');
 
-      const oldHash = await createVerificationHash(oldPassword, vaultRecord.verificationSalt);
-      if (!constantTimeCompare(oldHash, vaultRecord.verificationHash)) {
+      // Verify old password
+      let isPasswordCorrect = false;
+      if (vaultRecord.kdf === 'argon2id') {
+        const oldHash = await createVerificationHashArgon2id(oldPassword, vaultRecord.verificationSalt);
+        isPasswordCorrect = constantTimeCompare(oldHash, vaultRecord.verificationHash);
+      } else {
+        const oldHash = await createVerificationHash(oldPassword, vaultRecord.verificationSalt);
+        isPasswordCorrect = constantTimeCompare(oldHash, vaultRecord.verificationHash);
+      }
+
+      if (!isPasswordCorrect) {
         set({ error: 'Current password is incorrect.', loading: false });
         return;
       }
 
       const newSalt = generateSalt();
       const newVerificationSalt = generateSalt();
-      const newKey = await deriveKey(newPassword, newSalt);
-      const newVerificationHash = await createVerificationHash(newPassword, newVerificationSalt);
+      const newKey = await deriveKeyArgon2id(newPassword, newSalt);
+      const newVerificationHash = await createVerificationHashArgon2id(newPassword, newVerificationSalt);
 
       const { credentials } = get();
       const { ciphertext, iv } = await encrypt(JSON.stringify(credentials), newKey);
 
-      await db.vault.put({
+      const updatedRecord: any = {
         ...vaultRecord,
         encryptedData: ciphertext,
         iv,
         salt: newSalt,
         verificationHash: newVerificationHash,
         verificationSalt: newVerificationSalt,
+        kdf: 'argon2id',
         updatedAt: Date.now(),
-      });
+      };
+
+      // Since the password changed, we must delete any legacy recovery wrapped key
+      // because we cannot re-encrypt it without the recovery phrase in memory.
+      delete updatedRecord.recoverySalt;
+      delete updatedRecord.recoveryVerificationHash;
+      delete updatedRecord.recoveryVerificationSalt;
+      delete updatedRecord.recoveryEncryptedData;
+      delete updatedRecord.recoveryIv;
+
+      await db.vault.put(updatedRecord);
 
       set({ encryptionKey: newKey, loading: false });
-      logger.info('Master password changed successfully');
+      logger.info('Master password changed successfully and KDF upgraded/updated to Argon2id');
     } catch (err) {
       logger.error('Failed to change password', err);
       set({ error: 'Failed to change password.', loading: false });
@@ -529,13 +549,13 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   },
 
   checkLatestRelease: async () => {
-    if (!get().checkForUpdates || !get().networkApprovedThisSession) return;
+    if (!get().checkForUpdates) return;
     try {
       const response = await fetch('https://api.github.com/repos/SudhirDevOps1/SafeVault/releases/latest');
       if (!response.ok) return;
       const data = await response.json();
       const latestVersion = data.tag_name;
-      const currentVersion = 'v1.1.5'; // Current client version
+      const currentVersion = 'v1.2.0'; // Current client version
       
       const cleanLatest = latestVersion.replace(/^v/, '');
       const cleanCurrent = currentVersion.replace(/^v/, '');
