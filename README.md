@@ -364,6 +364,7 @@ MIT License - See [LICENSE](LICENSE) for details.
 - [Dexie](https://dexie.org/) - IndexedDB wrapper
 - [Lucide](https://lucide.dev/) - Icons
 - [Electron](https://www.electronjs.org/) - Desktop framework
+- [Capacitor / Ionic](https://capacitorjs.com/) - Mobile app packaging shell
 
 ---
 
