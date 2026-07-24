@@ -1,11 +1,4 @@
-/**
- * SafeVault Cryptographic Utilities
- * 
- * All encryption/decryption happens locally using Web Crypto API.
- * - PBKDF2 with 600,000 iterations for key derivation
- * - AES-GCM 256-bit for data encryption
- * - No data ever leaves the device
- */
+import { argon2id } from 'hash-wasm';
 
 const PBKDF2_ITERATIONS = 600_000;
 const SALT_LENGTH = 16;
@@ -105,6 +98,54 @@ export async function createVerificationHash(
   );
 
   return bufferToBase64(bits);
+}
+
+export async function deriveKeyArgon2id(
+  password: string,
+  saltBase64: string
+): Promise<CryptoKey> {
+  const salt = base64ToBuffer(saltBase64);
+  const hashBytes = await argon2id({
+    password: password,
+    salt: salt,
+    iterations: 3,
+    memorySize: 65536, // 64 MB
+    parallelism: 4,
+    hashLength: 32, // 256 bits
+    outputType: 'binary',
+  });
+
+  return crypto.subtle.importKey(
+    'raw',
+    hashBytes,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+export async function createVerificationHashArgon2id(
+  password: string,
+  saltBase64: string
+): Promise<string> {
+  const salt = base64ToBuffer(saltBase64);
+  return argon2id({
+    password: password,
+    salt: salt,
+    iterations: 3,
+    memorySize: 65536, // 64 MB
+    parallelism: 4,
+    hashLength: 32,
+    outputType: 'hex',
+  });
+}
+
+export async function deriveKeyFromRecoveryPhrase(
+  recoveryPhrase: string,
+  saltBase64: string
+): Promise<CryptoKey> {
+  const cleanPhrase = recoveryPhrase.trim().toLowerCase().replace(/\s+/g, ' ');
+  return deriveKeyArgon2id(cleanPhrase, saltBase64);
 }
 
 export async function encrypt(
