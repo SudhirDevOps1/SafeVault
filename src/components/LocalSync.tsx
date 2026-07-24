@@ -3,6 +3,7 @@ import { Wifi, RefreshCw, AlertTriangle, CheckCircle, Key, QrCode, Camera, X } f
 import { QRCodeSVG } from 'qrcode.react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useVaultStore } from '../stores/vaultStore';
+import { encrypt, decrypt, deriveKeyArgon2id, createVerificationHashArgon2id } from '../utils/crypto';
 
 export default function LocalSync() {
   const { credentials, mergeCredentials } = useVaultStore();
@@ -139,6 +140,89 @@ export default function LocalSync() {
       setSyncStatus(null);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  // Cloud Relay State
+  const [syncMode, setSyncMode] = useState<'wifi' | 'relay'>('wifi');
+  const [relayChannel, setRelayChannel] = useState('');
+  const [relayPIN, setRelayPIN] = useState('');
+  const [relayLoading, setRelayLoading] = useState(false);
+  const [relayStatus, setRelayStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleRelayPush = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!relayChannel || !relayPIN) {
+      setRelayStatus({ type: 'error', message: 'Please enter both a Channel ID and a 6-digit PIN' });
+      return;
+    }
+    setRelayLoading(true);
+    setRelayStatus(null);
+    try {
+      // Derive a secure key from the PIN and Channel ID using Argon2id
+      const salt = await createVerificationHashArgon2id(relayChannel, 'safevault-relay-salt');
+      const cryptoKey = await deriveKeyArgon2id(relayPIN, salt.slice(0, 16));
+      
+      // Encrypt the vault
+      const vaultJson = JSON.stringify(credentials);
+      const { ciphertext, iv } = await encrypt(vaultJson, cryptoKey);
+      
+      // Push to public anonymous KV store (kvdb.io)
+      const payload = { ciphertext, iv };
+      const response = await fetch(`https://kvdb.io/vault-relay-bucket/${relayChannel}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) throw new Error('Failed to push data to relay server');
+      
+      setRelayStatus({
+        type: 'success',
+        message: 'Vault successfully encrypted and pushed to relay channel! Now press "Pull & Merge" on the other device.'
+      });
+    } catch (err: any) {
+      setRelayStatus({ type: 'error', message: err.message || 'Push failed. Please check network connection.' });
+    } finally {
+      setRelayLoading(false);
+    }
+  };
+
+  const handleRelayPull = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!relayChannel || !relayPIN) {
+      setRelayStatus({ type: 'error', message: 'Please enter both a Channel ID and a 6-digit PIN' });
+      return;
+    }
+    setRelayLoading(true);
+    setRelayStatus(null);
+    try {
+      const response = await fetch(`https://kvdb.io/vault-relay-bucket/${relayChannel}`);
+      if (!response.ok) throw new Error('No vault data found in this channel. Ensure the sending device pushed first.');
+      
+      const payload = await response.json();
+      
+      // Derive the same key
+      const salt = await createVerificationHashArgon2id(relayChannel, 'safevault-relay-salt');
+      const cryptoKey = await deriveKeyArgon2id(relayPIN, salt.slice(0, 16));
+      
+      // Decrypt the vault
+      const decryptedJson = await decrypt(payload.ciphertext, payload.iv, cryptoKey);
+      const incomingVault = JSON.parse(decryptedJson);
+      
+      if (incomingVault && Array.isArray(incomingVault)) {
+        await mergeCredentials(incomingVault);
+        setRelayStatus({
+          type: 'success',
+          message: `Vault successfully downloaded, decrypted, and merged ${incomingVault.length} records!`
+        });
+      } else {
+        throw new Error('Invalid decrypted data format');
+      }
+    } catch (err: any) {
+      setRelayStatus({ type: 'error', message: err.message || 'Decryption/Pull failed. Verify PIN and Channel ID.' });
+    } finally {
+      setRelayLoading(false);
     }
   };
 
@@ -291,197 +375,306 @@ export default function LocalSync() {
 
   return (
     <div className="bg-[#121212]/80 border border-white/5 rounded-2xl p-6 backdrop-blur-xl space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
-          <Wifi className="w-6 h-6" />
-        </div>
-        <div>
-          <h3 className="text-lg font-bold text-white">Local Wi-Fi Sync</h3>
-          <p className="text-xs text-gray-400">Synchronize your encrypted vault safely over local Wi-Fi networks.</p>
+      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
+            <Wifi className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">SafeVault Sync Center</h3>
+            <p className="text-xs text-gray-400">Synchronize credentials securely across all devices.</p>
+          </div>
         </div>
       </div>
 
-      {isElectronApp ? (
-        /* Host/Server View (Electron App) */
-        <div className="space-y-6">
-          <div className="p-4 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
-            <div>
-              <span className="text-sm font-semibold text-white">Pairing Host Status</span>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {isServerActive ? 'Hosting active sync channel...' : 'Start server to pair with mobile or web.'}
-              </p>
-            </div>
-            <button
-              onClick={isServerActive ? handleStopServer : handleStartServer}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-                isServerActive
-                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30'
-                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
-              }`}
-            >
-              {isServerActive ? 'Stop Sync Server' : 'Start Sync Server'}
-            </button>
-          </div>
+      {/* Mode Selector Tabs */}
+      <div className="flex gap-2 p-1 bg-white/5 rounded-xl">
+        <button
+          type="button"
+          onClick={() => setSyncMode('wifi')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+            syncMode === 'wifi'
+              ? 'bg-emerald-500 text-slate-900 shadow-md'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          Local Wi-Fi (P2P)
+        </button>
+        <button
+          type="button"
+          onClick={() => setSyncMode('relay')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+            syncMode === 'relay'
+              ? 'bg-emerald-500 text-slate-900 shadow-md'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          Cloud Relay (E2EE)
+        </button>
+      </div>
 
-          {isServerActive && serverInfo && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-white/5 border border-white/5 rounded-xl space-y-3">
-                  <span className="text-xs text-gray-400 uppercase tracking-wider font-bold block">1. Network Details</span>
-                  <div className="space-y-1">
-                    {serverInfo.ips.map(ip => (
-                      <code key={ip} className="block text-sm text-emerald-400 font-mono">
-                        {ip}:{serverInfo.port}
-                      </code>
-                    ))}
-                  </div>
-                  <div className="pt-2">
-                    <span className="text-xs text-gray-400 uppercase tracking-wider font-bold block">2. Security PIN</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Key className="w-4 h-4 text-emerald-400" />
-                      <span className="text-2xl font-black text-white font-mono tracking-widest">{serverInfo.pin}</span>
+      {syncMode === 'wifi' ? (
+        /* Original Local Wi-Fi Sync View */
+        isElectronApp ? (
+          /* Host/Server View (Electron App) */
+          <div className="space-y-6">
+            <div className="p-4 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
+              <div>
+                <span className="text-sm font-semibold text-white">Pairing Host Status</span>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {isServerActive ? 'Hosting active sync channel...' : 'Start server to pair with mobile or web.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={isServerActive ? handleStopServer : handleStartServer}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                  isServerActive
+                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30'
+                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                }`}
+              >
+                {isServerActive ? 'Stop Sync Server' : 'Start Sync Server'}
+              </button>
+            </div>
+
+            {isServerActive && serverInfo && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-white/5 border border-white/5 rounded-xl space-y-3">
+                    <span className="text-xs text-gray-400 uppercase tracking-wider font-bold block">1. Network Details</span>
+                    <div className="space-y-1">
+                      {serverInfo.ips.map(ip => (
+                        <code key={ip} className="block text-sm text-emerald-400 font-mono">
+                          {ip}:{serverInfo.port}
+                        </code>
+                      ))}
+                    </div>
+                    <div className="pt-2">
+                      <span className="text-xs text-gray-400 uppercase tracking-wider font-bold block">2. Security PIN</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Key className="w-4 h-4 text-emerald-400" />
+                        <span className="text-2xl font-black text-white font-mono tracking-widest">{serverInfo.pin}</span>
+                      </div>
                     </div>
                   </div>
+
+                  <div className="p-4 bg-white/5 border border-white/5 rounded-xl flex flex-col items-center justify-center space-y-2">
+                    <div className="p-2.5 bg-white rounded-xl border border-white/10">
+                      <QRCodeSVG value={getQRValue()} size={110} bgColor="#ffffff" fgColor="#000000" includeMargin={false} />
+                    </div>
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1.5">
+                      <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                      Scan QR code on your mobile app settings
+                    </span>
+                  </div>
                 </div>
 
-                <div className="p-4 bg-white/5 border border-white/5 rounded-xl flex flex-col items-center justify-center space-y-2">
-                  <div className="p-2.5 bg-white rounded-xl border border-white/10">
-                    <QRCodeSVG value={getQRValue()} size={110} bgColor="#ffffff" fgColor="#000000" includeMargin={false} />
+                <div className="p-3.5 bg-amber-500/5 border border-amber-500/10 rounded-xl space-y-2">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-300 leading-normal">
+                      <strong>Windows Firewall Blocking Connection?</strong>
+                      <p className="text-gray-400 mt-1">
+                        If connection fails, open PowerShell as **Administrator** and run this command to allow the sync port:
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-gray-400 flex items-center gap-1.5">
-                    <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-                    Scan QR code on your mobile app settings
+                  <code className="block p-2 bg-black/40 border border-white/5 rounded-lg text-[10px] text-amber-200 font-mono select-all overflow-x-auto">
+                    netsh advfirewall firewall add rule name="SafeVault Sync Server" dir=in action=allow protocol=TCP localport=58241
+                  </code>
+                </div>
+              </div>
+            )}
+
+            {syncStatus && (
+              <div className="p-3.5 bg-white/5 border border-white/5 rounded-xl flex items-center gap-2 text-xs text-gray-300">
+                <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                <span>{syncStatus}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Client View (Mobile/Web Browser) */
+          <div className="space-y-4">
+            {showScanner ? (
+              <div className="p-4 bg-black/60 border border-white/10 rounded-2xl relative space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-emerald-400" />
+                    Scan Host QR Code
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowScanner(false)}
+                    className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="overflow-hidden rounded-xl bg-[#080808] border border-white/5 aspect-square relative">
+                  <div id="qr-reader-container" className="w-full h-full"></div>
                 </div>
               </div>
-
-              <div className="p-3.5 bg-amber-500/5 border border-amber-500/10 rounded-xl space-y-2">
-                <div className="flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <div className="text-xs text-amber-300 leading-normal">
-                    <strong>Windows Firewall Blocking Connection?</strong>
-                    <p className="text-gray-400 mt-1">
-                      If connection fails, open PowerShell as **Administrator** and run this command to allow the sync port:
-                    </p>
-                  </div>
-                </div>
-                <code className="block p-2 bg-black/40 border border-white/5 rounded-lg text-[10px] text-amber-200 font-mono select-all overflow-x-auto">
-                  netsh advfirewall firewall add rule name="SafeVault Sync Server" dir=in action=allow protocol=TCP localport=58241
-                </code>
-              </div>
-            </div>
-          )}
-
-          {syncStatus && (
-            <div className="p-3.5 bg-white/5 border border-white/5 rounded-xl flex items-center gap-2 text-xs text-gray-300">
-              <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
-              <span>{syncStatus}</span>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Client View (Mobile/Web Browser) */
-        <div className="space-y-4">
-          {showScanner ? (
-            <div className="p-4 bg-black/60 border border-white/10 rounded-2xl relative space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                  <Camera className="w-4 h-4 text-emerald-400" />
-                  Scan Host QR Code
-                </span>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setShowScanner(false)}
-                  className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-colors"
+                  type="button"
+                  onClick={() => { setClientStatus(null); setShowScanner(true); }}
+                  className="py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
                 >
-                  <X className="w-4 h-4" />
+                  <QrCode className="w-4 h-4" />
+                  Scan QR Code
+                </button>
+                <button
+                  type="button"
+                  disabled={discovering}
+                  onClick={handleAutoDiscover}
+                  className="py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 disabled:bg-gray-800 disabled:text-gray-600 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+                >
+                  {discovering ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Wifi className="w-4 h-4" />
+                  )}
+                  {discovering ? 'Searching...' : 'Auto-Discover'}
                 </button>
               </div>
+            )}
 
-              <div className="overflow-hidden rounded-xl bg-[#080808] border border-white/5 aspect-square relative">
-                <div id="qr-reader-container" className="w-full h-full"></div>
+            <form onSubmit={handleClientSync} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-400">Target IP Address</label>
+                <input
+                  type="text"
+                  placeholder="e.g., 192.168.1.100"
+                  value={targetIP}
+                  onChange={e => setTargetIP(e.target.value)}
+                  disabled={clientLoading}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 transition-all font-mono"
+                />
               </div>
-            </div>
-          ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => { setClientStatus(null); setShowScanner(true); }}
-              className="py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-            >
-              <QrCode className="w-4 h-4" />
-              Scan QR Code
-            </button>
-            <button
-              type="button"
-              disabled={discovering}
-              onClick={handleAutoDiscover}
-              className="py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 disabled:bg-gray-800 disabled:text-gray-600 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-            >
-              {discovering ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <Wifi className="w-4 h-4" />
-              )}
-              {discovering ? 'Searching...' : 'Auto-Discover'}
-            </button>
-          </div>
-          )}
 
-          <form onSubmit={handleClientSync} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-400">6-Digit Pairing PIN</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g., 382914"
+                  value={pairingPIN}
+                  onChange={e => setPairingPIN(e.target.value.replace(/\D/g, ''))}
+                  disabled={clientLoading}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 transition-all font-mono tracking-widest text-center text-lg font-bold"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={clientLoading}
+                className="w-full py-3 bg-emerald-500 text-slate-900 rounded-xl text-sm font-bold hover:bg-emerald-400 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {clientLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Synchronizing...
+                  </>
+                ) : (
+                  'Initiate Sync'
+                )}
+              </button>
+
+              {clientStatus && (
+                <div
+                  className={`p-3.5 rounded-xl border flex items-start gap-2.5 text-xs ${
+                    clientStatus.type === 'success'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                  }`}
+                >
+                  {clientStatus.type === 'success' ? (
+                    <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  )}
+                  <span className="leading-normal">{clientStatus.message}</span>
+                </div>
+              )}
+            </form>
+          </div>
+        )
+      ) : (
+        /* Cloud Relay (E2EE) Sync View */
+        <div className="space-y-4">
+          <div className="p-3.5 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-1.5">
+            <span className="text-xs text-emerald-400 font-bold block">🔒 Zero-Knowledge Cloud Relay</span>
+            <p className="text-[11px] text-gray-400 leading-normal">
+              Sync devices directly across different networks (e.g. mobile to web) without running a local PC server. 
+              Your data is encrypted locally using AES-GCM before leaving your device; not even the relay server can access your secrets.
+            </p>
+          </div>
+
+          <form className="space-y-4">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-400">Target IP Address</label>
+              <label className="text-xs font-semibold text-gray-400">Sync Channel ID</label>
               <input
                 type="text"
-                placeholder="e.g., 192.168.1.100"
-                value={targetIP}
-                onChange={e => setTargetIP(e.target.value)}
-                disabled={clientLoading}
+                placeholder="e.g., custom-vault-room"
+                value={relayChannel}
+                onChange={e => setRelayChannel(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                disabled={relayLoading}
                 className="w-full px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 transition-all font-mono"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-400">6-Digit Pairing PIN</label>
+              <label className="text-xs font-semibold text-gray-400">6-Digit E2EE Encryption PIN</label>
               <input
                 type="text"
                 maxLength={6}
-                placeholder="e.g., 382914"
-                value={pairingPIN}
-                onChange={e => setPairingPIN(e.target.value.replace(/\D/g, ''))}
-                disabled={clientLoading}
+                placeholder="e.g., 839210"
+                value={relayPIN}
+                onChange={e => setRelayPIN(e.target.value.replace(/\D/g, ''))}
+                disabled={relayLoading}
                 className="w-full px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 transition-all font-mono tracking-widest text-center text-lg font-bold"
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={clientLoading}
-              className="w-full py-3 bg-emerald-500 text-slate-900 rounded-xl text-sm font-bold hover:bg-emerald-400 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {clientLoading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Synchronizing...
-                </>
-              ) : (
-                'Initiate Sync'
-              )}
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={relayLoading}
+                onClick={() => handleRelayPush()}
+                className="py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {relayLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
+                Push Encrypted
+              </button>
+              <button
+                type="button"
+                disabled={relayLoading}
+                onClick={() => handleRelayPull()}
+                className="py-3 bg-emerald-500 text-slate-900 rounded-xl text-xs font-bold hover:bg-emerald-400 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {relayLoading ? <RefreshCw className="w-4 h-4 animate-spin text-slate-900" /> : null}
+                Pull & Merge
+              </button>
+            </div>
 
-            {clientStatus && (
+            {relayStatus && (
               <div
                 className={`p-3.5 rounded-xl border flex items-start gap-2.5 text-xs ${
-                  clientStatus.type === 'success'
+                  relayStatus.type === 'success'
                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                     : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                 }`}
               >
-                {clientStatus.type === 'success' ? (
+                {relayStatus.type === 'success' ? (
                   <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 ) : (
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 )}
-                <span className="leading-normal">{clientStatus.message}</span>
+                <span className="leading-normal">{relayStatus.message}</span>
               </div>
             )}
           </form>
