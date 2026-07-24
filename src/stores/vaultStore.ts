@@ -21,7 +21,14 @@ import {
   createVerificationHash,
   constantTimeCompare,
   generateId,
+  deriveKeyArgon2id,
+  createVerificationHashArgon2id,
+  deriveKeyFromRecoveryPhrase,
+  generateIV,
+  wrapKey,
+  unwrapKey,
 } from '@/utils/crypto';
+import { validateMnemonic } from '@/utils/bip39';
 import { logger } from '@/utils/logger';
 
 const AUTO_BACKUP_KEY = 'safevault_auto_backup';
@@ -58,8 +65,9 @@ interface VaultStore {
 
   // Actions
   initializeVault: () => Promise<void>;
-  createVault: (masterPassword: string) => Promise<void>;
+  createVault: (masterPassword: string, recoveryPhrase?: string) => Promise<void>;
   unlockVault: (masterPassword: string) => Promise<void>;
+  unlockVaultWithRecovery: (recoveryPhrase: string) => Promise<boolean>;
   lockVault: () => void;
   changeMasterPassword: (oldPassword: string, newPassword: string) => Promise<void>;
   
@@ -140,18 +148,18 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     }
   },
 
-  createVault: async (masterPassword: string) => {
+  createVault: async (masterPassword: string, recoveryPhrase?: string) => {
     set({ loading: true, error: null });
     try {
       const salt = generateSalt();
       const verificationSalt = generateSalt();
       
-      const key = await deriveKey(masterPassword, salt);
-      const verificationHash = await createVerificationHash(masterPassword, verificationSalt);
+      const key = await deriveKeyArgon2id(masterPassword, salt);
+      const verificationHash = await createVerificationHashArgon2id(masterPassword, verificationSalt);
       
       const { ciphertext, iv } = await encrypt(JSON.stringify([]), key);
       
-      await db.vault.put({
+      const record: any = {
         id: 'main',
         encryptedData: ciphertext,
         iv,
@@ -162,8 +170,26 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         createdAt: Date.now(),
         updatedAt: Date.now(),
         version: 1,
-      });
+        kdf: 'argon2id',
+      };
 
+      if (recoveryPhrase) {
+        const recSalt = generateSalt();
+        const recVerSalt = generateSalt();
+        const recKey = await deriveKeyFromRecoveryPhrase(recoveryPhrase, recSalt);
+        const recVerHash = await createVerificationHashArgon2id(recoveryPhrase, recVerSalt);
+        
+        // Wrap the Master Key (key) using the Recovery Key (recKey)
+        const { ciphertext: wrappedKeyHex, iv: wrappedIv } = await wrapKey(key, recKey);
+        
+        record.recoverySalt = recSalt;
+        record.recoveryVerificationSalt = recVerSalt;
+        record.recoveryVerificationHash = recVerHash;
+        record.recoveryEncryptedData = wrappedKeyHex; // Holds the encrypted Master Key
+        record.recoveryIv = wrappedIv;
+      }
+
+      await db.vault.put(record);
       localStorage.setItem('safevault_privacy_seen', 'true');
 
       set({
@@ -173,7 +199,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         lastActivity: Date.now(),
         loading: false,
       });
-      logger.info('Vault created successfully');
+      logger.info('Vault created successfully using Argon2id and Key Wrap');
     } catch (err) {
       logger.error('Failed to create vault', err);
       set({ error: 'Failed to create vault. Please try again.', loading: false });
@@ -189,20 +215,60 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         return;
       }
 
-      const verificationHash = await createVerificationHash(
-        masterPassword,
-        vaultRecord.verificationSalt
-      );
+      let credentials: Credential[] = [];
+      let key: CryptoKey;
 
-      if (!constantTimeCompare(verificationHash, vaultRecord.verificationHash)) {
-        set({ error: 'Incorrect master password.', loading: false });
-        logger.warn('Failed unlock attempt - incorrect password');
-        return;
+      if (vaultRecord.kdf === 'argon2id') {
+        const verificationHash = await createVerificationHashArgon2id(
+          masterPassword,
+          vaultRecord.verificationSalt
+        );
+
+        if (!constantTimeCompare(verificationHash, vaultRecord.verificationHash)) {
+          set({ error: 'Incorrect master password.', loading: false });
+          logger.warn('Failed unlock attempt - incorrect password');
+          return;
+        }
+
+        key = await deriveKeyArgon2id(masterPassword, vaultRecord.salt);
+        const decryptedData = await decrypt(vaultRecord.encryptedData, vaultRecord.iv, key);
+        credentials = JSON.parse(decryptedData);
+      } else {
+        // Legacy PBKDF2 unlock
+        const verificationHash = await createVerificationHash(
+          masterPassword,
+          vaultRecord.verificationSalt
+        );
+
+        if (!constantTimeCompare(verificationHash, vaultRecord.verificationHash)) {
+          set({ error: 'Incorrect master password.', loading: false });
+          logger.warn('Failed unlock attempt - incorrect password');
+          return;
+        }
+
+        const legacyKey = await deriveKey(masterPassword, vaultRecord.salt);
+        const decryptedData = await decrypt(vaultRecord.encryptedData, vaultRecord.iv, legacyKey);
+        credentials = JSON.parse(decryptedData);
+
+        // SILENT AUTO-MIGRATION to Argon2id
+        logger.info('Migrating vault from PBKDF2 to Argon2id KDF standard...');
+        const newSalt = generateSalt();
+        const newVerSalt = generateSalt();
+        key = await deriveKeyArgon2id(masterPassword, newSalt);
+        const newVerHash = await createVerificationHashArgon2id(masterPassword, newVerSalt);
+        const { ciphertext, iv } = await encrypt(JSON.stringify(credentials), key);
+
+        await db.vault.update('main', {
+          encryptedData: ciphertext,
+          iv,
+          salt: newSalt,
+          verificationHash: newVerHash,
+          verificationSalt: newVerSalt,
+          kdf: 'argon2id',
+          updatedAt: Date.now(),
+        });
+        logger.info('Vault KDF migration to Argon2id completed successfully');
       }
-
-      const key = await deriveKey(masterPassword, vaultRecord.salt);
-      const decryptedData = await decrypt(vaultRecord.encryptedData, vaultRecord.iv, key);
-      const credentials: Credential[] = JSON.parse(decryptedData);
 
       set({
         vaultState: 'unlocked',
@@ -216,6 +282,59 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     } catch (err) {
       logger.error('Failed to unlock vault', err);
       set({ error: 'Failed to unlock vault. Incorrect password or corrupted data.', loading: false });
+    }
+  },
+
+  unlockVaultWithRecovery: async (recoveryPhrase: string) => {
+    set({ loading: true, error: null });
+    try {
+      if (!validateMnemonic(recoveryPhrase)) {
+        set({ error: 'Invalid recovery phrase format. Must be 24 space-separated english words.', loading: false });
+        return false;
+      }
+
+      const vaultRecord = await db.vault.get('main');
+      if (!vaultRecord || !vaultRecord.recoverySalt || !vaultRecord.recoveryEncryptedData || !vaultRecord.recoveryIv) {
+        set({ error: 'Vault does not have recovery phrase setup configured.', loading: false });
+        return false;
+      }
+
+      // Verify recovery verification hash if available
+      if (vaultRecord.recoveryVerificationHash && vaultRecord.recoveryVerificationSalt) {
+        const verHash = await createVerificationHashArgon2id(recoveryPhrase, vaultRecord.recoveryVerificationSalt);
+        if (!constantTimeCompare(verHash, vaultRecord.recoveryVerificationHash)) {
+          set({ error: 'Incorrect recovery phrase.', loading: false });
+          return false;
+        }
+      }
+
+      const recKey = await deriveKeyFromRecoveryPhrase(recoveryPhrase, vaultRecord.recoverySalt);
+      
+      // Unwrap the Master Key using the Recovery Key
+      const unwrappedMasterKey = await unwrapKey(
+        vaultRecord.recoveryEncryptedData,
+        vaultRecord.recoveryIv,
+        recKey
+      );
+      
+      // Decrypt the actual vault data using the unwrapped Master Key
+      const decryptedData = await decrypt(vaultRecord.encryptedData, vaultRecord.iv, unwrappedMasterKey);
+      const credentials: Credential[] = JSON.parse(decryptedData);
+
+      set({
+        vaultState: 'unlocked',
+        encryptionKey: unwrappedMasterKey, // The active session key is the restored Master Key
+        credentials,
+        autoLockMinutes: vaultRecord.autoLockMinutes,
+        lastActivity: Date.now(),
+        loading: false,
+      });
+      logger.info(`Vault successfully unlocked using recovery key unwrap, ${credentials.length} credentials loaded`);
+      return true;
+    } catch (err) {
+      logger.error('Recovery unlock failed', err);
+      set({ error: 'Failed to unlock using recovery phrase. Content decryption failed.', loading: false });
+      return false;
     }
   },
 
