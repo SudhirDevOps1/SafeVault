@@ -59,12 +59,14 @@ We will:
 
 SafeVault is designed to protect against:
 
-- ✅ Offline brute-force attacks (via PBKDF2 600K iterations)
+- ✅ Offline brute-force attacks (via Argon2id WASM key derivation & PBKDF2 600K iterations)
 - ✅ Device theft (encrypted vault requires master password)
 - ✅ Memory inspection (keys wiped on lock)
 - ✅ Timing attacks (constant-time compare)
 - ✅ Clipboard leakage (auto-clear after 30s)
 - ✅ Sleep/hibernate attacks (auto-lock on wake)
+- ✅ Wi-Fi sync sniffing attacks (E2EE derived via Argon2id + HMAC signatures)
+- ✅ Relay server privacy breach (Zero-knowledge design ensures data is encrypted client-side before transit)
 
 SafeVault does **NOT** protect against:
 
@@ -89,7 +91,9 @@ External network requests are strictly gated and initiated **ONLY** in the follo
 
 ## 🛰️ Local Network Sync Security Model & Limitations
 
-- **Pairing Authentication:** Connections are locked behind a screen-displayed 6-digit PIN.
+- **Pairing Authentication (HMAC Challenge):** Connections are authorized using a screen-displayed 6-digit PIN. To prevent sniffing of the PIN over LAN HTTP, the client hashes the PIN with a timestamp nonce (`SHA-256(PIN + Timestamp)`) and sends the hash. The server validates this in constant-time, preventing timing attacks and network replay snooping.
+- **E2EE Transport Strength:** Sync payload transport keys are derived using memory-hard **Argon2id** (matching the vault KDF standard) rather than weak key derivation functions.
+- **Zero-Knowledge Node Server:** The local HTTP host (`sync-server.cjs`) only routes the opaque payload; the credentials are decrypted/merged exclusively within the renderer sandboxes (React application process), keeping the server backend zero-knowledge.
 - **Subnet Restriction:** Local sync operates entirely over peer-to-peer Wi-Fi networks. It cannot cross the WAN/Internet and both devices must share the same local network subnet.
 - **Brute-Force Prevention:** The local sync server enforces an IP-based rate limit of **maximum 3 failed attempts** per IP. Reaching this limit permanently blocks the IP for that sync session.
 - **Mixed Content Limitation:** When running the Web App client in a web browser over HTTPS, local browser security models (Mixed Content block) will prevent the client from sending HTTP requests to the local network server. In this scenario, users must use the Desktop or Mobile clients to execute Wi-Fi syncing.

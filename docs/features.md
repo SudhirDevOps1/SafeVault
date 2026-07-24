@@ -103,6 +103,41 @@ All encryption and key derivation happens on-the-fly inside volatile JavaScript 
 * **Master Key Wrapping:** AES-GCM encrypts the master key using the derived recovery key, allowing offline account restoration without storing plain key text or duplicate records.
 * **Subnet Scanner Auto-Discovery:** Implemented a parallel subnet scanner checks port `58241` with a low-timeout threshold to automatically discover host sync servers on the local Wi-Fi network.
 
+### 🛡️ v1.4.1: Sync E2EE Security Hardening, Audit Logs, & Privacy Dashboard
+* **Wi-Fi Sync E2EE Strength Upgrade:** Upgraded local Wi-Fi sync key-derivation transport KDF from PBKDF2 (10,000 iterations) to a memory-hard **Argon2id WASM key derivation** (matching the relay-sync security level).
+* **Zero-Sniffing Handshake Authentication:** Replaced plain-text PIN transit (`X-Sync-PIN` header) over local HTTP requests with a cryptographic challenge signature `X-Sync-Hash: SHA-256(PIN + Timestamp)` to prevent network packet sniffers from capturing the raw PIN.
+* **Desktop Server E2EE Bypass:** Refactored the local Node.js sync server (`sync-server.cjs`) to route the raw encrypted payload directly to the React renderer, ensuring decryption/encryption happens entirely inside the sandbox and keeping the main server process zero-knowledge.
+* **Strict Offline Mode (Air-Gap):** Add setting to globally block all update checks, breach audits, and cloud relay sync requests.
+* **Honeypot / Decoy Credential:** Mark decoy credentials to trigger local alerts and audit logs if copied.
+* **Local Audit Log:** Tracks critical security actions in-memory (vault unlock, addition, edits, deletes, and honeypot triggers) with a manual export.
+* **Lock-on-Sleep / Lock-on-Hide:** Auto-lock vault on tab visibility changes, Electron OS suspend, and Capacitor mobile app state transitions.
+* **Relay Worker Spam Protection:** Restricts Workers KV payload push requests to identified SafeVault clients (`X-Request-Source: SafeVault`).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Client (Mobile/Web)
+    participant C as Client React UI
+    participant S as Desktop Node Server
+    participant R as Desktop React UI
+
+    User->>C: Enter 6-digit PIN & Target IP
+    C->>C: Calculate Timestamp Nonce
+    C->>C: signature = SHA256(PIN + Timestamp)
+    C->>C: Derive E2EE Key = Argon2id(PIN, salt)
+    C->>C: Encrypt credentials list using AES-GCM
+    C->>S: POST /sync (headers: X-Sync-Hash: signature, X-Sync-Timestamp)
+    Note over S: Verify signature:<br/> timingSafeEqual(SHA256(PIN+Timestamp), signature)
+    S-->>S: Reset / Increment IP block attempts
+    Note over S: Server Zero-Knowledge Pass-Through
+    S->>R: Forward raw encrypted payload
+    Note over R: Decrypt client payload using active PIN (Argon2id)<br/>Merge vaults via CRDT<br/>Encrypt merged list using active PIN (Argon2id)
+    R->>S: Return raw encrypted response payload
+    S->>C: Respond with encrypted merged payload
+    C->>C: Decrypt response using E2EE key<br/>Store to IndexedDB
+    Note over User, C: Sync Completed Securely
+```
+
 ---
 
 ## 💻 CLI Command-Line Utility
