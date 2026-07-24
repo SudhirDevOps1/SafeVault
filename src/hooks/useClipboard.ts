@@ -31,7 +31,19 @@ export function useClipboard(clearAfterMs = 30000) {
       setCopiedField(fieldName);
       
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => setCopiedField(null), clearAfterMs);
+      timeoutRef.current = setTimeout(() => {
+        try {
+          const textarea = document.createElement('textarea');
+          textarea.value = '';
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        } catch { /* ignore */ }
+        setCopiedField(null);
+      }, clearAfterMs);
     }
   }, [clearAfterMs]);
 
