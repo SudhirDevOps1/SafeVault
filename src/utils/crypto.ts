@@ -119,7 +119,7 @@ export async function deriveKeyArgon2id(
     'raw',
     hashBytes,
     { name: 'AES-GCM' },
-    false,
+    true, // Set to true to allow key wrapping for recovery phrases
     ['encrypt', 'decrypt']
   );
 }
@@ -146,6 +146,44 @@ export async function deriveKeyFromRecoveryPhrase(
 ): Promise<CryptoKey> {
   const cleanPhrase = recoveryPhrase.trim().toLowerCase().replace(/\s+/g, ' ');
   return deriveKeyArgon2id(cleanPhrase, saltBase64);
+}
+
+export async function wrapKey(
+  masterKey: CryptoKey,
+  recoveryKey: CryptoKey
+): Promise<{ ciphertext: string; iv: string }> {
+  const rawKey = await crypto.subtle.exportKey('raw', masterKey);
+  const iv = generateRandomBytes(IV_LENGTH);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv as BufferSource },
+    recoveryKey,
+    rawKey
+  );
+  return {
+    ciphertext: bufferToBase64(encrypted),
+    iv: bufferToBase64(iv),
+  };
+}
+
+export async function unwrapKey(
+  wrappedKeyBase64: string,
+  ivBase64: string,
+  recoveryKey: CryptoKey
+): Promise<CryptoKey> {
+  const wrappedKey = base64ToBuffer(wrappedKeyBase64);
+  const iv = base64ToBuffer(ivBase64);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv as BufferSource },
+    recoveryKey,
+    wrappedKey
+  );
+  return crypto.subtle.importKey(
+    'raw',
+    decrypted,
+    { name: 'AES-GCM' },
+    true, // Make extracted master key extractable again
+    ['encrypt', 'decrypt']
+  );
 }
 
 export async function encrypt(
