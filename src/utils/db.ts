@@ -19,6 +19,12 @@ interface VaultRecord {
   createdAt: number;
   updatedAt: number;
   version: number;
+  kdf?: 'pbkdf2' | 'argon2id';
+  recoverySalt?: string;
+  recoveryVerificationHash?: string;
+  recoveryVerificationSalt?: string;
+  recoveryEncryptedData?: string;
+  recoveryIv?: string;
 }
 
 const db = new Dexie('SafeVaultDB') as Dexie & {
