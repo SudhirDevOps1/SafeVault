@@ -142,6 +142,86 @@ export default function LocalSync() {
     }
   };
 
+  const [discovering, setDiscovering] = useState(false);
+
+  const handleAutoDiscover = async () => {
+    setDiscovering(true);
+    setClientStatus({ type: 'success', message: 'Scanning local network subnets for SafeVault Sync Server...' });
+    
+    // Subnets to scan
+    const subnets = [
+      '192.168.1',
+      '192.168.0',
+      '192.168.2',
+      '192.168.31',
+      '192.168.68',
+      '192.168.50',
+      '10.0.0'
+    ];
+    
+    // If targetIP has a value, extract its subnet prefix and prepend it to the list
+    if (targetIP) {
+      const match = targetIP.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})/);
+      if (match && !subnets.includes(match[1])) {
+        subnets.unshift(match[1]);
+      }
+    }
+    
+    let foundIP: string | null = null;
+    
+    for (const subnet of subnets) {
+      try {
+        const promises = [];
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 750);
+        
+        for (let i = 1; i <= 254; i++) {
+          const ip = `${subnet}.${i}`;
+          const promise = fetch(`http://${ip}:58241/`, {
+            method: 'GET',
+            signal: controller.signal,
+          })
+            .then(async (res) => {
+              if (res.status === 404) {
+                // Confirm it is indeed SafeVault by checking the JSON payload
+                const data = await res.json().catch(() => ({}));
+                if (data.error === 'Not Found') {
+                  return ip;
+                }
+              }
+              return null;
+            })
+            .catch(() => null);
+          promises.push(promise);
+        }
+        
+        const results = await Promise.all(promises);
+        clearTimeout(timeoutId);
+        foundIP = results.find(ip => ip !== null) || null;
+        
+        if (foundIP) {
+          break;
+        }
+      } catch (e) {
+        // Ignore subnet errors
+      }
+    }
+    
+    if (foundIP) {
+      setTargetIP(`${foundIP}:58241`);
+      setClientStatus({
+        type: 'success',
+        message: `Found SafeVault Sync Server at ${foundIP}:58241! Please enter the 6-digit PIN and press Sync.`
+      });
+    } else {
+      setClientStatus({
+        type: 'error',
+        message: 'Could not auto-discover sync server. Please verify Wi-Fi connection, ensure the sync server is running on the host, or scan the QR Code instead.'
+      });
+    }
+    setDiscovering(false);
+  };
+
   const handleClientSync = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
@@ -322,13 +402,29 @@ export default function LocalSync() {
               </div>
             </div>
           ) : (
+          <div className="grid grid-cols-2 gap-3">
             <button
+              type="button"
               onClick={() => { setClientStatus(null); setShowScanner(true); }}
-              className="w-full py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+              className="py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
             >
               <QrCode className="w-4 h-4" />
-              Scan QR Code to Pair
+              Scan QR Code
             </button>
+            <button
+              type="button"
+              disabled={discovering}
+              onClick={handleAutoDiscover}
+              className="py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 disabled:bg-gray-800 disabled:text-gray-600 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+            >
+              {discovering ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Wifi className="w-4 h-4" />
+              )}
+              {discovering ? 'Searching...' : 'Auto-Discover'}
+            </button>
+          </div>
           )}
 
           <form onSubmit={handleClientSync} className="space-y-4">
