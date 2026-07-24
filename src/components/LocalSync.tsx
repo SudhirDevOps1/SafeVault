@@ -306,6 +306,29 @@ export default function LocalSync() {
     setDiscovering(false);
   };
 
+  // Helper to derive AES-256 key from PIN locally in browser (E2EE Wi-Fi Sync)
+  const deriveWifiPINKey = async (pin: string): Promise<CryptoKey> => {
+    const pinKey = await window.crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(pin),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+    return window.crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: new TextEncoder().encode('safevault-sync-salt'),
+        iterations: 10000,
+        hash: 'SHA-256'
+      },
+      pinKey,
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt', 'decrypt']
+    );
+  };
+
   const handleClientSync = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
@@ -329,13 +352,42 @@ export default function LocalSync() {
     }
 
     try {
+      // Derive local E2EE key from pairing PIN
+      const aesKey = await deriveWifiPINKey(pairingPIN.trim());
+      
+      // Encrypt the vault payload before sending
+      const vaultJson = JSON.stringify(credentials);
+      const encoder = new TextEncoder();
+      const dataBuffer = encoder.encode(vaultJson);
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      
+      const encrypted = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        aesKey,
+        dataBuffer
+      );
+      
+      const buffer = new Uint8Array(encrypted);
+      const ivBase64 = window.btoa(String.fromCharCode(...iv));
+      
+      // Concatenate tag parsing (last 16 bytes is Auth Tag in Web Crypto API)
+      const tagOffset = buffer.length - 16;
+      const ciphertextBytes = buffer.slice(0, tagOffset);
+      const tagBytes = buffer.slice(tagOffset);
+      
+      const payload = {
+        ciphertext: window.btoa(String.fromCharCode(...ciphertextBytes)),
+        iv: ivBase64,
+        tag: window.btoa(String.fromCharCode(...tagBytes))
+      };
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Sync-PIN': pairingPIN.trim()
         },
-        body: JSON.stringify({ vault: credentials })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -344,12 +396,41 @@ export default function LocalSync() {
       }
 
       const resData = await response.json();
-      if (resData.success && Array.isArray(resData.vault)) {
-        await mergeCredentials(resData.vault);
-        setClientStatus({
-          type: 'success',
-          message: `Synchronization successful! Merged ${resData.vault.length} records.`
-        });
+      if (resData.success && resData.encrypted) {
+        // Decrypt the server response
+        const resCiphertext = new Uint8Array(
+          atob(resData.encrypted.ciphertext).split('').map(c => c.charCodeAt(0))
+        );
+        const resIv = new Uint8Array(
+          atob(resData.encrypted.iv).split('').map(c => c.charCodeAt(0))
+        );
+        const resTag = new Uint8Array(
+          atob(resData.encrypted.tag).split('').map(c => c.charCodeAt(0))
+        );
+        
+        // Concatenate ciphertext and tag for Web Crypto
+        const combined = new Uint8Array(resCiphertext.length + resTag.length);
+        combined.set(resCiphertext);
+        combined.set(resTag, resCiphertext.length);
+        
+        const decryptedBuffer = await window.crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: resIv },
+          aesKey,
+          combined
+        );
+        
+        const decryptedJson = new TextDecoder().decode(decryptedBuffer);
+        const mergedVault = JSON.parse(decryptedJson);
+        
+        if (Array.isArray(mergedVault)) {
+          await mergeCredentials(mergedVault);
+          setClientStatus({
+            type: 'success',
+            message: `Synchronization successful! Merged ${mergedVault.length} records.`
+          });
+        } else {
+          throw new Error('Invalid vault response from server');
+        }
       } else {
         throw new Error('Invalid vault response from server');
       }

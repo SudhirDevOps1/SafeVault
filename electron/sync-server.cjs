@@ -5,6 +5,37 @@
 
 const http = require('http');
 const os = require('os');
+const crypto = require('crypto');
+
+// Native Node.js crypto helpers for E2EE Sync using the pairing PIN
+function derivePINKey(pin) {
+  return crypto.pbkdf2Sync(pin, 'safevault-sync-salt', 10000, 32, 'sha256');
+}
+
+function encryptPayload(text, pin) {
+  const key = derivePINKey(pin);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  let encrypted = cipher.update(text, 'utf8', 'base64');
+  encrypted += cipher.final('base64');
+  const authTag = cipher.getAuthTag().toString('base64');
+  return {
+    ciphertext: encrypted,
+    iv: iv.toString('base64'),
+    tag: authTag
+  };
+}
+
+function decryptPayload(payload, pin) {
+  const key = derivePINKey(pin);
+  const iv = Buffer.from(payload.iv, 'base64');
+  const tag = Buffer.from(payload.tag, 'base64');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  let decrypted = decipher.update(payload.ciphertext, 'base64', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
 
 let server = null;
 let activePIN = null;
@@ -78,11 +109,15 @@ function startSyncServer(vaultData, callback) {
 
       req.on('end', () => {
         try {
-          const payload = JSON.parse(body);
+          const encryptedPayload = JSON.parse(body);
+          
+          // Decrypt client vault using activePIN
+          const decryptedJson = decryptPayload(encryptedPayload, activePIN);
+          const decryptedVault = JSON.parse(decryptedJson);
           
           // Securely callback to main process to merge and return updated data
           if (callback && typeof callback === 'function') {
-            callback(payload.vault, (err, mergedVault) => {
+            callback(decryptedVault, (err, mergedVault) => {
               if (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Sync failed on server merge' }));
@@ -91,8 +126,11 @@ function startSyncServer(vaultData, callback) {
               // Update local state
               activeVaultData = mergedVault;
               
+              // Encrypt merged data before sending
+              const encryptedResponse = encryptPayload(JSON.stringify(mergedVault), activePIN);
+              
               res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: true, vault: mergedVault }));
+              res.end(JSON.stringify({ success: true, encrypted: encryptedResponse }));
             });
           } else {
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -100,7 +138,7 @@ function startSyncServer(vaultData, callback) {
           }
         } catch (e) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Bad Request: Invalid JSON' }));
+          res.end(JSON.stringify({ error: 'Bad Request: Invalid E2EE Payload or PIN' }));
         }
       });
     } else {
