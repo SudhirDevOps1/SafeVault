@@ -50,6 +50,9 @@ interface VaultStore {
   lastBackup: number | null;
   checkForUpdates: boolean;
   updateAvailable: string | null;
+  updateReleaseNotes: string | null;
+  updateDownloadUrl: string | null;
+  updateAssets: { name: string, browser_download_url: string }[];
   networkApprovedThisSession: boolean;
   baseEmails: string[];
 
@@ -111,6 +114,9 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   lastBackup: localStorage.getItem('safevault_last_backup') ? Number(localStorage.getItem('safevault_last_backup')) : null,
   checkForUpdates: localStorage.getItem('safevault_check_updates') === 'true',
   updateAvailable: null,
+  updateReleaseNotes: null,
+  updateDownloadUrl: null,
+  updateAssets: [],
   networkApprovedThisSession: false,
   baseEmails: JSON.parse(localStorage.getItem('safevault_base_emails') || '["Sudhir@gmail.com"]'),
 
@@ -411,16 +417,31 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       if (!response.ok) return;
       const data = await response.json();
       const latestVersion = data.tag_name;
-      const currentVersion = 'v1.1.5'; // Bumped version to 1.1.5
+      const currentVersion = 'v1.1.5'; // Current client version
       
       const cleanLatest = latestVersion.replace(/^v/, '');
       const cleanCurrent = currentVersion.replace(/^v/, '');
 
       if (cleanLatest !== cleanCurrent && cleanLatest > cleanCurrent) {
-        set({ updateAvailable: latestVersion });
+        const assets = (data.assets || []).map((asset: any) => ({
+          name: asset.name,
+          browser_download_url: asset.browser_download_url,
+        }));
+        
+        set({
+          updateAvailable: latestVersion,
+          updateReleaseNotes: data.body || 'No release notes provided.',
+          updateDownloadUrl: data.html_url,
+          updateAssets: assets,
+        });
         logger.info(`Update available: ${latestVersion}`);
       } else {
-        set({ updateAvailable: null });
+        set({
+          updateAvailable: null,
+          updateReleaseNotes: null,
+          updateDownloadUrl: null,
+          updateAssets: [],
+        });
       }
     } catch (err) {
       logger.error('Failed to check latest release', err);

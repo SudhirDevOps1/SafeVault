@@ -49,6 +49,14 @@ contextBridge.exposeInMainWorld('safevault', {
     return () => ipcRenderer.removeListener('safevault:lock', handler);
   },
 
+  // Update Downloader
+  downloadAndInstallUpdate: (url) => ipcRenderer.invoke('safevault:download-and-install-update', url),
+  onUpdateProgress: (callback) => {
+    const handler = (event, percent) => callback(percent);
+    ipcRenderer.on('safevault:update-progress', handler);
+    return () => ipcRenderer.removeListener('safevault:update-progress', handler);
+  },
+
   // Platform info
   platform: process.platform,
   isElectron: true,

@@ -252,6 +252,79 @@ ipcMain.handle('safevault:write-backup-file', async (event, folderPath, filename
   }
 });
 
+// Secure background updater: downloads latest .exe setup and executes it
+ipcMain.handle('safevault:download-and-install-update', async (event, downloadUrl) => {
+  const fs = require('fs');
+  const path = require('path');
+  const https = require('https');
+  const { exec } = require('child_process');
+
+  const tempDir = app.getPath('temp');
+  const tempFilePath = path.join(tempDir, 'SafeVault-Update-Setup.exe');
+
+  return new Promise((resolve) => {
+    // Delete if file already exists
+    if (fs.existsSync(tempFilePath)) {
+      try { fs.unlinkSync(tempFilePath); } catch (e) {}
+    }
+
+    const file = fs.createWriteStream(tempFilePath);
+    
+    const download = (url) => {
+      https.get(url, (response) => {
+        // Follow redirects
+        if (response.statusCode === 302 || response.statusCode === 301) {
+          download(response.headers.location);
+          return;
+        }
+
+        if (response.statusCode !== 200) {
+          resolve({ success: false, error: `Server returned status code ${response.statusCode}` });
+          return;
+        }
+
+        const totalBytes = parseInt(response.headers['content-length'] || '0', 10);
+        let downloadedBytes = 0;
+
+        response.on('data', (chunk) => {
+          file.write(chunk);
+          downloadedBytes += chunk.length;
+          if (totalBytes > 0) {
+            const percent = Math.round((downloadedBytes / totalBytes) * 100);
+            mainWindow?.webContents.send('safevault:update-progress', percent);
+          }
+        });
+
+        response.on('end', () => {
+          file.end();
+          
+          // Launch the downloaded setup installer
+          setTimeout(() => {
+            try {
+              exec(`"${tempFilePath}"`, (err) => {
+                if (err) {
+                  console.error('Failed to run update setup', err);
+                }
+              });
+              // Close Electron so installer can replace binaries
+              app.quit();
+              resolve({ success: true });
+            } catch (err) {
+              resolve({ success: false, error: err.message });
+            }
+          }, 1000);
+        });
+      }).on('error', (err) => {
+        file.close();
+        try { fs.unlinkSync(tempFilePath); } catch (e) {}
+        resolve({ success: false, error: err.message });
+      });
+    };
+
+    download(downloadUrl);
+  });
+});
+
 // Wi-Fi Sync Server Handlers
 ipcMain.handle('safevault:start-sync-server', (event, vaultData) => {
   return syncServer.startSyncServer(vaultData, (clientVault, sendResponse) => {

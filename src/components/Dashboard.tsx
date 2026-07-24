@@ -8,6 +8,7 @@ import PasswordGenerator from './PasswordGenerator';
 import Settings from './Settings';
 import PrivacyPolicy from './PrivacyPolicy';
 import EmailAliases from './EmailAliases';
+import UpdateModal from './UpdateModal';
 import { useAutoLock } from '@/hooks/useAutoLock';
 import { useSystemSleepLock } from '@/hooks/useSystemSleepLock';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(true);
 
   // Auto-lock on inactivity
   useAutoLock();
@@ -228,16 +230,14 @@ export default function Dashboard() {
           </div>
         )}
         {updateAvailable && (
-          <div className="bg-blue-600/20 border-b border-blue-500/30 px-6 py-2.5 flex items-center justify-between text-xs text-blue-300">
-            <span>A new update <strong>({updateAvailable})</strong> is available on GitHub!</span>
-            <a 
-              href="https://github.com/SudhirDevOps1/SafeVault/releases/latest" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="bg-blue-500 hover:bg-blue-400 text-white font-semibold px-3 py-1 rounded transition-colors"
+          <div className="bg-emerald-600/20 border-b border-emerald-500/30 px-6 py-2.5 flex items-center justify-between text-xs text-emerald-300">
+            <span>A new update <strong>({updateAvailable})</strong> is available with new features and fixes!</span>
+            <button 
+              onClick={() => setShowUpdateModal(true)}
+              className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-3 py-1 rounded transition-colors"
             >
-              Download
-            </a>
+              View Release Notes
+            </button>
           </div>
         )}
         <div className="flex-1 overflow-hidden">
@@ -286,6 +286,9 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+      )}
+      {updateAvailable && showUpdateModal && (
+        <UpdateModal onClose={() => setShowUpdateModal(false)} />
       )}
     </div>
   );
