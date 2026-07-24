@@ -91,7 +91,7 @@ All encryption and key derivation happens on-the-fly inside volatile JavaScript 
 * **HTTPS Mixed Content Restriction:** Due to web browser security limitations, production Web App instances running on HTTPS cannot initiate local sync with HTTP local IPs. Synchronization works best between native Desktop and Mobile apps.
 
 ### 🔒 v1.3.0: E2EE Sync Transport & Cloud Relay (No PC Sync)
-* **Zero-Knowledge Cloud Relay E2EE Sync:** Syncs vaults directly across separate networks (e.g. mobile to web, web to extension) using public KV broker relays (`kvdb.io`). Payload is encrypted with the user's Master Password + PIN key before transit.
+* **Zero-Knowledge Cloud Relay E2EE Sync:** Syncs vaults directly across separate networks (e.g. mobile to web, web to extension) using open-source Cloudflare Workers + Cloudflare KV relays. Payload is encrypted with the user's Master Password + PIN key before transit.
 * **AES-GCM Local Wi-Fi Sync Transport Encryption:** Upgraded local network sync data transport to use fully authenticated AES-GCM-256 E2EE, derived from the pairing PIN, preventing Wi-Fi packet sniffing.
 * **Forgot Master Password Safety Reset:** Added a secure reset trigger on the unlock page, allowing users to wipe local sandboxed databases and settings to start fresh.
 * **Clipboard Fallback Auto-Clear:** Patched legacy browser and fallback clipboard environments to ensure clipboard content is physically cleared (overwritten with an empty string) on lock or after 30 seconds.

@@ -167,9 +167,9 @@ export default function LocalSync() {
       const vaultJson = JSON.stringify(credentials);
       const { ciphertext, iv } = await encrypt(vaultJson, cryptoKey);
       
-      // Push to public anonymous KV store (kvdb.io)
+      // Push to open-source Cloudflare Workers KV relay
       const payload = { ciphertext, iv };
-      const response = await fetch(`https://kvdb.io/vault-relay-bucket/${relayChannel}`, {
+      const response = await fetch(`https://safevault-sync-relay.cloudflare.workers.dev/channel/${relayChannel}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -197,7 +197,7 @@ export default function LocalSync() {
     setRelayLoading(true);
     setRelayStatus(null);
     try {
-      const response = await fetch(`https://kvdb.io/vault-relay-bucket/${relayChannel}`);
+      const response = await fetch(`https://safevault-sync-relay.cloudflare.workers.dev/channel/${relayChannel}`);
       if (!response.ok) throw new Error('No vault data found in this channel. Ensure the sending device pushed first.');
       
       const payload = await response.json();

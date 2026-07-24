@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.0] - 2026-07-24
 
 ### Added
-- **Zero-Knowledge Cloud Relay E2EE Sync:** Integrated a cloud relay synchronization mechanism using `kvdb.io` for devices on different networks (e.g. mobile to web, extension to web) without running a local PC server. Data is encrypted using AES-GCM before leaving the device.
+- **Zero-Knowledge Cloud Relay E2EE Sync:** Integrated an open-source cloud relay synchronization mechanism using Cloudflare Workers + KV for devices on different networks (e.g. mobile to web, extension to web) without running a local PC server. Data is encrypted using AES-GCM before leaving the device.
 - **Forgot Master Password Safety Reset:** Implemented a secure vault reset action inside the unlock interface (`VaultUnlock.tsx`), allowing users to completely wipe their local IndexedDB database and start fresh if they forget their password.
 
 ### Changed
