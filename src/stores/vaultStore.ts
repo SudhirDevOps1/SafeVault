@@ -24,7 +24,6 @@ import {
   deriveKeyArgon2id,
   createVerificationHashArgon2id,
   deriveKeyFromRecoveryPhrase,
-  generateIV,
   wrapKey,
   unwrapKey,
 } from '@/utils/crypto';

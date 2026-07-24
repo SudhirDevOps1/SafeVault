@@ -117,7 +117,7 @@ export async function deriveKeyArgon2id(
 
   return crypto.subtle.importKey(
     'raw',
-    hashBytes,
+    hashBytes as BufferSource,
     { name: 'AES-GCM' },
     true, // Set to true to allow key wrapping for recovery phrases
     ['encrypt', 'decrypt']
