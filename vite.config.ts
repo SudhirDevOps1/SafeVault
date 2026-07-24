@@ -17,4 +17,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  build: {
+    rollupOptions: {
+      // @capacitor/app is a runtime-only module loaded on Android by Capacitor.
+      // Marking it external prevents Rollup from failing during the web/desktop build.
+      external: ['@capacitor/app'],
+    },
+  },
 });

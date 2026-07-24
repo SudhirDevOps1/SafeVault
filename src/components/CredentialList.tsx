@@ -10,6 +10,7 @@ export default function CredentialList() {
   const sidebarView = useVaultStore(state => state.sidebarView);
   const setSelectedCredential = useVaultStore(state => state.setSelectedCredential);
   const networkApprovedThisSession = useVaultStore(state => state.networkApprovedThisSession);
+  const disableRemoteFavicons = useVaultStore(state => state.disableRemoteFavicons);
 
   const filteredCredentials = useMemo(() => {
     let filtered = [...credentials];
@@ -40,6 +41,7 @@ export default function CredentialList() {
   }, [credentials, searchQuery, sidebarView]);
 
   const getFavicon = (url: string) => {
+    if (disableRemoteFavicons) return null;
     try {
       const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
       return `https://icons.duckduckgo.com/ip3/${domain}.ico`;

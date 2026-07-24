@@ -6,7 +6,7 @@ import { useVaultStore } from '../stores/vaultStore';
 import { encrypt, decrypt, deriveKeyArgon2id, createVerificationHashArgon2id } from '../utils/crypto';
 
 export default function LocalSync() {
-  const { credentials, mergeCredentials } = useVaultStore();
+  const { credentials, mergeCredentials, strictOfflineMode } = useVaultStore();
   const [isElectronApp] = useState(() => typeof window !== 'undefined' && 'safevault' in window);
 
   // Server State (Desktop Only)
@@ -686,80 +686,91 @@ export default function LocalSync() {
         )
       ) : (
         /* Cloud Relay (E2EE) Sync View */
-        <div className="space-y-4">
-          <div className="p-3.5 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-1.5">
-            <span className="text-xs text-emerald-400 font-bold block">🔒 Zero-Knowledge Cloud Relay</span>
-            <p className="text-[11px] text-gray-400 leading-normal">
-              Sync devices directly across different networks (e.g. mobile to web) without running a local PC server. 
-              Your data is encrypted locally using AES-GCM before leaving your device; not even the relay server can access your secrets.
+        strictOfflineMode ? (
+          <div className="p-5 bg-rose-500/5 border border-rose-500/10 rounded-xl space-y-3 text-center py-8">
+            <AlertTriangle className="w-8 h-8 text-rose-400 mx-auto" />
+            <span className="text-sm font-bold text-rose-400 block">Cloud Sync Blocked</span>
+            <p className="text-xs text-gray-400 max-w-xs mx-auto leading-normal">
+              Strict Offline Mode (Air-Gap) is active. All cloud relay network requests are blocked. 
+              Please disable Strict Offline Mode in settings if you want to use cloud relay synchronization.
             </p>
           </div>
-
-          <form className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-400">Sync Channel ID</label>
-              <input
-                type="text"
-                placeholder="e.g., custom-vault-room"
-                value={relayChannel}
-                onChange={e => setRelayChannel(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                disabled={relayLoading}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 transition-all font-mono"
-              />
+        ) : (
+          <div className="space-y-4">
+            <div className="p-3.5 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-1.5">
+              <span className="text-xs text-emerald-400 font-bold block">🔒 Zero-Knowledge Cloud Relay</span>
+              <p className="text-[11px] text-gray-400 leading-normal">
+                Sync devices directly across different networks (e.g. mobile to web) without running a local PC server. 
+                Your data is encrypted locally using AES-GCM before leaving your device; not even the relay server can access your secrets.
+              </p>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-400">6-Digit E2EE Encryption PIN</label>
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="e.g., 839210"
-                value={relayPIN}
-                onChange={e => setRelayPIN(e.target.value.replace(/\D/g, ''))}
-                disabled={relayLoading}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 transition-all font-mono tracking-widest text-center text-lg font-bold"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                disabled={relayLoading}
-                onClick={() => handleRelayPush()}
-                className="py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {relayLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
-                Push Encrypted
-              </button>
-              <button
-                type="button"
-                disabled={relayLoading}
-                onClick={() => handleRelayPull()}
-                className="py-3 bg-emerald-500 text-slate-900 rounded-xl text-xs font-bold hover:bg-emerald-400 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {relayLoading ? <RefreshCw className="w-4 h-4 animate-spin text-slate-900" /> : null}
-                Pull & Merge
-              </button>
-            </div>
-
-            {relayStatus && (
-              <div
-                className={`p-3.5 rounded-xl border flex items-start gap-2.5 text-xs ${
-                  relayStatus.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                    : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                }`}
-              >
-                {relayStatus.type === 'success' ? (
-                  <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                ) : (
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                )}
-                <span className="leading-normal">{relayStatus.message}</span>
+            <form className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-400">Sync Channel ID</label>
+                <input
+                  type="text"
+                  placeholder="e.g., custom-vault-room"
+                  value={relayChannel}
+                  onChange={e => setRelayChannel(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                  disabled={relayLoading}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 transition-all font-mono"
+                />
               </div>
-            )}
-          </form>
-        </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-400">6-Digit E2EE Encryption PIN</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g., 839210"
+                  value={relayPIN}
+                  onChange={e => setRelayPIN(e.target.value.replace(/\D/g, ''))}
+                  disabled={relayLoading}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 transition-all font-mono tracking-widest text-center text-lg font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  disabled={relayLoading}
+                  onClick={() => handleRelayPush()}
+                  className="py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {relayLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
+                  Push Encrypted
+                </button>
+                <button
+                  type="button"
+                  disabled={relayLoading}
+                  onClick={() => handleRelayPull()}
+                  className="py-3 bg-emerald-500 text-slate-900 rounded-xl text-xs font-bold hover:bg-emerald-400 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {relayLoading ? <RefreshCw className="w-4 h-4 animate-spin text-slate-900" /> : null}
+                  Pull & Merge
+                </button>
+              </div>
+
+              {relayStatus && (
+                <div
+                  className={`p-3.5 rounded-xl border flex items-start gap-2.5 text-xs ${
+                    relayStatus.type === 'success'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                  }`}
+                >
+                  {relayStatus.type === 'success' ? (
+                    <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  )}
+                  <span className="leading-normal">{relayStatus.message}</span>
+                </div>
+              )}
+            </form>
+          </div>
+        )
       )}
     </div>
   );

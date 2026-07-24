@@ -10,7 +10,7 @@
  * - WebPreferences locked down
  */
 
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeTheme, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeTheme, shell, dialog, powerMonitor } = require('electron');
 const path = require('path');
 const syncServer = require('./sync-server.cjs');
 
@@ -204,6 +204,16 @@ app.commandLine.appendSwitch('disable-gpu-sandbox');
 app.whenReady().then(() => {
   createWindow();
   createTray();
+
+  // ── Privacy: Lock vault on system suspend or screen lock ──────────────────
+  powerMonitor.on('suspend', () => {
+    console.log('[SafeVault] System suspending — locking vault');
+    mainWindow?.webContents.send('safevault:lock');
+  });
+  powerMonitor.on('lock-screen', () => {
+    console.log('[SafeVault] Screen locked — locking vault');
+    mainWindow?.webContents.send('safevault:lock');
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

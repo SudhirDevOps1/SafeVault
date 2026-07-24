@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Settings as SettingsIcon, Clock, Download, Upload, Shield,
   AlertTriangle, Lock, Eye, EyeOff, FileText, Key, Moon, Sun,
-  Database, Save, ShieldAlert
+  Database, Save, ShieldAlert, Activity, CheckCircle, XCircle
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import { importFromCSV } from '@/utils/importer';
@@ -21,6 +21,9 @@ export default function Settings() {
     backupDirectory, setBackupDirectory,
     backupFormat, setBackupFormat,
     checkForUpdates, setCheckForUpdates,
+    strictOfflineMode, setStrictOfflineMode,
+    disableRemoteFavicons, setDisableRemoteFavicons,
+    auditLog, exportAuditLog,
   } = useVaultStore();
 
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -39,6 +42,10 @@ export default function Settings() {
   const canChange = oldPassword.length >= 1 && policy.valid && newPassword === confirmPassword && strength.score >= 2;
 
   const runSecurityAudit = async () => {
+    if (strictOfflineMode) {
+      setAuditMessage('⛔ Strict Offline Mode is active. Breach checks require a network call to api.pwnedpasswords.com and are blocked. Disable Strict Offline Mode in Settings to run this check.');
+      return;
+    }
     if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
       setAuditMessage('Security Audit requires a secure context (HTTPS or localhost) to run cryptography locally.');
       return;
@@ -96,9 +103,9 @@ export default function Settings() {
     } else if (failedCount > 0) {
       setAuditMessage(`Found ${breachedList.length} breached password(s) (${failedCount} checks failed due to network/ad-blocker):`);
     } else if (breachedList.length === 0) {
-      setAuditMessage('Good news! No breached passwords detected in your vault.');
+      setAuditMessage('✅ Good news! No breached passwords detected in your vault.');
     } else {
-      setAuditMessage(`Found ${breachedList.length} breached password(s). We recommend changing them immediately:`);
+      setAuditMessage(`⚠️ Found ${breachedList.length} breached password(s). We recommend changing them immediately:`);
     }
   };
 
@@ -603,6 +610,68 @@ export default function Settings() {
         {/* Local Sync Section */}
         <LocalSync />
 
+        {/* Privacy Dashboard */}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-emerald-400" aria-hidden="true" /> Privacy Dashboard
+          </h3>
+          <p className="text-xs text-gray-500">Live status of all privacy protections in your vault.</p>
+          <div className="grid grid-cols-1 gap-2">
+            {[
+              { label: 'Zero-Knowledge Encryption', status: true, detail: 'AES-256-GCM + Argon2id' },
+              { label: 'Local-Only Storage', status: true, detail: 'IndexedDB — never synced automatically' },
+              { label: 'Clipboard Auto-Clear', status: true, detail: 'Cleared after 30s or on lock' },
+              { label: 'Strict Offline / Air-Gap', status: strictOfflineMode, detail: strictOfflineMode ? 'All network calls blocked' : 'Some optional calls permitted' },
+              { label: 'Remote Favicon Disabled', status: disableRemoteFavicons, detail: disableRemoteFavicons ? 'No DuckDuckGo icon requests' : 'Favicons fetched from DuckDuckGo CDN' },
+              { label: 'Update Checks Disabled', status: !checkForUpdates, detail: !checkForUpdates ? 'GitHub API not contacted' : 'Pings GitHub API on startup' },
+            ].map(({ label, status, detail }) => (
+              <div key={label} className="flex items-center gap-3 p-2.5 bg-white/3 rounded-lg">
+                {status ? (
+                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-200 truncate">{label}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Audit Log */}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+            <FileText className="w-4 h-4" aria-hidden="true" /> Local Audit Log
+          </h3>
+          <p className="text-xs text-gray-500">
+            SafeVault tracks sensitive operations in-memory only (unlock, add, edit, delete, export). 
+            This log is <strong className="text-gray-300">never stored to disk automatically</strong> — export it yourself when needed.
+          </p>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-400">{auditLog.length} events this session</span>
+            <button
+              onClick={exportAuditLog}
+              disabled={auditLog.length === 0}
+              className="py-2 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-xl transition-colors border border-emerald-500/20"
+            >
+              Export Audit Log (.json)
+            </button>
+          </div>
+          {auditLog.length > 0 && (
+            <div className="max-h-36 overflow-y-auto space-y-1">
+              {auditLog.slice(0, 20).map((entry, i) => (
+                <div key={i} className="flex items-start gap-2 text-[10px] text-gray-500 font-mono">
+                  <span className="text-gray-600 shrink-0">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                  <span className="text-gray-400 font-semibold shrink-0">{entry.action}</span>
+                  <span className="truncate">{entry.details}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Privacy Policy */}
         <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
           <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
@@ -610,19 +679,56 @@ export default function Settings() {
           </h3>
           <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
             <div className="flex-1 pr-4">
-              <p className="text-sm font-medium text-gray-200">Check for Updates (Optional)</p>
+              <p className="text-sm font-medium text-gray-200">Strict Offline Mode (Air-Gap)</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Query GitHub API on startup to detect newer releases. Disabled by default to ensure 100% offline privacy.
+                Block all outgoing network calls entirely (disable update checks, pwned checks, and cloud sync relays).
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
+                checked={strictOfflineMode}
+                onChange={(e) => setStrictOfflineMode(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white peer-checked:after:border-white"></div>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+            <div className="flex-1 pr-4">
+              <p className="text-sm font-medium text-gray-200">Disable Remote Website Icons</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Prevent loading favicons from external servers (e.g. DuckDuckGo). Replaces icons with generated text initials.
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={disableRemoteFavicons}
+                onChange={(e) => setDisableRemoteFavicons(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white peer-checked:after:border-white"></div>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+            <div className="flex-1 pr-4">
+              <p className="text-sm font-medium text-gray-200">Check for Updates (Optional)</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Query GitHub API on startup to detect newer releases. (Unavailable in Strict Offline Mode).
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                disabled={strictOfflineMode}
                 checked={checkForUpdates}
                 onChange={(e) => setCheckForUpdates(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white peer-checked:after:border-white"></div>
+              <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white peer-checked:after:border-white disabled:opacity-30 disabled:cursor-not-allowed"></div>
             </label>
           </div>
           <button
@@ -636,9 +742,9 @@ export default function Settings() {
 
         {/* App Info */}
         <div className="text-center py-4 text-xs text-gray-600 space-y-1" role="contentinfo">
-          <p>SafeVault v1.1.5 — Zero-Knowledge Credential Manager</p>
+          <p>SafeVault v1.4.0 — Zero-Knowledge Credential Manager</p>
           <p>All data encrypted locally · No telemetry · No tracking</p>
-          <p className="text-gray-700">AES-GCM 256-bit · PBKDF2 600K iterations · SHA-512</p>
+          <p className="text-gray-700 font-mono">AES-GCM 256-bit · Argon2id WASM · SHA-256</p>
         </div>
       </div>
     </div>

@@ -14,13 +14,26 @@ interface CredentialDetailProps {
 }
 
 export default function CredentialDetail({ credential }: CredentialDetailProps) {
-  const { deleteCredential, updateCredential, setSelectedCredential, networkApprovedThisSession } = useVaultStore();
+  const { deleteCredential, updateCredential, setSelectedCredential, networkApprovedThisSession, disableRemoteFavicons, honeypotCredentialId, setHoneypotCredential, addAuditLog } = useVaultStore();
   const { copiedField, copyToClipboard } = useClipboard();
   const [showPassword, setShowPassword] = useState(false);
   const [showTotpSecret, setShowTotpSecret] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [honeypotAlert, setHoneypotAlert] = useState(false);
+
+  const isHoneypot = honeypotCredentialId === credential.id;
+
+  // Intercept password copy for honeypot alert
+  const handlePasswordCopy = (text: string, field: string) => {
+    if (isHoneypot && field === 'password') {
+      setHoneypotAlert(true);
+      addAuditLog('HONEYPOT_TRIGGERED', `⚠️ Honeypot credential "${credential.title}" password was accessed/copied`);
+      setTimeout(() => setHoneypotAlert(false), 6000);
+    }
+    copyToClipboard(text, field);
+  };
 
   // Reset imageError when current credential changes
   useEffect(() => {
@@ -37,6 +50,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
   };
 
   const getFavicon = (url: string) => {
+    if (disableRemoteFavicons) return null;
     try {
       const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
       return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
@@ -49,7 +63,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
 
   const CopyButton = ({ text, field }: { text: string; field: string }) => (
     <button
-      onClick={() => copyToClipboard(text, field)}
+      onClick={() => handlePasswordCopy(text, field)}
       className="p-1.5 hover:bg-white/10 rounded-lg transition-colors shrink-0"
       title={copiedField === field ? 'Copied!' : 'Copy'}
     >
@@ -91,6 +105,11 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
                       Email Alias
                     </span>
                   )}
+                  {isHoneypot && (
+                    <span className="text-[10px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400 px-2 py-0.5 rounded-full uppercase tracking-wider" title="This credential is marked as a honeypot/decoy">
+                      🎯 Honeypot
+                    </span>
+                  )}
                 </div>
                 {credential.url && (
                   <a
@@ -108,6 +127,13 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
             </div>
             
             <div className="flex items-center gap-1">
+              <button
+                onClick={() => setHoneypotCredential(isHoneypot ? null : credential.id)}
+                className={`p-2 rounded-lg transition-colors text-xs ${isHoneypot ? 'text-amber-400 hover:bg-amber-500/10' : 'text-gray-500 hover:bg-white/10'}`}
+                title={isHoneypot ? 'Remove honeypot marker' : 'Mark as Honeypot/Decoy — triggers alert if accessed'}
+              >
+                🎯
+              </button>
               <button
                 onClick={toggleFavorite}
                 className={`p-2 rounded-lg transition-colors ${credential.favorite ? 'text-amber-400 hover:bg-amber-500/10' : 'text-gray-500 hover:bg-white/10'}`}
@@ -135,6 +161,16 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Honeypot Alert Banner */}
+          {honeypotAlert && (
+            <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-3 animate-pulse">
+              <span className="text-xl mt-0.5">⚠️</span>
+              <div>
+                <p className="text-sm font-bold text-rose-400">Honeypot Triggered!</p>
+                <p className="text-xs text-rose-300/70 mt-0.5">This credential is marked as a decoy. This access has been logged to your local audit log.</p>
+              </div>
+            </div>
+          )}
           {/* Username */}
           {credential.username && (
             <div className="bg-white/5 border border-white/5 rounded-xl p-4">

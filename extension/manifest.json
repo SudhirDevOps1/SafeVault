@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SafeVault Authenticator & Manager",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Zero-Knowledge, Offline-First Credential Manager and Authenticator",
   "permissions": [
     "activeTab",

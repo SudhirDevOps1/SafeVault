@@ -5,7 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-07-24
+
+### Added — Privacy-First Hardening Release
+- **Strict Offline Mode (Air-Gap):** New toggle in Settings that globally blocks all outgoing network calls including update checks, breach checks (HaveIBeenPwned), and cloud sync relay requests. When enabled, the vault operates in fully air-gapped mode.
+- **Disable Remote Website Icons:** New toggle to prevent favicon loading from external servers (DuckDuckGo CDN). When enabled, credential icons fall back to generated text initials — no external requests made.
+- **Privacy Dashboard:** New live status panel in Settings showing real-time status of all privacy protections (Zero-Knowledge, Local Storage, Clipboard, Air-Gap, Favicon, Update Check).
+- **Local Audit Log (Session Memory):** SafeVault now logs all sensitive operations in-memory (VAULT_UNLOCKED, CREDENTIAL_ADDED, CREDENTIAL_UPDATED, CREDENTIAL_DELETED, EXPORT_CSV, EXPORT_AUDIT_LOG, HONEYPOT_TRIGGERED). Log is never automatically persisted to disk.
+- **Export Audit Log:** New button in Settings to export the in-memory audit log as a local `.json` file for user review.
+- **Honeypot / Decoy Credential:** Users can mark any credential with a 🎯 honeypot marker. If the password of a honeypot credential is copied, an animated alert fires and the event is logged to the audit log with timestamp.
+- **Lock-on-Tab-Hide (Web/Mobile):** Using the Page Visibility API, the vault now automatically locks when the browser tab or mobile app goes to the background — protecting against shoulder surfing and session hijacking.
+- **Lock-on-System-Suspend (Desktop):** Electron `powerMonitor` `suspend` and `lock-screen` events now send a `safevault:lock` IPC message to the renderer, locking the vault when the PC sleeps or the screen is locked.
+- **Capacitor App Background Lock (Android):** Added `@capacitor/app` `appStateChange` listener to lock the vault when the Android app goes to the background.
+- **Breach Check Gated by Air-Gap:** The "Run Security Audit" (HaveIBeenPwned) button is now blocked when Strict Offline Mode is active, showing a clear explanation.
+- **Cloud Relay migration:** Cloud sync relay migrated from proprietary `kvdb.io` to open-source, self-hostable Cloudflare Workers + KV.
+
+### Changed
+- Audit instrumentation added to `addCredential`, `updateCredential`, `deleteCredential`, `exportCSV`, `unlockVault` operations.
+- `checkLatestRelease` now also returns early if `strictOfflineMode` is active in addition to the `checkForUpdates` flag.
+- Version bumped to `1.4.0` across `package.json`, `extension/manifest.json`, and all documentation.
+
+---
+
 ## [1.3.0] - 2026-07-24
+
 
 ### Added
 - **Zero-Knowledge Cloud Relay E2EE Sync:** Integrated an open-source cloud relay synchronization mechanism using Cloudflare Workers + KV for devices on different networks (e.g. mobile to web, extension to web) without running a local PC server. Data is encrypted using AES-GCM before leaving the device.

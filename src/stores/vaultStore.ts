@@ -35,6 +35,12 @@ const THEME_KEY = 'safevault_theme';
 
 export type Theme = 'dark' | 'light';
 
+export interface AuditLogEntry {
+  timestamp: number;
+  action: string;
+  details: string;
+}
+
 interface VaultStore {
   // State
   vaultState: VaultState;
@@ -55,12 +61,16 @@ interface VaultStore {
   backupFormat: 'encrypted' | 'decrypted';
   lastBackup: number | null;
   checkForUpdates: boolean;
+  strictOfflineMode: boolean;
+  disableRemoteFavicons: boolean;
   updateAvailable: string | null;
   updateReleaseNotes: string | null;
   updateDownloadUrl: string | null;
   updateAssets: { name: string, browser_download_url: string }[];
   networkApprovedThisSession: boolean;
   baseEmails: string[];
+  auditLog: AuditLogEntry[];
+  honeypotCredentialId: string | null;
 
   // Actions
   initializeVault: () => Promise<void>;
@@ -87,11 +97,16 @@ interface VaultStore {
   setBackupDirectory: (path: string) => void;
   setBackupFormat: (format: 'encrypted' | 'decrypted') => void;
   setCheckForUpdates: (enabled: boolean) => Promise<void>;
+  setStrictOfflineMode: (enabled: boolean) => void;
+  setDisableRemoteFavicons: (enabled: boolean) => void;
   checkLatestRelease: () => Promise<void>;
   approveNetworkThisSession: () => void;
   
   addBaseEmail: (email: string) => void;
   removeBaseEmail: (email: string) => void;
+  addAuditLog: (action: string, details: string) => void;
+  exportAuditLog: () => void;
+  setHoneypotCredential: (id: string | null) => void;
   
   saveVault: () => Promise<void>;
   exportEncryptedBackup: () => Promise<string>;
@@ -119,13 +134,17 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   backupDirectory: localStorage.getItem('safevault_backup_directory') || '',
   backupFormat: (localStorage.getItem('safevault_backup_format') as any) || 'encrypted',
   lastBackup: localStorage.getItem('safevault_last_backup') ? Number(localStorage.getItem('safevault_last_backup')) : null,
-  checkForUpdates: localStorage.getItem('safevault_check_updates') !== 'false',
+  checkForUpdates: localStorage.getItem('safevault_check_updates') !== 'false' && localStorage.getItem('safevault_strict_offline') !== 'true',
+  strictOfflineMode: localStorage.getItem('safevault_strict_offline') === 'true',
+  disableRemoteFavicons: localStorage.getItem('safevault_disable_remote_favicons') === 'true',
   updateAvailable: null,
   updateReleaseNotes: null,
   updateDownloadUrl: null,
   updateAssets: [],
   networkApprovedThisSession: false,
   baseEmails: JSON.parse(localStorage.getItem('safevault_base_emails') || '["Sudhir@gmail.com"]'),
+  auditLog: [],
+  honeypotCredentialId: localStorage.getItem('safevault_honeypot_id') || null,
 
   initializeVault: async () => {
     const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
@@ -278,6 +297,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         loading: false,
       });
       logger.info(`Vault unlocked, ${credentials.length} credentials loaded`);
+      get().addAuditLog('VAULT_UNLOCKED', `Vault unlocked — ${credentials.length} credentials loaded`);
     } catch (err) {
       logger.error('Failed to unlock vault', err);
       set({ error: 'Failed to unlock vault. Incorrect password or corrupted data.', loading: false });
@@ -424,6 +444,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     await get().saveVault();
     await get().performAutoBackup();
     logger.info('Credential added');
+    get().addAuditLog('CREDENTIAL_ADDED', `Added: "${newCred.title}" (${newCred.category})`);
   },
 
   updateCredential: async (id, updates) => {
@@ -435,10 +456,13 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     await get().saveVault();
     await get().performAutoBackup();
     logger.info('Credential updated');
+    const cred = get().credentials.find(c => c.id === id);
+    get().addAuditLog('CREDENTIAL_UPDATED', `Updated: "${cred?.title ?? id}"`);
   },
 
   deleteCredential: async (id) => {
     const { credentials, selectedCredentialId } = get();
+    const deletedCred = credentials.find(c => c.id === id);
     set({
       credentials: credentials.filter(c => c.id !== id),
       selectedCredentialId: selectedCredentialId === id ? null : selectedCredentialId,
@@ -446,6 +470,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     await get().saveVault();
     await get().performAutoBackup();
     logger.info('Credential deleted');
+    get().addAuditLog('CREDENTIAL_DELETED', `Deleted: "${deletedCred?.title ?? id}"`);
   },
 
   mergeCredentials: async (incoming) => {
@@ -538,6 +563,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   },
 
   setCheckForUpdates: async (enabled) => {
+    if (get().strictOfflineMode && enabled) return; // Cannot enable updates in strict offline mode
     set({ checkForUpdates: enabled });
     localStorage.setItem('safevault_check_updates', String(enabled));
     if (enabled) {
@@ -548,14 +574,30 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     }
   },
 
+  setStrictOfflineMode: (enabled) => {
+    localStorage.setItem('safevault_strict_offline', String(enabled));
+    set({ strictOfflineMode: enabled });
+    if (enabled) {
+      // Force disable updates when strict offline is enabled
+      set({ checkForUpdates: false, updateAvailable: null });
+      localStorage.setItem('safevault_check_updates', 'false');
+    }
+  },
+
+  setDisableRemoteFavicons: (enabled) => {
+    localStorage.setItem('safevault_disable_remote_favicons', String(enabled));
+    set({ disableRemoteFavicons: enabled });
+  },
+
   checkLatestRelease: async () => {
+    if (get().strictOfflineMode) return; // Strict Offline mode blocks all network checks
     if (!get().checkForUpdates) return;
     try {
       const response = await fetch('https://api.github.com/repos/SudhirDevOps1/SafeVault/releases/latest');
       if (!response.ok) return;
       const data = await response.json();
       const latestVersion = data.tag_name;
-      const currentVersion = 'v1.2.0'; // Current client version
+      const currentVersion = 'v1.3.0'; // Current client version
       
       const cleanLatest = latestVersion.replace(/^v/, '');
       const cleanCurrent = currentVersion.replace(/^v/, '');
@@ -663,6 +705,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       c.title, c.url, c.username, c.password, c.notes, c.totpSecret, c.category,
     ].map(field => `"${(field || '').replace(/"/g, '""')}"`).join(','));
     logger.warn('CSV export created (plain text)');
+    get().addAuditLog('EXPORT_CSV', `Plain-text CSV export of ${credentials.length} credentials created`);
     return [headers.join(','), ...rows].join('\n');
   },
 
@@ -701,6 +744,45 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       logger.error('Failed to import backup', err);
       const msg = err instanceof Error ? err.message : 'Failed to import backup';
       set({ error: msg, loading: false });
+    }
+  },
+
+  // ─── Privacy: Audit Log ────────────────────────────────────────────────────
+  addAuditLog: (action, details) => {
+    const entry: AuditLogEntry = { timestamp: Date.now(), action, details };
+    const current = get().auditLog;
+    // Keep max 500 entries in memory (never persisted to disk automatically)
+    set({ auditLog: [entry, ...current].slice(0, 500) });
+  },
+
+  exportAuditLog: () => {
+    const log = get().auditLog;
+    const json = JSON.stringify({ 
+      exported: new Date().toISOString(), 
+      entries: log.map(e => ({
+        time: new Date(e.timestamp).toISOString(),
+        action: e.action,
+        details: e.details,
+      }))
+    }, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `safevault-audit-${Date.now()}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    get().addAuditLog('EXPORT_AUDIT_LOG', `Exported ${log.length} audit entries to local file`);
+  },
+
+  // ─── Privacy: Honeypot Credential ─────────────────────────────────────────
+  setHoneypotCredential: (id) => {
+    localStorage.setItem('safevault_honeypot_id', id ?? '');
+    set({ honeypotCredentialId: id });
+    if (id) {
+      get().addAuditLog('HONEYPOT_SET', `Credential ${id} marked as honeypot/decoy`);
+    } else {
+      get().addAuditLog('HONEYPOT_CLEARED', 'Honeypot credential cleared');
     }
   },
 }));

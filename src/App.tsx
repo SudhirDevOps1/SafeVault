@@ -7,11 +7,47 @@ import PrivacyPolicy from '@/components/PrivacyPolicy';
 import { Shield } from 'lucide-react';
 
 export default function App() {
-  const { vaultState, showPrivacyPolicy, initializeVault } = useVaultStore();
+  const { vaultState, showPrivacyPolicy, initializeVault, lockVault, addAuditLog } = useVaultStore();
 
   useEffect(() => {
     initializeVault();
   }, [initializeVault]);
+
+  // ── Privacy: Lock vault when tab/app goes to background ───────────────────
+  useEffect(() => {
+    // Web / Browser: Page Visibility API
+    const handleVisibilityChange = () => {
+      if (document.hidden && vaultState === 'unlocked') {
+        addAuditLog('AUTO_LOCK', 'Vault locked — tab became hidden (Page Visibility API)');
+        lockVault();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Mobile / Capacitor: App state change (runtime-only on Android — silently ignored in web/Electron)
+    let capacitorCleanup: (() => void) | null = null;
+    (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore — @capacitor/app is a runtime dependency available on Android only
+        const { App: CapApp } = await import(/* @vite-ignore */ '@capacitor/app');
+        const handle = await CapApp.addListener('appStateChange', (state: { isActive: boolean }) => {
+          if (!state.isActive && vaultState === 'unlocked') {
+            addAuditLog('AUTO_LOCK', 'Vault locked — app went to background (Capacitor)');
+            lockVault();
+          }
+        });
+        capacitorCleanup = () => handle.remove();
+      } catch {
+        // Not running on Capacitor — ignore silently
+      }
+    })();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      capacitorCleanup?.();
+    };
+  }, [vaultState, lockVault, addAuditLog]);
 
   // Loading state
   if (vaultState === 'loading') {
