@@ -121,12 +121,16 @@ flowchart TD
     end
 ```
 
-### 🔬 Deep Cryptographic Specifications
-SafeVault leverages production-grade, highly-analyzed open-source libraries for all cryptographic operations:
+### 🔬 Deep Cryptographic Specifications & Dependency Choices
+
+SafeVault leverages highly-vetted, production-grade, open-source libraries for all cryptographic operations:
 * **Key Derivation (OWASP 2026 Recommended):** **Argon2id** (via [hash-wasm](https://github.com/Daninet/hash-wasm)) with 64MB memory, 3 iterations, and parallelism of 4.
+  * *Why hash-wasm?* It compiles native C implementation to WebAssembly, delivering lightning-fast execution in pure sandboxed environments without requiring insecure binary compilation or Node native bindings (crucial for cross-platform portability).
 * **Legacy Derivation:** **PBKDF2-SHA512** with 600,000 iterations (silently migrated to Argon2id upon first login).
 * **Data Encryption:** **AES-256-GCM** (Galois/Counter Mode) utilizing native Web Crypto API (`crypto.subtle`) with a unique 12-byte cryptographically secure random Initialization Vector (IV) generated for every entry.
+  * *Why Web Crypto API?* Being a native browser standard, it executes within privileged browser runtimes, preventing Javascript heap-inspection from scraping keys and mitigating third-party dependency injection attacks.
 * **Handshake Signatures:** **SHA-256** signatures verifying timestamp nonces to perform passwordless pairings on Wi-Fi sync.
+  * *Why SHA-256?* Extremely light, native, secure algorithm to verify credentials pairing requests without sharing the pairing PIN in plain-text.
 
 ---
 
