@@ -10,23 +10,23 @@ SafeVault operations run entirely client-side. The following diagram illustrates
 
 ```mermaid
 flowchart TD
-    subgraph KDF [Key Derivation & Auth]
-        A[Master Password] --> B[Argon2id Key Derivation<br/>Memory: 64MB, Iterations: 3, Parallelism: 4]
+    subgraph KDF ["Key Derivation & Auth"]
+        A[Master Password] --> B["Argon2id Key Derivation<br/>Memory: 64MB, Iterations: 3, Parallelism: 4"]
         B --> C[Derived Master Key]
         C --> D[SHA-256 Hash verification]
     end
 
-    subgraph Memory [In-Memory Session]
+    subgraph Memory ["In-Memory Session"]
         D -- Verified --> E[Set Active EncryptionKey]
         E --> F[Decrypt Vault payload from IndexedDB]
         F --> G[Load Credentials State in Zustand]
     end
 
-    subgraph Security [OS Hardening Filters]
+    subgraph Security ["OS Hardening Filters"]
         G --> H[Render React Dashboard]
-        H --> I[Block Screenshot / Screen Sharing<br/>setContentProtection]
+        H --> I["Block Screenshot / Screen Sharing<br/>setContentProtection"]
         H --> J[Wipe clipboard on vault lock]
-        H --> K[spellCheck=false Input hardening]
+        H --> K["spellCheck=false Input hardening"]
     end
 
     E -- Lock Vault --> L[Wipe Key & Credentials from Memory]

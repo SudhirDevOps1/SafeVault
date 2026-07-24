@@ -100,21 +100,21 @@ SafeVault is engineered with zero-trust principles. Below is the breakdown of ou
 
 ```mermaid
 flowchart TD
-    subgraph Storage [1. Data at Rest (IndexedDB)]
-        MP[Master Password] --> A[Argon2id WASM KDF<br/>64MB Memory, 3 Iterations, Parallelism: 4]
-        A --> B[Derived Key (256-bit AES)]
-        B --> C[AES-256-GCM Decryption]
-        C --> D[(Dexie IndexedDB Vault)]
+    subgraph Storage ["1. Data at Rest (IndexedDB)"]
+        MP[Master Password] --> A["Argon2id WASM KDF<br/>64MB Memory, 3 Iterations, Parallelism: 4"]
+        A --> B["Derived Key (256-bit AES)"]
+        B --> C["AES-256-GCM Decryption"]
+        C --> D["Dexie IndexedDB Vault"]
     end
 
-    subgraph Sync [2. Peer-to-Peer E2EE Transport]
+    subgraph Sync ["2. Peer-to-Peer E2EE Transport"]
         PIN[Pairing PIN] --> E[Argon2id KDF]
-        E --> F[Transport Key (AES-256-GCM)]
+        E --> F["Transport Key (AES-256-GCM)"]
         F --> G[Encrypt Vault Payload]
         G --> H[POST to Local IP / Relay Channel]
     end
 
-    subgraph Memory [3. Session Lifecycle]
+    subgraph Memory ["3. Session Lifecycle"]
         H --> I[React Memory State]
         I --> J[Wiped on Vault Lock]
         I --> K[Wiped on Tab Hide / Sleep]
