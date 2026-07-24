@@ -28,6 +28,24 @@ export default {
       });
     }
 
+    // IP-based Rate Limiter (Max 10 requests per minute per IP) to prevent Channel ID brute-forcing
+    const clientIP = request.headers.get("CF-Connecting-IP") || "unknown";
+    if (clientIP !== "unknown") {
+      const limitKey = `rate:${clientIP}`;
+      const hits = await env.SAFEVAULT_KV.get(limitKey);
+      const hitCount = hits ? parseInt(hits, 10) : 0;
+
+      if (hitCount >= 10) {
+        return new Response(JSON.stringify({ error: "Too Many Requests: Rate limit exceeded (Max 10/min). Please slow down." }), {
+          status: 429,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      }
+      
+      // Increment and set expiry to 60 seconds
+      await env.SAFEVAULT_KV.put(limitKey, (hitCount + 1).toString(), { expirationTtl: 60 });
+    }
+
     const url = new URL(request.url);
     const path = url.pathname;
 

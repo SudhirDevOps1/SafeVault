@@ -138,6 +138,14 @@ export default function Settings() {
   };
 
   const handleExportCSV = () => {
+    const confirmDanger = window.confirm(
+      "⚠️ WARNING: Security Risk!\n\n" +
+      "You are about to export all your passwords in unencrypted plain-text format (CSV).\n" +
+      "Anyone who gains access to this file will see your raw secrets immediately.\n\n" +
+      "Are you absolutely sure you want to proceed with this insecure export?"
+    );
+    if (!confirmDanger) return;
+
     const data = exportCSV();
     downloadFile(data, `safevault-export-${Date.now()}.csv`, 'text/csv');
     setExportMessage('⚠️ CSV exported (plain text)');

@@ -115,13 +115,17 @@ export async function deriveKeyArgon2id(
     outputType: 'binary',
   });
 
-  return crypto.subtle.importKey(
+  const key = await crypto.subtle.importKey(
     'raw',
     hashBytes as BufferSource,
     { name: 'AES-GCM' },
     true, // Set to true to allow key wrapping for recovery phrases
     ['encrypt', 'decrypt']
   );
+
+  // Securely scrub the temporary derived hash bytes from RAM memory
+  hashBytes.fill(0);
+  return key;
 }
 
 export async function createVerificationHashArgon2id(
