@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Shield, Eye, EyeOff, Lock, Unlock, FileUp, AlertTriangle } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
+import { db } from '@/utils/db';
 import { logger } from '@/utils/logger';
 
 import WebShowcase from './WebShowcase';
@@ -15,6 +16,25 @@ export default function VaultUnlock() {
   const [importData, setImportData] = useState('');
   const [importPassword, setImportPassword] = useState('');
   const [unlockProgress, setUnlockProgress] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetInput, setResetInput] = useState('');
+
+  const handleResetVault = async () => {
+    if (resetInput !== 'RESET') {
+      alert('Please type "RESET" to confirm.');
+      return;
+    }
+    try {
+      // Clear IndexedDB vault table
+      await db.vault.clear();
+      // Clear local storage
+      localStorage.clear();
+      // Reload page to return to setup state
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to reset vault', err);
+    }
+  };
 
   const handleUnlock = async () => {
     if (!password.trim()) return;
@@ -177,6 +197,46 @@ export default function VaultUnlock() {
       );
     }
 
+    if (showResetConfirm) {
+      return (
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl space-y-4">
+          <h3 className="text-lg font-bold text-rose-500 flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" /> Reset Vault
+          </h3>
+          <p className="text-xs text-gray-400 leading-normal">
+            Warning: This action will permanently delete all stored credentials and configurations on this device. 
+            This cannot be undone.
+          </p>
+          <div className="space-y-2">
+            <label className="text-xs text-gray-400 block">Type "RESET" to confirm deletion:</label>
+            <input
+              type="text"
+              value={resetInput}
+              onChange={e => setResetInput(e.target.value)}
+              placeholder="RESET"
+              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-rose-400 font-bold focus:outline-none focus:border-rose-500/30 transition-all font-mono"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowResetConfirm(false)}
+              className="py-2.5 px-4 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-xs font-bold transition-all border border-white/5"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleResetVault}
+              className="py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+            >
+              Confirm Delete
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <form onSubmit={(e) => { e.preventDefault(); handleUnlock(); }} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl" role="form" aria-label="Vault unlock form">
         <div className="space-y-5">
@@ -263,6 +323,16 @@ export default function VaultUnlock() {
             >
               <Lock className="w-3.5 h-3.5" />
               Use Mnemonic Phrase
+            </button>
+          </div>
+          
+          <div className="text-center pt-2">
+            <button
+              type="button"
+              onClick={() => { setShowResetConfirm(true); setResetInput(''); }}
+              className="text-xs text-rose-400/70 hover:text-rose-400 transition-colors"
+            >
+              Forgot Master Password? Reset Vault
             </button>
           </div>
         </div>
