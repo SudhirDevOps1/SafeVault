@@ -124,28 +124,28 @@ SafeVault is engineered with zero-trust principles. Below is the breakdown of ou
 
 ## 🚀 Installation & Downloads
 
-### Official Pre-built Binaries (v1.2.0)
+### Official Pre-built Binaries (v1.3.0)
 
 Download the latest release files directly from the [GitHub Releases Page](https://github.com/SudhirDevOps1/SafeVault/releases/latest).
 
 #### 🪟 Windows (Windows 10/11)
-- **Installer (Recommended):** Download `SafeVault.Setup.1.2.0.exe`. Double-click to install. This automatically registers start menu entries, desktop shortcuts, and links the application icons.
-- **Portable Version:** Download `SafeVault.1.2.0.exe`. A single standalone binary that runs instantly without installation (useful for USB drives).
+- **Installer (Recommended):** Download `SafeVault.Setup.1.3.0.exe`. Double-click to install. This automatically registers start menu entries, desktop shortcuts, and links the application icons.
+- **Portable Version:** Download `SafeVault.1.3.0.exe`. A single standalone binary that runs instantly without installation (useful for USB drives).
 
 #### 🍎 macOS (Apple Silicon M1/M2/M3)
-- **DMG Installer:** Download `SafeVault-1.2.0-arm64.dmg`. Double-click to open, and drag **SafeVault** to your `Applications` folder.
-- **ZIP Archive:** Download `SafeVault-1.2.0-arm64-mac.zip`. Unpack and run the application directly.
+- **DMG Installer:** Download `SafeVault-1.3.0-arm64.dmg`. Double-click to open, and drag **SafeVault** to your `Applications` folder.
+- **ZIP Archive:** Download `SafeVault-1.3.0-arm64-mac.zip`. Unpack and run the application directly.
 *Note: If macOS blocks launch with a "Developer cannot be verified" warning, right-click the app, select **Open**, and confirm.*
 
 #### 🐧 Linux (Ubuntu, Debian, Fedora, Arch, etc.)
-- **AppImage:** Download `SafeVault-1.2.0.AppImage`. Run the following command in your terminal to make it executable and launch:
+- **AppImage:** Download `SafeVault-1.3.0.AppImage`. Run the following command in your terminal to make it executable and launch:
   ```bash
-  chmod +x SafeVault-1.2.0.AppImage
-  ./SafeVault-1.2.0.AppImage
+  chmod +x SafeVault-1.3.0.AppImage
+  ./SafeVault-1.3.0.AppImage
   ```
 
 #### 🤖 Android (Mobile / Tablet)
-- **APK Installer:** Download `SafeVault-v1.2.0.apk`. Install it directly on your Android phone or tablet to run SafeVault natively.
+- **APK Installer:** Download `SafeVault-v1.3.0.apk`. Install it directly on your Android phone or tablet to run SafeVault natively.
 
 ### Build from Source
 

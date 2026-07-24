@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.3.0] - 2026-07-24
+
+### Added
+- **Zero-Knowledge Cloud Relay E2EE Sync:** Integrated a cloud relay synchronization mechanism using `kvdb.io` for devices on different networks (e.g. mobile to web, extension to web) without running a local PC server. Data is encrypted using AES-GCM before leaving the device.
+- **Forgot Master Password Safety Reset:** Implemented a secure vault reset action inside the unlock interface (`VaultUnlock.tsx`), allowing users to completely wipe their local IndexedDB database and start fresh if they forget their password.
+
+### Changed
+- **AES-GCM Local Wi-Fi Sync Transport Encryption:** Upgraded local Wi-Fi sync data transport from plain JSON to fully authenticated AES-GCM-256 E2EE using keys derived from the 6-digit pairing PIN.
+- **Clipboard Fallback Auto-Clear:** Patched legacy browser and fallback clipboard environments to ensure clipboard content is physically cleared (overwritten with an empty string) on lock or after 30 seconds.
+- Bumped app versions, extension manifest, and documentation to v1.3.0.
+
 ## [1.2.0] - 2026-07-24
 
 ### Added
