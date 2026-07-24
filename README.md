@@ -158,22 +158,32 @@ Although the database is strongly encrypted, no system is perfectly secure. Here
 1. **Endpoint Compromise (Malware / Keyloggers):**
    * **The Risk:** If your device is infected with malware, a keylogger can capture your master password while you type it.
    * **Mitigation:** SafeVault uses input hardening (`spellCheck={false}`) but cannot prevent kernel-level keyloggers. Keep your host OS clean.
+   * **Verdict:** ❌ **VULNERABLE** if host machine is compromised.
 
 2. **Cold Boot Attacks & RAM Dumping:**
    * **The Risk:** While the vault is unlocked, decrypted passwords exist in local memory (RAM). An attacker with physical access or root level malware can dump memory to extract plaintext secrets.
    * **Mitigation:** Lock-on-Sleep, Lock-on-Hide, and clipboard auto-scrubbing reduce the exposure window.
+   * **Verdict:** ⚠️ **PARTIALLY PROTECTED** (auto-lock shuts down exposure windows, but key is present in memory while unlocked).
 
 3. **Remote Favicon Fetching (Metadata Leak):**
    * **The Risk:** By default, SafeVault fetches website icons from `icons.duckduckgo.com`. An attacker snooping on your internet traffic can compile a history of hostnames you look up.
    * **Mitigation:** SafeVault provides a **Disable Remote Favicons** toggle. When enabled, all external CDN icon requests are blocked, and logo rendering falls back to local text initials.
+   * **Verdict:** ✅ **FULLY RESOLVED** (user can disable this feature entirely).
 
-4. **GitHub Update Pings (IP leak):**
-   * **The Risk:** Checking for new releases contacts `api.github.com`, exposing your IP address and client version to GitHub.
+4. **GitHub Update Pings & PwnedPasswords Queries (IP/Metadata Leak):**
+   * **The Risk:** Update checks query `api.github.com`, exposing client usage. Breach checks query `api.pwnedpasswords.com` using k-anonymity (first 5 SHA-1 characters). Although your password is never sent, ISP or intermediate routers can track that your IP is query-scanning breach lists.
    * **Mitigation:** Enable **Strict Offline Mode (Air-Gap)** in Settings to block all outbound update checks, HaveIBeenPwned breach queries, and Cloud Relays.
+   * **Verdict:** ✅ **FULLY RESOLVED** (using Strict Offline Mode cuts off all remote connections).
 
-5. **Local Network Sniffing (Wi-Fi Sync Metadata):**
+5. **Local Network Sniffing & MITM (Wi-Fi Sync Metadata):**
    * **The Risk:** If syncing devices on an untrusted local network, packet sniffers can intercept the IP addresses and ports active during the sync session.
    * **Mitigation:** SafeVault E2EE encrypts the payloads with Argon2id-derived keys and authenticates using timestamp-hashed nonces, preventing actual credential leaks or man-in-the-middle decryption.
+   * **Verdict:** ✅ **E2EE SECURE** (attacker only sees encrypted frames, cannot decrypt without the 6-digit PIN).
+
+6. **DNS Spoofing & Cloud Relay Interception:**
+   * **The Risk:** If DNS servers are poisoned, your client might contact a fake Cloud Relay server instead of the Cloudflare Worker.
+   * **Mitigation:** Even if the relay server is spoofed, it only receives AES-GCM encrypted data. An attacker cannot decrypt the data without the 6-digit pairing PIN (which is never sent to the server).
+   * **Verdict:** ✅ **E2EE SECURE** (data remains zero-knowledge in transit).
 
 ---
 
@@ -185,6 +195,7 @@ Although the database is strongly encrypted, no system is perfectly secure. Here
 * **❌ DO NOT Run SafeVault on a Rooted/Jailbroken Phone:** Root access bypasses sandbox permissions (IndexedDB isolation), allowing third-party apps to access your vault files directly.
 * **❌ DO NOT Disable Auto-Lock:** Keeping your vault unlocked indefinitely exposes plaintext RAM keys and invites unauthorized physical access (shoulder surfing).
 * **❌ DO NOT Leave Decoy/Honeypot Alerts Unattended:** If a honeypot credential copy alert is triggered in your audit log, check for unauthorized access or screen recordings immediately.
+* **❌ DO NOT Trust Browser Auto-Fill Extensions Unchecked:** Browser extension overlays can read input values on compromised sites. Keep inputs clean and locked.
 
 ---
 
