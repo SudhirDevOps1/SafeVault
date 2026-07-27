@@ -103,6 +103,13 @@ All encryption and key derivation happens on-the-fly inside volatile JavaScript 
 * **Master Key Wrapping:** AES-GCM encrypts the master key using the derived recovery key, allowing offline account restoration without storing plain key text or duplicate records.
 * **Subnet Scanner Auto-Discovery:** Implemented a parallel subnet scanner checks port `58241` with a low-timeout threshold to automatically discover host sync servers on the local Wi-Fi network.
 
+### 🛡️ v1.4.2: Extension CSP Compliancy, Dynamic Popup sizing, & Local Sync Stack Refactor
+* **Extension CSP Inline Script Bypass:** Replaced `vite-plugin-singlefile` inlining with standard external code asset compilation to comply with strict Manifest V3 Content Security Policy (CSP), resolving the extension blank/black screen issue.
+* **Dynamic Popup Sizing:** Added dynamic CSS injection inside `src/main.tsx` to lock popup dimensions (`380x550px`) only when running inside the Chrome extension context.
+* **WebShowcase Layout Bypass:** Updated `VaultSetup.tsx` and `VaultUnlock.tsx` layout logic to hide desktop/web info showcase pages inside the extension and mobile browsers, directly loading the centered login/creation form.
+* **Local Sync Stack Overflow Fix:** Refactored base64 conversion blocks using safe loop-based methods (`uint8ArrayToBase64`/`base64ToUint8Array`) to replace stack-size limited spread operators (`...`), fixing the `atob` decryption crash on large database sync payloads.
+* **TypeScript Buffer Source Type Casting:** Patched type checking warnings inside `LocalSync.tsx` by casting parameters (`iv: resIv as any` and `combined.buffer as ArrayBuffer`) to cleanly pass compile verification checks.
+
 ### 🛡️ v1.4.1: Sync E2EE Security Hardening, Audit Logs, & Privacy Dashboard
 * **Wi-Fi Sync E2EE Strength Upgrade:** Upgraded local Wi-Fi sync key-derivation transport KDF from PBKDF2 (10,000 iterations) to a memory-hard **Argon2id WASM key derivation** (matching the relay-sync security level).
 * **Zero-Sniffing Handshake Authentication:** Replaced plain-text PIN transit (`X-Sync-PIN` header) over local HTTP requests with a cryptographic challenge signature `X-Sync-Hash: SHA-256(PIN + Timestamp)` to prevent network packet sniffers from capturing the raw PIN.

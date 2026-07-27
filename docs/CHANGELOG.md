@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-07-27
+
+### Fixed
+- **Chrome Extension CSP Inline Script Bypass:** Replaced `vite-plugin-singlefile` inlining with standard external code asset compilation to comply with strict Manifest V3 Content Security Policy (CSP), resolving the extension blank/black screen issue.
+- **Dynamic Popup Sizing:** Added dynamic CSS injection inside `src/main.tsx` to lock popup dimensions (`380x550px`) only when running inside the Chrome extension context.
+- **WebShowcase Layout Bypass:** Updated `VaultSetup.tsx` and `VaultUnlock.tsx` layout logic to hide desktop/web info showcase pages inside the extension and mobile browsers, directly loading the centered login/creation form.
+- **Local Sync Stack Overflow Fix:** Refactored base64 conversion blocks using safe loop-based methods (`uint8ArrayToBase64`/`base64ToUint8Array`) to replace stack-size limited spread operators (`...`), fixing the `atob` decryption crash on large database sync payloads.
+- **TypeScript Buffer Source Type Casting:** Patched type checking warnings inside `LocalSync.tsx` by casting parameters (`iv: resIv as any` and `combined.buffer as ArrayBuffer`) to cleanly pass compile verification checks.
+
+---
+
 ## [1.4.1] - 2026-07-24
 
 ### Added — Sync Security Hardening
