@@ -864,8 +864,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     }
     try {
       set({ loading: true, error: null });
-      const salt = await createVerificationHashArgon2id(pin, 'safevault-pin-salt');
-      const saltBase64 = window.btoa(salt).slice(0, 16);
+      const saltBytes = window.crypto.getRandomValues(new Uint8Array(16));
+      const saltBase64 = bufferToBase64(saltBytes);
       
       // Derive E2EE PIN Key
       const pinKey = await deriveKeyArgon2id(pin, saltBase64);
