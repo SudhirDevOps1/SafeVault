@@ -7,12 +7,23 @@ import App from "./App";
 if (typeof window !== 'undefined' && (window as any).chrome && (window as any).chrome.runtime && (window as any).chrome.runtime.id) {
   const style = document.createElement('style');
   style.innerHTML = `
-    html, body {
+    html {
       width: 380px !important;
       height: 550px !important;
       margin: 0;
       padding: 0;
       overflow: hidden;
+    }
+    body {
+      width: 380px !important;
+      height: 550px !important;
+      margin: 0;
+      padding: 0;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+    }
+    body::-webkit-scrollbar {
+      display: none;
     }
   `;
   document.head.appendChild(style);
