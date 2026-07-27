@@ -106,7 +106,7 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
 
       {/* Desktop App Download Options (Web Only) */}
       {!(typeof window !== 'undefined' && 'electron' in window) && (() => {
-        const APP_VERSION = '1.4.1';
+        const APP_VERSION = '1.4.2';
         const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
         const isMobile = /android|iphone|ipad|ipod/i.test(userAgent);
         
