@@ -208,11 +208,19 @@ This section logs identified feature gaps and implementation architectures for t
   5. **Last Sync Timestamp** — `lastSyncedAt` persisted and shown in Sync Center header.
   6. **Extension defaults to Cloud Relay** — Wi-Fi tab hidden in extension context.
 
-### L. ⚡ Future Sync Improvements (Next Stage Roadmap)
-* **Real-Time Sync (WebSocket):**
-  * **Gap:** Sync is currently manual (user must press "Initiate Sync"). Changes on one device are not pushed automatically.
-  * **Execution Plan:** Implement a WebSocket server inside the Electron Node process that broadcasts a lightweight "vault-changed" signal when `saveVault()` runs. Connected extension/web clients subscribe and trigger a silent auto-pull.
+### L. 🔄 [COMPLETED] Double-Layer E2EE Local Sync & Live Auto-Sync (v1.4.3)
+* **Status:** **FULLY IMPLEMENTED**. 
+  - **Double-Layer E2EE:** Encrypted local vault contents (Layer 1 using Master Vault Key) are wrapped dynamically in transit using PIN-derived keys (Layer 2 via Argon2id) preventing raw transit packet inspection.
+  - **Live Auto-Sync:** Debounced automatic push trigger on vault save state mutations.
+  - **Universal Role Switching:** Allows Capacitor mobile and browser extensions to act as client senders natively.
 
+### M. 🔑 [COMPLETED] Quick PIN Unlock Security (v1.4.3)
+* **Status:** **FULLY IMPLEMENTED**. 
+  - **Zero-Knowledge Key Wrapping:** AES-GCM 256-bit encrypts Master Key using PIN key derived locally via Argon2id WASM.
+  - **Keypad UI Toggle:** VaultUnlock default rendering switches to PIN mode if configured.
+  - **3-Strike Lockout Auto-Wipe:** Auto-deletes wrapped keys on 3 incorrect attempts.
+
+### N. ⚡ Future Sync & Security Improvements (Next Stage Roadmap)
 * **Cloud Relay TTL Expiry (Cloudflare Workers):**
   * **Gap:** Pushed encrypted payloads sit on the relay indefinitely — privacy risk.
   * **Execution Plan:** Add `expirationTtl: 86400` (24h) to the Cloudflare Workers KV `put()` call so stale relay data auto-expires.
