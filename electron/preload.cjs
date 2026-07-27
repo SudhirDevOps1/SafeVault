@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('safevault', {
   // Sync Server
   startSyncServer: (vaultData) => ipcRenderer.invoke('safevault:start-sync-server', vaultData),
   stopSyncServer: () => ipcRenderer.invoke('safevault:stop-sync-server'),
+  getLocalSubnets: () => ipcRenderer.invoke('safevault:get-local-subnets'),
   onSyncRequest: (callback) => {
     const handler = (event, clientVault, responseCallbackId) => {
       // Allow React app to merge and return data

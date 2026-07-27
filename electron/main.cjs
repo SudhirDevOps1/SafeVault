@@ -353,3 +353,23 @@ ipcMain.handle('safevault:start-sync-server', (event, vaultData) => {
 ipcMain.handle('safevault:stop-sync-server', () => {
   return syncServer.stopSyncServer();
 });
+
+// Return actual local network subnets (e.g. ['192.168.1', '10.0.0']) for Auto-Discover
+ipcMain.handle('safevault:get-local-subnets', () => {
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+  const subnets = new Set();
+  for (const iface of Object.values(interfaces)) {
+    for (const entry of iface) {
+      if (entry.family === 'IPv4' && !entry.internal) {
+        // Extract subnet prefix: first 3 octets
+        const parts = entry.address.split('.');
+        if (parts.length === 4) {
+          subnets.add(`${parts[0]}.${parts[1]}.${parts[2]}`);
+        }
+      }
+    }
+  }
+  return Array.from(subnets);
+});
+

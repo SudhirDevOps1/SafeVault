@@ -26,6 +26,14 @@ export interface VaultMetadata {
   version: number;
 }
 
+// Sync payload wrapper — carries credentials + tombstone deleted IDs
+// so that deletes propagate correctly across devices (no ghost resurrections)
+export interface SyncPayload {
+  credentials: Credential[];
+  deletedIds: string[];      // Credential IDs deleted on sender device
+  syncedAt: number;          // Unix timestamp of sync initiation
+}
+
 export interface EncryptedVault {
   id: string;
   data: string; // Base64-encoded encrypted blob

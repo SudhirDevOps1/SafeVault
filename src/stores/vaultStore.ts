@@ -71,6 +71,9 @@ interface VaultStore {
   baseEmails: string[];
   auditLog: AuditLogEntry[];
   honeypotCredentialId: string | null;
+  // Sync tracking
+  deletedCredentialIds: string[];  // Tombstone list — prevents ghost credential resurrection on merge
+  lastSyncedAt: number | null;     // Unix timestamp of last successful sync
 
   // Actions
   initializeVault: () => Promise<void>;
@@ -113,7 +116,8 @@ interface VaultStore {
   exportCSV: () => string;
   importEncryptedBackup: (data: string, password: string) => Promise<void>;
   performAutoBackup: () => Promise<void>;
-  mergeCredentials: (incoming: Credential[]) => Promise<Credential[]>;
+  mergeCredentials: (incoming: Credential[], incomingDeletedIds?: string[]) => Promise<Credential[]>;
+  getSyncPayload: () => { credentials: Credential[]; deletedIds: string[]; syncedAt: number };
 }
 
 export const useVaultStore = create<VaultStore>((set, get) => ({
@@ -145,6 +149,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   baseEmails: JSON.parse(localStorage.getItem('safevault_base_emails') || '["Sudhir@gmail.com"]'),
   auditLog: [],
   honeypotCredentialId: localStorage.getItem('safevault_honeypot_id') || null,
+  deletedCredentialIds: JSON.parse(localStorage.getItem('safevault_deleted_ids') || '[]'),
+  lastSyncedAt: localStorage.getItem('safevault_last_synced') ? Number(localStorage.getItem('safevault_last_synced')) : null,
 
   initializeVault: async () => {
     const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
@@ -461,11 +467,15 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   },
 
   deleteCredential: async (id) => {
-    const { credentials, selectedCredentialId } = get();
+    const { credentials, selectedCredentialId, deletedCredentialIds } = get();
     const deletedCred = credentials.find(c => c.id === id);
+    // Add to tombstone list so future syncs do not resurrect this credential
+    const updatedDeletedIds = Array.from(new Set([...deletedCredentialIds, id]));
+    localStorage.setItem('safevault_deleted_ids', JSON.stringify(updatedDeletedIds));
     set({
       credentials: credentials.filter(c => c.id !== id),
       selectedCredentialId: selectedCredentialId === id ? null : selectedCredentialId,
+      deletedCredentialIds: updatedDeletedIds,
     });
     await get().saveVault();
     await get().performAutoBackup();
@@ -473,27 +483,46 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     get().addAuditLog('CREDENTIAL_DELETED', `Deleted: "${deletedCred?.title ?? id}"`);
   },
 
-  mergeCredentials: async (incoming) => {
-    const { credentials } = get();
+  mergeCredentials: async (incoming, incomingDeletedIds = []) => {
+    const { credentials, deletedCredentialIds } = get();
     const map = new Map();
     
     // Index local credentials
     credentials.forEach(c => map.set(c.id, c));
     
-    // Merge incoming credentials
+    // Merge all tombstone lists — union of local + remote deleted IDs
+    const allDeletedIds = Array.from(new Set([...deletedCredentialIds, ...incomingDeletedIds]));
+    localStorage.setItem('safevault_deleted_ids', JSON.stringify(allDeletedIds));
+
+    // Merge incoming credentials (skip any that are tombstoned)
     incoming.forEach(c => {
+      if (allDeletedIds.includes(c.id)) return; // Ghost resurrection prevention
       const existing = map.get(c.id);
       if (!existing || c.updatedAt > existing.updatedAt) {
         map.set(c.id, c);
       }
     });
+
+    // Also remove any local credentials that were deleted on the remote device
+    allDeletedIds.forEach(id => map.delete(id));
     
     const merged = Array.from(map.values());
-    set({ credentials: merged });
+    const now = Date.now();
+    localStorage.setItem('safevault_last_synced', now.toString());
+    set({ credentials: merged, deletedCredentialIds: allDeletedIds, lastSyncedAt: now });
     await get().saveVault();
     await get().performAutoBackup();
     logger.info('Vault credentials synchronized and merged');
     return merged;
+  },
+
+  getSyncPayload: () => {
+    const { credentials, deletedCredentialIds } = get();
+    return {
+      credentials,
+      deletedIds: deletedCredentialIds,
+      syncedAt: Date.now(),
+    };
   },
 
   saveVault: async () => {
