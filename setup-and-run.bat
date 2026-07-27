@@ -1,19 +1,16 @@
 @echo off
-:: ============================================================================
-:: SafeVault - Automated Setup and Launch Tool (Advanced Self-Healing Edition)
-:: ============================================================================
+rem ============================================================================
+rem SafeVault - Automated Setup and Launch Tool
+rem ============================================================================
 
-:: [FIX #1] Set active code page to UTF-8 (65001) so unicode renders cleanly
-chcp 65001 >nul 2>&1
-
-:: [FIX #2] Enable ANSI Color sequences in Command Prompt safely
+rem Enable ANSI Color sequences in Command Prompt safely
 set "ESC="
 for /F "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1) do rem"') do (
     if not defined ESC set "ESC=%%b"
 )
 if not defined ESC set "ESC= "
 
-:: Color definitions
+rem Color definitions
 set "C_RESET=%ESC%[0m"
 set "C_CYAN=%ESC%[96m"
 set "C_BLUE=%ESC%[94m"
@@ -24,10 +21,10 @@ set "C_MAGENTA=%ESC%[95m"
 set "C_WHITE=%ESC%[97m"
 set "C_BOLD=%ESC%[1m"
 
-:: [FIX #3] Use quotes around title so ampersand never splits cmd execution
+rem Use quotes around title so ampersand never splits cmd execution
 title "SafeVault - Automated Setup and Launch Tool"
 
-:: Check Administrator status
+rem Check Administrator status
 net session >nul 2>&1
 if %errorlevel% == 0 (
     set "ADMIN_STATUS=%C_GREEN%[ADMINISTRATOR OK]%C_RESET%"
@@ -38,22 +35,16 @@ if %errorlevel% == 0 (
 :header
 cls
 echo %C_CYAN%========================================================================================%C_RESET%
-echo %C_CYAN%                      ____        __     _    __           _  __                      %C_RESET%
-echo %C_CYAN%                     / __/____ _ / /_   | |  / /____ _ __ __/ / /_                     %C_RESET%
-echo %C_CYAN%                    _\ \ / __ `/ __/   | | / // __ `// // / / __/                      %C_RESET%
-echo %C_CYAN%                   /___/ \__,_/\__/    |___//_/\__,_/ \_,_/_/\__/                       %C_RESET%
+echo %C_CYAN%                      SafeVault Setup and Launch Assistant                            %C_RESET%
 echo %C_CYAN%========================================================================================%C_RESET%
-echo %C_GREEN%   🔒 SAFEVAULT : ALL-IN-ONE SECURE VAULT PLATFORM LAUNCHER and AUTO-REPAIR STUDIO        %C_RESET%
+echo %C_GREEN%   [SafeVault] : ALL-IN-ONE SECURE VAULT PLATFORM LAUNCHER and AUTO-REPAIR STUDIO        %C_RESET%
 echo %C_CYAN%========================================================================================%C_RESET%
 echo.
 echo   %C_BOLD%Privilege Level :%C_RESET% %ADMIN_STATUS%
 echo   %C_BOLD%Working Dir     :%C_RESET% "%CD%"
-echo   %C_BOLD%Terminal Code   :%C_RESET% %C_GREEN%65001 (UTF-8 Unicode Enabled)%C_RESET%
 echo.
 
-:: ============================================================================
-:: [1/3] CHECKING NODE.JS ENVIRONMENT
-:: ============================================================================
+rem Checking Node.js Environment
 echo %C_CYAN%[1/3] Checking Node.js and npm Environment...%C_RESET%
 node -v >nul 2>&1
 if %errorlevel% neq 0 (
@@ -69,9 +60,7 @@ for /f "tokens=*" %%i in ('npm -v 2^>^&1') do set "NPM_VER=%%i"
 echo   %C_GREEN%[SUCCESS] Found Node.js %NODE_VER% and npm v%NPM_VER%%C_RESET%
 echo.
 
-:: ============================================================================
-:: [2/3] INSTALLING and AUTO-HEALING DEPENDENCIES
-:: ============================================================================
+rem Installing and Auto-Healing Dependencies
 echo %C_CYAN%[2/3] Checking and Installing project dependencies...%C_RESET%
 if not exist "node_modules\" (
     echo   %C_YELLOW%[INFO] node_modules not detected. Running fresh npm install...%C_RESET%
@@ -95,14 +84,11 @@ if %errorlevel% neq 0 (
 echo   %C_GREEN%[SUCCESS] Dependencies verified and ready.%C_RESET%
 echo.
 
-:: ============================================================================
-:: [3/3] SETTING UP CLI TOOL GLOBALLY (AUTO-FIXING EEXIST ERROR)
-:: ============================================================================
+rem Setting up CLI tool globally
 echo %C_CYAN%[3/3] Setting up SafeVault CLI tool globally (npm link --force)...%C_RESET%
-:: [FIX #4] We use --force to overwrite existing symlinks without EEXIST crash!
 call npm link --force >nul 2>&1
 if %errorlevel% neq 0 (
-    echo   %C_YELLOW%[WARNING] Could not link CLI globally (requires Administrator rights).%C_RESET%
+    echo   %C_YELLOW%[WARNING] Could not link CLI globally - requires Administrator rights.%C_RESET%
     echo   %C_YELLOW%          Don't worry. Local npm run commands remain 100%% operational.%C_RESET%
 ) else (
     echo   %C_GREEN%[SUCCESS] CLI linked globally. You can now use the 'safevault' command in any terminal.%C_RESET%
@@ -185,7 +171,6 @@ if "%choice%"=="1" (
     echo   Node Version : %NODE_VER%
     echo   npm Version  : %NPM_VER%
     echo   Current Dir  : "%CD%"
-    echo   Code Page    : 65001 (UTF-8)
     echo   Checking Port 3000 (Web Client)...
     netstat -ano | findstr :3000 >nul 2>&1 && echo     %C_YELLOW%[BUSY] Port 3000 is active%C_RESET% || echo     %C_GREEN%[FREE] Port 3000 is ready%C_RESET%
     echo   Checking Port 5173 (Vite/Electron)...
