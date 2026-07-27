@@ -5,6 +5,26 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { useVaultStore } from '../stores/vaultStore';
 import { encrypt, decrypt, deriveKeyArgon2id, createVerificationHashArgon2id } from '../utils/crypto';
 
+// Helper functions to safely convert between base64 and Uint8Array without stack overflows or encoding bugs
+function uint8ArrayToBase64(uint8Array: Uint8Array): string {
+  let binary = '';
+  const len = uint8Array.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
+  }
+  return window.btoa(binary);
+}
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binaryString = window.atob(base64.trim());
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
 export default function LocalSync() {
   const { credentials, mergeCredentials, strictOfflineMode } = useVaultStore();
   const [isElectronApp] = useState(() => typeof window !== 'undefined' && 'safevault' in window);
@@ -37,15 +57,9 @@ export default function LocalSync() {
         const aesKey = await deriveWifiPINKey(serverInfo.pin, salt.slice(0, 16));
 
         // 2. Decrypt client data
-        const resCiphertext = new Uint8Array(
-          atob(encryptedPayload.ciphertext).split('').map(c => c.charCodeAt(0))
-        );
-        const resIv = new Uint8Array(
-          atob(encryptedPayload.iv).split('').map(c => c.charCodeAt(0))
-        );
-        const resTag = new Uint8Array(
-          atob(encryptedPayload.tag).split('').map(c => c.charCodeAt(0))
-        );
+        const resCiphertext = base64ToUint8Array(encryptedPayload.ciphertext);
+        const resIv = base64ToUint8Array(encryptedPayload.iv);
+        const resTag = base64ToUint8Array(encryptedPayload.tag);
         
         // Concatenate ciphertext and tag for Web Crypto decrypt
         const combined = new Uint8Array(resCiphertext.length + resTag.length);
@@ -81,16 +95,16 @@ export default function LocalSync() {
         );
         
         const respUint8 = new Uint8Array(encryptedResponseBuffer);
-        const respIvBase64 = window.btoa(String.fromCharCode(...respIv));
+        const respIvBase64 = uint8ArrayToBase64(respIv);
         
         const respTagOffset = respUint8.length - 16;
         const respCiphertextBytes = respUint8.slice(0, respTagOffset);
         const respTagBytes = respUint8.slice(respTagOffset);
         
         const encryptedPayloadResponse = {
-          ciphertext: window.btoa(String.fromCharCode(...respCiphertextBytes)),
+          ciphertext: uint8ArrayToBase64(respCiphertextBytes),
           iv: respIvBase64,
-          tag: window.btoa(String.fromCharCode(...respTagBytes))
+          tag: uint8ArrayToBase64(respTagBytes)
         };
 
         respond(null, encryptedPayloadResponse);
@@ -417,7 +431,7 @@ export default function LocalSync() {
       );
       
       const buffer = new Uint8Array(encrypted);
-      const ivBase64 = window.btoa(String.fromCharCode(...iv));
+      const ivBase64 = uint8ArrayToBase64(iv);
       
       // Concatenate tag parsing (last 16 bytes is Auth Tag in Web Crypto API)
       const tagOffset = buffer.length - 16;
@@ -425,9 +439,9 @@ export default function LocalSync() {
       const tagBytes = buffer.slice(tagOffset);
       
       const payload = {
-        ciphertext: window.btoa(String.fromCharCode(...ciphertextBytes)),
+        ciphertext: uint8ArrayToBase64(ciphertextBytes),
         iv: ivBase64,
-        tag: window.btoa(String.fromCharCode(...tagBytes))
+        tag: uint8ArrayToBase64(tagBytes)
       };
 
       // 3. Cryptographically sign the PIN validation instead of sending raw PIN
@@ -455,15 +469,9 @@ export default function LocalSync() {
       const resData = await response.json();
       if (resData.success && resData.encrypted) {
         // Decrypt the server response
-        const resCiphertext = new Uint8Array(
-          atob(resData.encrypted.ciphertext).split('').map(c => c.charCodeAt(0))
-        );
-        const resIv = new Uint8Array(
-          atob(resData.encrypted.iv).split('').map(c => c.charCodeAt(0))
-        );
-        const resTag = new Uint8Array(
-          atob(resData.encrypted.tag).split('').map(c => c.charCodeAt(0))
-        );
+        const resCiphertext = base64ToUint8Array(resData.encrypted.ciphertext);
+        const resIv = base64ToUint8Array(resData.encrypted.iv);
+        const resTag = base64ToUint8Array(resData.encrypted.tag);
         
         // Concatenate ciphertext and tag for Web Crypto
         const combined = new Uint8Array(resCiphertext.length + resTag.length);
