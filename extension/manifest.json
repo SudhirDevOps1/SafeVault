@@ -7,7 +7,8 @@
     "activeTab",
     "storage",
     "clipboardWrite",
-    "contextMenus"
+    "contextMenus",
+    "camera"
   ],
   "icons": {
     "16": "icon.png",

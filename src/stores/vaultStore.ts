@@ -669,10 +669,19 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       const latestVersion = data.tag_name;
       const currentVersion = 'v2.0.0'; // Current client version
       
-      const cleanLatest = latestVersion.replace(/^v/, '');
-      const cleanCurrent = currentVersion.replace(/^v/, '');
+      const isNewerVersion = (latest: string, current: string): boolean => {
+        const l = latest.split('.').map(Number);
+        const c = current.split('.').map(Number);
+        for (let i = 0; i < Math.max(l.length, c.length); i++) {
+          const lVal = l[i] || 0;
+          const cVal = c[i] || 0;
+          if (lVal > cVal) return true;
+          if (lVal < cVal) return false;
+        }
+        return false;
+      };
 
-      if (cleanLatest !== cleanCurrent && cleanLatest > cleanCurrent) {
+      if (isNewerVersion(latestVersion.replace(/^v/, ''), currentVersion.replace(/^v/, ''))) {
         const assets = (data.assets || []).map((asset: any) => ({
           name: asset.name,
           browser_download_url: asset.browser_download_url,

@@ -73,7 +73,7 @@ function createWindow() {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.google.com; connect-src 'self' https://api.github.com https://api.pwnedpasswords.com http://*:* https://*:*; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
+          "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.google.com; connect-src 'self' https://api.github.com https://api.pwnedpasswords.com http://* https://* http://localhost:* ws://localhost:*; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
         ],
       },
     });
@@ -363,7 +363,7 @@ ipcMain.handle('safevault:get-local-subnets', () => {
   const subnets = new Set();
   for (const iface of Object.values(interfaces)) {
     for (const entry of iface) {
-      if (entry.family === 'IPv4' && !entry.internal) {
+      if ((entry.family === 'IPv4' || entry.family === 4) && !entry.internal) {
         // Extract subnet prefix: first 3 octets
         const parts = entry.address.split('.');
         if (parts.length === 4) {
