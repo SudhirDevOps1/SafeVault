@@ -28,6 +28,12 @@ function copyFolderRecursiveSync(src, dest) {
 }
 
 try {
+  console.log('Cleaning target extension/assets/ directory...');
+  const assetsDest = path.join(destDir, 'assets');
+  if (fs.existsSync(assetsDest)) {
+    fs.rmSync(assetsDest, { recursive: true, force: true });
+  }
+
   console.log('Copying dist/ files recursively to extension/ directory...');
   copyFolderRecursiveSync(srcDir, destDir);
   console.log('Successfully updated extension/ assets!');
