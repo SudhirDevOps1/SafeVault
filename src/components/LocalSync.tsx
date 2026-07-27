@@ -529,6 +529,15 @@ export default function LocalSync() {
       {syncMode === 'wifi' ? (
         /* Local P2P Wi-Fi view */
         <div className="space-y-4">
+          {!isElectronApp && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-1">
+              <span className="text-[11px] font-bold text-emerald-400 block">💡 Mobile Sync Tip</span>
+              <p className="text-[10px] text-gray-300 leading-normal">
+                To sync locally, start the <strong>Host Server</strong> on your desktop SafeVault app, 
+                then click <strong>Scan QR Code</strong> or use <strong>Auto-Discover</strong> below to pair this device.
+              </p>
+            </div>
+          )}
           <div className="flex gap-2 p-1 bg-white/5 rounded-lg max-w-[200px]">
             {isElectronApp && (
               <button
