@@ -221,6 +221,7 @@ if "%choice%"=="1" (
 ) else if "%choice%"=="0" (
     echo.
     echo %C_GREEN%Exiting SafeVault Launcher. Stay secure. Goodbye.%C_RESET%
+    pause
     exit /b 0
 ) else (
     echo.
