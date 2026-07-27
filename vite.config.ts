@@ -17,10 +17,24 @@ export default defineConfig({
     },
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       // @capacitor/app is a runtime-only module loaded on Android by Capacitor.
       // Marking it external prevents Rollup from failing during the web/desktop build.
       external: ['@capacitor/app'],
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-react') || id.includes('lucide')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('hash-wasm') || id.includes('dexie')) {
+              return 'vendor-crypto-db';
+            }
+            return 'vendor-core';
+          }
+        }
+      }
     },
   },
 });
