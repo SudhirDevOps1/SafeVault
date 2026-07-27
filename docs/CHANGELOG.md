@@ -5,7 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-27
+
+### Added — CLI Complete Overhaul (bin/safevault.cjs)
+- **`safevault edit <title>`** — Edit any existing credential entry with field-by-field prompts
+- **`safevault remove <title>`** — Delete a credential entry with confirmation prompt
+- **`safevault generate [length]`** — Generate cryptographically strong random passwords using Fisher-Yates shuffle and `crypto.randomInt`
+- **`safevault change-password`** — Re-encrypt the entire vault under a new master password
+- **Password Strength Checker** — Shows score, label (Very Weak → Very Strong), and improvement tips on `add`, `init`, `change-password`
+- **Duplicate Password Detection** — `audit` now flags reused passwords across entries via SHA-1 hash comparison
+- **TOTP Seconds Remaining** — Live countdown displayed next to every 2FA TOTP code
+- **Interactive Multi-Match Selection** — Numbered list shown when multiple credentials match a search title
+- **TTY-aware ANSI Colors** — Colors auto-disabled when output is piped or redirected (scripting-safe)
+- **Vault File Permissions** — Vault saved with `0600` permissions (owner read/write only)
+- **Centralized `authenticate()` Helper** — Eliminated duplicated auth logic from every command
+- **Auto Password Generation on Add** — Prompted option to generate a strong password when adding credentials
+
+### Fixed — CLI Bugs
+- **Broken Password Masking** — Rewrote input masking using `setRawMode(true)` with full backspace support; old version leaked characters and crashed with `openStdin()` conflict
+- **Missing Password Confirmation** — `init` now requires entering master password twice before creating vault
+- **Import Dual Format Support** — `import` now accepts both wrapped `safevault-backup` format and direct vault files
+- **Proper Exit Codes** — `process.exit(1)` on errors, `process.exit(0)` on scripting flag success
+
+### Added — Setup Launcher (setup-and-run.bat)
+- **All Options 1–7 Open in Separate CMD Windows** — Launcher window never closes regardless of which option is selected
+- **`choice` Command Menu** — Replaced `set /p` with `choice` — immune to stdin consumption by npm processes
+- **`<nul` Redirect on npm Calls** — Prevents npm from stealing interactive stdin during setup
+
+### Fixed — Setup Launcher Bugs
+- **Infinite Loop** — `npm install` was consuming stdin before `set /p` could read the user's keypress
+- **Auto-Exit After Menu Selection** — CMD was closing after any option was selected
+- **Parenthesis Nesting Crash** — `)` inside `if` block echo statements was closing the block prematurely
+- **`chcp 65001` Byte-Offset Shift** — CMD was skipping first 1–3 characters of every command due to BOM
+- **Title Ampersand Split Crash** — `&` in window title was splitting CMD execution into two commands
+- **`npm link` EEXIST Error** — Now uses `npm link --force` to overwrite stale symlinks
+
+### Changed — Version Sync (Rule 13)
+- Bumped version to `2.0.0` across `package.json`, `extension/manifest.json`, `Settings.tsx`, `Sidebar.tsx`, `WebShowcase.tsx`, `vaultStore.ts`
+
 ## [1.4.3] - 2026-07-27
+
 
 ### Fixed — Sync Hardening & App Reset Security
 - **Vault Wipe Reset Security:** Fully clear IndexedDB credentials tables along with all local storage parameters (clearing state variables, deleted credentials list cache, last sync timestamp) upon command validation.

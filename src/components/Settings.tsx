@@ -861,7 +861,7 @@ export default function Settings() {
 
         {/* App Info */}
         <div className="text-center py-4 text-xs text-gray-600 space-y-1" role="contentinfo">
-          <p>SafeVault v1.4.3 — Zero-Knowledge Credential Manager</p>
+          <p>SafeVault v2.0.0 — Zero-Knowledge Credential Manager</p>
           <p>All data encrypted locally · No telemetry · No tracking</p>
           <p className="text-gray-700 font-mono">AES-GCM 256-bit · Argon2id WASM · SHA-256</p>
         </div>
