@@ -118,6 +118,8 @@ interface VaultStore {
   performAutoBackup: () => Promise<void>;
   mergeCredentials: (incoming: Credential[], incomingDeletedIds?: string[]) => Promise<Credential[]>;
   getSyncPayload: () => { credentials: Credential[]; deletedIds: string[]; syncedAt: number };
+  getSyncPayloadDoubleLayer: () => Promise<{ encryptedLayer1: { ciphertext: string; iv: string }; syncedAt: number }>;
+  mergeCredentialsDoubleLayer: (encryptedLayer1: { ciphertext: string; iv: string }) => Promise<Credential[]>;
 }
 
 export const useVaultStore = create<VaultStore>((set, get) => ({
@@ -523,6 +525,36 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       deletedIds: deletedCredentialIds,
       syncedAt: Date.now(),
     };
+  },
+
+  getSyncPayloadDoubleLayer: async () => {
+    const { credentials, deletedCredentialIds, encryptionKey } = get();
+    if (!encryptionKey) {
+      throw new Error('Vault is locked. Cannot prepare double-layer sync package.');
+    }
+    const plainPayload = {
+      credentials,
+      deletedIds: deletedCredentialIds,
+    };
+    // LAYER 1: Encrypt using the local Vault Master Key
+    const encryptedLayer1 = await encrypt(JSON.stringify(plainPayload), encryptionKey);
+    return {
+      encryptedLayer1,
+      syncedAt: Date.now(),
+    };
+  },
+
+  mergeCredentialsDoubleLayer: async (encryptedLayer1) => {
+    const { encryptionKey } = get();
+    if (!encryptionKey) {
+      throw new Error('Vault is locked. Cannot decrypt double-layer sync package.');
+    }
+    // Wreck Layer 1 decryption using the same Master Vault Key
+    const decryptedJson = await decrypt(encryptedLayer1.ciphertext, encryptedLayer1.iv, encryptionKey);
+    const parsed = JSON.parse(decryptedJson);
+    const incomingCredentials = parsed.credentials || [];
+    const incomingDeletedIds = parsed.deletedIds || [];
+    return get().mergeCredentials(incomingCredentials, incomingDeletedIds);
   },
 
   saveVault: async () => {
