@@ -195,15 +195,14 @@ goto menu
 :run6
 cls
 echo.
-echo %C_MAGENTA%[6] Running SafeVault CLI Help...%C_RESET%
+echo %C_MAGENTA%[6] Opening SafeVault CLI in a new terminal window...%C_RESET%
 echo.
-safevault --help 2>nul
-if %errorlevel% neq 0 (
-    echo %C_YELLOW%[INFO] CLI not in PATH. Running via npx...%C_RESET%
-    call npx safevault --help
-)
+echo %C_WHITE%  A new CMD window will open with the SafeVault CLI.%C_RESET%
+echo %C_WHITE%  Type 'safevault' in that window to open the interactive menu.%C_RESET%
+echo %C_WHITE%  Type 'safevault --help' to see all commands.%C_RESET%
 echo.
-echo %C_GREEN%[DONE] Press any key to return to menu...%C_RESET%
+start "SafeVault CLI" cmd /k "title SafeVault CLI && echo. && safevault --help && echo. && echo Type safevault to open interactive menu. && echo."
+echo %C_GREEN%[DONE] SafeVault CLI opened in new window. Press any key to return to menu...%C_RESET%
 pause >nul
 goto menu
 
