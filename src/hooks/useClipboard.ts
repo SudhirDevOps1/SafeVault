@@ -1,8 +1,32 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export function useClipboard(clearAfterMs = 30000) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Clear clipboard automatically on unmount if a copy operation is pending
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        try {
+          navigator.clipboard.writeText('');
+        } catch {
+          // Fallback text area clear for unmount context
+          try {
+            const textarea = document.createElement('textarea');
+            textarea.value = '';
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+          } catch {}
+        }
+      }
+    };
+  }, []);
 
   const copyToClipboard = useCallback(async (text: string, fieldName: string) => {
     try {
