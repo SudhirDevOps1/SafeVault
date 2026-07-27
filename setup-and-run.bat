@@ -21,15 +21,14 @@ set "C_MAGENTA=%ESC%[95m"
 set "C_WHITE=%ESC%[97m"
 set "C_BOLD=%ESC%[1m"
 
-rem Use quotes around title so ampersand never splits cmd execution
-title "SafeVault - Automated Setup and Launch Tool"
+title SafeVault - Automated Setup and Launch Tool
 
 rem Check Administrator status
 net session >nul 2>&1
 if %errorlevel% == 0 (
     set "ADMIN_STATUS=%C_GREEN%[ADMINISTRATOR OK]%C_RESET%"
 ) else (
-    set "ADMIN_STATUS=%C_YELLOW%[STANDARD USER - Run as Admin recommended for global link]%C_RESET%"
+    set "ADMIN_STATUS=%C_YELLOW%[STANDARD USER - Run as Admin recommended]%C_RESET%"
 )
 
 :header
@@ -37,11 +36,11 @@ cls
 echo %C_CYAN%========================================================================================%C_RESET%
 echo %C_CYAN%                      SafeVault Setup and Launch Assistant                            %C_RESET%
 echo %C_CYAN%========================================================================================%C_RESET%
-echo %C_GREEN%   [SafeVault] : ALL-IN-ONE SECURE VAULT PLATFORM LAUNCHER and AUTO-REPAIR STUDIO        %C_RESET%
+echo %C_GREEN%   [SafeVault] - ALL-IN-ONE SECURE VAULT PLATFORM LAUNCHER and AUTO-REPAIR STUDIO      %C_RESET%
 echo %C_CYAN%========================================================================================%C_RESET%
 echo.
 echo   %C_BOLD%Privilege Level :%C_RESET% %ADMIN_STATUS%
-echo   %C_BOLD%Working Dir     :%C_RESET% "%CD%"
+echo   %C_BOLD%Working Dir     :%C_RESET% %CD%
 echo.
 
 rem Checking Node.js Environment
@@ -68,15 +67,14 @@ if not exist "node_modules\" (
     echo   %C_GREEN%[INFO] node_modules present. Verifying package integrity...%C_RESET%
 )
 
-call npm install --no-audit --no-fund
+call npm install --no-audit --no-fund <nul
 if %errorlevel% neq 0 (
-    echo %C_YELLOW%[WARNING] Standard npm install encountered warnings or errors. Running Auto-Repair...%C_RESET%
-    echo   %C_MAGENTA%---> Cleaning npm cache and retrying with legacy peer dependencies...%C_RESET%
+    echo %C_YELLOW%[WARNING] npm install had issues. Running Auto-Repair...%C_RESET%
+    echo   %C_MAGENTA%---> Cleaning npm cache and retrying...%C_RESET%
     call npm cache clean --force >nul 2>&1
-    call npm install --legacy-peer-deps --no-audit --no-fund
+    call npm install --legacy-peer-deps --no-audit --no-fund <nul
     if %errorlevel% neq 0 (
-        echo %C_RED%[ERROR] Failed to install dependencies automatically.%C_RESET%
-        echo          Try running: npm install --force
+        echo %C_RED%[ERROR] Failed to install dependencies. Try: npm install --force%C_RESET%
         pause
         exit /b 1
     )
@@ -85,132 +83,214 @@ echo   %C_GREEN%[SUCCESS] Dependencies verified and ready.%C_RESET%
 echo.
 
 rem Setting up CLI tool globally
-echo %C_CYAN%[3/3] Setting up SafeVault CLI tool globally (npm link --force)...%C_RESET%
-call npm link --force >nul 2>&1
+echo %C_CYAN%[3/3] Setting up SafeVault CLI tool globally...%C_RESET%
+call npm link --force >nul 2>&1 <nul
 if %errorlevel% neq 0 (
     echo   %C_YELLOW%[WARNING] Could not link CLI globally - requires Administrator rights.%C_RESET%
-    echo   %C_YELLOW%          Don't worry. Local npm run commands remain 100%% operational.%C_RESET%
+    echo   %C_YELLOW%          Local npm run commands remain 100%% operational.%C_RESET%
 ) else (
-    echo   %C_GREEN%[SUCCESS] CLI linked globally. You can now use the 'safevault' command in any terminal.%C_RESET%
+    echo   %C_GREEN%[SUCCESS] CLI linked globally.%C_RESET%
 )
 echo.
 echo %C_GREEN%========================================================================================%C_RESET%
-echo %C_BOLD%                  SETUP COMPLETE. SELECT A PLATFORM COMMAND BELOW                      %C_RESET%
+echo %C_BOLD%                  SETUP COMPLETE - SELECT A COMMAND BELOW                             %C_RESET%
 echo %C_GREEN%========================================================================================%C_RESET%
 echo.
 
 :menu
+cls
 echo %C_CYAN%========================================================================================%C_RESET%
 echo %C_WHITE%%C_BOLD%               SAFEVAULT MULTI-PLATFORM LAUNCH and DIAGNOSTICS SUITE                %C_RESET%
 echo %C_CYAN%========================================================================================%C_RESET%
-echo %C_GREEN% [1]%C_RESET% Start SafeVault Desktop GUI (%C_CYAN%npm run electron:dev%C_RESET%)
-echo %C_GREEN% [2]%C_RESET% Build Desktop Production Installer (%C_CYAN%npm run electron:build%C_RESET%)
-echo %C_GREEN% [3]%C_RESET% Sync Web Assets to Mobile App (%C_CYAN%npm run mobile:sync%C_RESET%)
-echo %C_GREEN% [4]%C_RESET% Start Web Client - Local Dev Server (%C_GREEN%npm run dev - Port 3000%C_RESET%)
-echo %C_GREEN% [5]%C_RESET% Build and Start Web Production Server (%C_YELLOW%npm run build ^&^& npm start%C_RESET%)
-echo %C_GREEN% [6]%C_RESET% Run CLI Interactive Help (%C_MAGENTA%safevault --help%C_RESET%)
-echo %C_GREEN% [7]%C_RESET% Deep Auto-Repair and Clean Reset (%C_RED%Purge node_modules + Force Relink%C_RESET%)
-echo %C_GREEN% [8]%C_RESET% System Health Check and Port Inspector (%C_BLUE%Verify Ports 3000, 5173, 8080%C_RESET%)
-echo %C_GREEN% [9]%C_RESET% Why Did Previous Batch Script Fail? (%C_YELLOW%Auto-Fix Diagnostic Matrix%C_RESET%)
-echo %C_RED% [0]%C_RESET% Exit Launcher
+echo.
+echo %C_GREEN% [1]%C_RESET% Start SafeVault Desktop GUI           - npm run electron:dev
+echo %C_GREEN% [2]%C_RESET% Build Desktop Production Installer    - npm run electron:build
+echo %C_GREEN% [3]%C_RESET% Sync Web Assets to Mobile App         - npm run mobile:sync
+echo %C_GREEN% [4]%C_RESET% Start Web Client Dev Server           - npm run dev
+echo %C_GREEN% [5]%C_RESET% Build and Start Production Server     - npm run build + npm start
+echo %C_GREEN% [6]%C_RESET% Run CLI Interactive Help              - safevault --help
+echo %C_GREEN% [7]%C_RESET% Deep Auto-Repair and Clean Reset      - Purge and Relink
+echo %C_BLUE%  [8]%C_RESET% System Health Check and Port Inspector - Check Ports 3000 and 5173
+echo %C_YELLOW% [9]%C_RESET% Why Did Previous Batch Script Fail?   - Diagnostic Report
+echo %C_RED%  [0]%C_RESET% Exit Launcher
+echo.
 echo %C_CYAN%========================================================================================%C_RESET%
 echo.
-set /p choice="%C_BOLD%Enter your choice (0-9): %C_RESET%"
+echo %C_BOLD%Press a key 1-9 or 0 to exit:%C_RESET%
 
-if "%choice%"=="1" (
-    echo.
-    echo %C_CYAN%Starting SafeVault Desktop Application (Dev Mode)...%C_RESET%
-    call npm run electron:dev
-    goto menu
-) else if "%choice%"=="2" (
-    echo.
-    echo %C_CYAN%Building Production Desktop Package Installer...%C_RESET%
-    call npm run electron:build
-    goto menu
-) else if "%choice%"=="3" (
-    echo.
-    echo %C_CYAN%Syncing Web Assets to Capacitor Mobile App...%C_RESET%
-    call npm run mobile:sync
-    goto menu
-) else if "%choice%"=="4" (
-    echo.
-    echo %C_GREEN%Starting Web Client (Local Next.js Dev Server on http://localhost:3000)...%C_RESET%
-    call npm run dev
-    goto menu
-) else if "%choice%"=="5" (
-    echo.
-    echo %C_YELLOW%Building and Starting Optimized Production Server...%C_RESET%
-    call npm run build
-    call npm run start
-    goto menu
-) else if "%choice%"=="6" (
-    echo.
-    echo %C_MAGENTA%Running SafeVault CLI Help and Command List...%C_RESET%
-    call safevault --help 2>&1 || echo %C_YELLOW%[INFO] CLI not in global PATH, running via npx safevault...%C_RESET% && call npx safevault --help
-    echo.
-    pause
-    goto menu
-) else if "%choice%"=="7" (
-    echo.
-    echo %C_RED%[AUTO-REPAIR] Executing Deep Reset and Dependency Cleanup...%C_RESET%
-    if exist "node_modules\" (
-        echo   removing node_modules folder...
-        rmdir /s /q node_modules >nul 2>&1
-    )
-    if exist "package-lock.json" del /f /q package-lock.json >nul 2>&1
-    echo   Reinstalling fresh packages...
-    call npm install --no-audit --no-fund
-    echo   Relinking global CLI with force flag...
-    call npm link --force
-    echo %C_GREEN%[SUCCESS] Deep Auto-Repair completed.%C_RESET%
-    pause
-    goto menu
-) else if "%choice%"=="8" (
-    echo.
-    echo %C_BLUE%=== SafeVault Environment and Port Diagnostics ===%C_RESET%
-    echo   Node Version : %NODE_VER%
-    echo   npm Version  : %NPM_VER%
-    echo   Current Dir  : "%CD%"
-    echo   Checking Port 3000 (Web Client)...
-    netstat -ano | findstr :3000 >nul 2>&1 && echo     %C_YELLOW%[BUSY] Port 3000 is active%C_RESET% || echo     %C_GREEN%[FREE] Port 3000 is ready%C_RESET%
-    echo   Checking Port 5173 (Vite/Electron)...
-    netstat -ano | findstr :5173 >nul 2>&1 && echo     %C_YELLOW%[BUSY] Port 5173 is active%C_RESET% || echo     %C_GREEN%[FREE] Port 5173 is ready%C_RESET%
-    echo %C_GREEN%[STATUS] Environment diagnostics complete.%C_RESET%
-    pause
-    goto menu
-) else if "%choice%"=="9" (
-    echo.
-    echo %C_YELLOW%============================================================================%C_RESET%
-    echo %C_BOLD%             SAFEVAULT BATCH SCRIPT AUTO-FIX DIAGNOSTIC REPORT              %C_RESET%
-    echo %C_YELLOW%============================================================================%C_RESET%
-    echo.
-    echo %C_BOLD%1. BUG: "'Launch' is not recognized as an internal or external command"%C_RESET%
-    echo    %C_RED%Cause:%C_RESET% In Windows batch files, the ampersand is a command separator.
-    echo           The line 'title SafeVault - Automated Setup and Launch Tool' without quotes
-    echo           causes cmd.exe to split at ampersand and try to execute 'Launch' as a command.
-    echo    %C_GREEN%Fix  :%C_RESET% Wrapped the title in double quotes or replaced with 'and'.
-    echo.
-    echo %C_BOLD%2. BUG: "npm error EEXIST: file already exists ...\npm\safevault"%C_RESET%
-    echo    %C_RED%Cause:%C_RESET% When 'npm link' runs and a previous safevault symlink already exists in
-    echo           AppData\Roaming\npm, npm throws EEXIST and stops execution.
-    echo    %C_GREEN%Fix  :%C_RESET% Used 'npm link --force' in the script to overwrite existing symlinks seamlessly.
-    echo.
-    echo %C_BOLD%3. BUG: "fow" Garbled Unicode Emojis in Terminal%C_RESET%
-    echo    %C_RED%Cause:%C_RESET% Default Windows Command Prompt uses Code Page 437 (DOS ASCII), corrupting emojis.
-    echo    %C_GREEN%Fix  :%C_RESET% Added 'chcp 65001 >nul' at line 1 for native UTF-8 and ANSI colors.
-    echo.
-    echo %C_YELLOW%============================================================================%C_RESET%
-    echo.
-    pause
-    goto menu
-) else if "%choice%"=="0" (
-    echo.
-    echo %C_GREEN%Exiting SafeVault Launcher. Stay secure. Goodbye.%C_RESET%
-    pause
-    exit /b 0
-) else (
-    echo.
-    echo %C_RED%[INVALID CHOICE] Please select a number between 0 and 9.%C_RESET%
-    pause
-    goto menu
+rem Use CHOICE command - reads direct keypress, immune to stdin pipe issues
+choice /C 1234567890 /N >nul 2>&1
+set "ERRLVL=%errorlevel%"
+
+rem choice maps: 1->EL1, 2->EL2, ..., 9->EL9, 0->EL10
+rem Check from highest to lowest (important for errorlevel chain logic)
+if %ERRLVL%==10 goto run0
+if %ERRLVL%==9  goto run9
+if %ERRLVL%==8  goto run8
+if %ERRLVL%==7  goto run7
+if %ERRLVL%==6  goto run6
+if %ERRLVL%==5  goto run5
+if %ERRLVL%==4  goto run4
+if %ERRLVL%==3  goto run3
+if %ERRLVL%==2  goto run2
+if %ERRLVL%==1  goto run1
+goto menu
+
+:run1
+cls
+echo.
+echo %C_CYAN%[1] Starting SafeVault Desktop Application - Electron Dev Mode...%C_RESET%
+echo.
+call npm run electron:dev
+echo.
+echo %C_GREEN%[DONE] App closed. Press any key to return to menu...%C_RESET%
+pause >nul
+goto menu
+
+:run2
+cls
+echo.
+echo %C_CYAN%[2] Building Production Desktop Package Installer...%C_RESET%
+echo.
+call npm run electron:build
+echo.
+echo %C_GREEN%[DONE] Build finished. Press any key to return to menu...%C_RESET%
+pause >nul
+goto menu
+
+:run3
+cls
+echo.
+echo %C_CYAN%[3] Syncing Web Assets to Capacitor Mobile App...%C_RESET%
+echo.
+call npm run mobile:sync
+echo.
+echo %C_GREEN%[DONE] Sync complete. Press any key to return to menu...%C_RESET%
+pause >nul
+goto menu
+
+:run4
+cls
+echo.
+echo %C_GREEN%[4] Starting Web Client - Local Dev Server on http://localhost:3000 ...%C_RESET%
+echo.
+call npm run dev
+echo.
+echo %C_GREEN%[DONE] Dev server stopped. Press any key to return to menu...%C_RESET%
+pause >nul
+goto menu
+
+:run5
+cls
+echo.
+echo %C_YELLOW%[5] Building and Starting Optimized Production Server...%C_RESET%
+echo.
+call npm run build
+call npm run start
+echo.
+echo %C_GREEN%[DONE] Server stopped. Press any key to return to menu...%C_RESET%
+pause >nul
+goto menu
+
+:run6
+cls
+echo.
+echo %C_MAGENTA%[6] Running SafeVault CLI Help...%C_RESET%
+echo.
+safevault --help 2>nul
+if %errorlevel% neq 0 (
+    echo %C_YELLOW%[INFO] CLI not in PATH. Running via npx...%C_RESET%
+    call npx safevault --help
 )
+echo.
+echo %C_GREEN%[DONE] Press any key to return to menu...%C_RESET%
+pause >nul
+goto menu
+
+:run7
+cls
+echo.
+echo %C_RED%[7] Executing Deep Reset and Dependency Cleanup...%C_RESET%
+echo.
+if exist "node_modules\" (
+    echo   Removing node_modules folder...
+    rmdir /s /q node_modules >nul 2>&1
+)
+if exist "package-lock.json" del /f /q package-lock.json >nul 2>&1
+echo   Reinstalling fresh packages...
+call npm install --no-audit --no-fund <nul
+echo   Relinking global CLI with force flag...
+call npm link --force <nul
+echo.
+echo %C_GREEN%[SUCCESS] Deep Auto-Repair completed. Press any key to return to menu...%C_RESET%
+pause >nul
+goto menu
+
+:run8
+cls
+echo.
+echo %C_BLUE%[8] SafeVault Environment and Port Diagnostics%C_RESET%
+echo.
+echo   Node Version : %NODE_VER%
+echo   npm Version  : %NPM_VER%
+echo   Working Dir  : %CD%
+echo.
+echo   Checking Port 3000 - Web Client...
+netstat -ano | findstr :3000 >nul 2>&1
+if %errorlevel%==0 (
+    echo     %C_YELLOW%[BUSY] Port 3000 is in use%C_RESET%
+) else (
+    echo     %C_GREEN%[FREE] Port 3000 is available%C_RESET%
+)
+echo   Checking Port 5173 - Vite and Electron...
+netstat -ano | findstr :5173 >nul 2>&1
+if %errorlevel%==0 (
+    echo     %C_YELLOW%[BUSY] Port 5173 is in use%C_RESET%
+) else (
+    echo     %C_GREEN%[FREE] Port 5173 is available%C_RESET%
+)
+echo.
+echo %C_GREEN%[DONE] Diagnostics complete. Press any key to return to menu...%C_RESET%
+pause >nul
+goto menu
+
+:run9
+cls
+echo.
+echo %C_YELLOW%============================================================================%C_RESET%
+echo %C_BOLD%         SAFEVAULT BATCH SCRIPT AUTO-FIX DIAGNOSTIC REPORT                %C_RESET%
+echo %C_YELLOW%============================================================================%C_RESET%
+echo.
+echo %C_BOLD%BUG 1 - Title ampersand crash%C_RESET%
+echo    Cause: Unquoted title with ampersand splits cmd execution.
+echo    Fix  : Use quoted title string.
+echo.
+echo %C_BOLD%BUG 2 - npm EEXIST symlink conflict%C_RESET%
+echo    Cause: Previous safevault symlink exists in AppData npm folder.
+echo    Fix  : Use npm link --force to overwrite existing symlinks.
+echo.
+echo %C_BOLD%BUG 3 - Garbled Unicode Emojis%C_RESET%
+echo    Cause: Default Windows CMD uses Code Page 437 - corrupts emojis.
+echo    Fix  : Remove emojis and use ASCII-only characters in bat files.
+echo.
+echo %C_BOLD%BUG 4 - Parenthesis inside if blocks crash CMD%C_RESET%
+echo    Cause: CMD treats closing parenthesis inside echo as block end.
+echo    Fix  : Remove parenthesis inside if block echo statements.
+echo.
+echo %C_BOLD%BUG 5 - Infinite invalid loop after menu selection%C_RESET%
+echo    Cause: npm install consumes stdin so set /p reads empty string.
+echo    Fix  : Use choice command for menu - reads direct keypress only.
+echo.
+echo %C_YELLOW%============================================================================%C_RESET%
+echo.
+echo Press any key to return to menu...
+pause >nul
+goto menu
+
+:run0
+cls
+echo.
+echo %C_GREEN%Exiting SafeVault Launcher. Stay secure. Goodbye.%C_RESET%
+echo.
+pause
+exit /b 0
