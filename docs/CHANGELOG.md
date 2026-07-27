@@ -7,12 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.2] - 2026-07-27
 
-### Fixed
-- **Chrome Extension CSP Inline Script Bypass:** Replaced `vite-plugin-singlefile` inlining with standard external code asset compilation to comply with strict Manifest V3 Content Security Policy (CSP), resolving the extension blank/black screen issue.
-- **Dynamic Popup Sizing:** Added dynamic CSS injection inside `src/main.tsx` to lock popup dimensions (`380x550px`) only when running inside the Chrome extension context.
-- **WebShowcase Layout Bypass:** Updated `VaultSetup.tsx` and `VaultUnlock.tsx` layout logic to hide desktop/web info showcase pages inside the extension and mobile browsers, directly loading the centered login/creation form.
-- **Local Sync Stack Overflow Fix:** Refactored base64 conversion blocks using safe loop-based methods (`uint8ArrayToBase64`/`base64ToUint8Array`) to replace stack-size limited spread operators (`...`), fixing the `atob` decryption crash on large database sync payloads.
-- **TypeScript Buffer Source Type Casting:** Patched type checking warnings inside `LocalSync.tsx` by casting parameters (`iv: resIv as any` and `combined.buffer as ArrayBuffer`) to cleanly pass compile verification checks.
+### Fixed — Extension CSP & Sync Critical Bugfixes
+- **Chrome Extension CSP Inline Script Bypass:** Replaced `vite-plugin-singlefile` inlining with external code asset compilation compliant with Manifest V3 CSP, resolving blank/black screen issue.
+- **Dynamic Popup Sizing:** Added dynamic CSS injection in `src/main.tsx` to lock popup dimensions (`380x550px`) only when running inside Chrome extension context.
+- **WebShowcase Layout Bypass:** Updated `VaultSetup.tsx` and `VaultUnlock.tsx` to hide desktop showcase panel inside extension and mobile views, rendering clean centered forms.
+- **Local Sync Stack Overflow Fix:** Refactored base64 conversion using safe loop-based `uint8ArrayToBase64`/`base64ToUint8Array` helpers, fixing `atob` crash on large payloads.
+- **TypeScript Buffer Source Type Casting:** Fixed `LocalSync.tsx` type errors by casting `iv: resIv as any` and `combined.buffer as ArrayBuffer`.
+
+### Fixed — Sync Protocol Integrity (6 Critical Bugs)
+- **Ghost Credential Resurrection (Tombstone Tracking):** Implemented `deletedCredentialIds` tombstone list in `vaultStore.ts`. Deleted credential IDs are now stored and propagated via `SyncPayload` during both Wi-Fi and Cloud Relay sync — preventing deleted passwords from reappearing after sync.
+- **Auto-Discover Dynamic Subnets:** `Auto-Discover` now fetches real local network interface subnets from Electron via `safevault:get-local-subnets` IPC, replacing hardcoded guesses. Falls back to common subnets if Electron is unavailable.
+- **Server Stale Credentials on Re-sync:** Wi-Fi sync server now reads fresh credentials via `credentialsRef` on every incoming sync request, preventing stale closure state from being merged.
+- **Cloud Relay QR Code + Auto Channel ID:** Cloud Relay now auto-generates random Channel IDs (e.g. `vault-a3f7-k9x2`) with one click. A live QR code is shown when both Channel ID and PIN are filled, scannable on the other device to auto-fill fields.
+- **Last Sync Timestamp:** `lastSyncedAt` is now persisted to `localStorage` and displayed in the Sync Center header as "Last synced: X minutes ago".
+- **Extension Defaults to Cloud Relay:** Browser Extension now opens directly in Cloud Relay mode (no Wi-Fi tab shown) since extensions cannot host a local HTTP server.
+
+### Added
+- `SyncPayload` interface in `src/types.ts` wrapping `credentials`, `deletedIds`, and `syncedAt` timestamp for backward-compatible cross-device sync.
+- `getSyncPayload()` helper in `vaultStore.ts` to build the sync export object.
+- `safevault:get-local-subnets` IPC handler in `electron/main.cjs` and `electron/preload.cjs`.
 
 ---
 

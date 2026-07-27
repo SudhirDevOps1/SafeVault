@@ -103,12 +103,17 @@ All encryption and key derivation happens on-the-fly inside volatile JavaScript 
 * **Master Key Wrapping:** AES-GCM encrypts the master key using the derived recovery key, allowing offline account restoration without storing plain key text or duplicate records.
 * **Subnet Scanner Auto-Discovery:** Implemented a parallel subnet scanner checks port `58241` with a low-timeout threshold to automatically discover host sync servers on the local Wi-Fi network.
 
-### 🛡️ v1.4.2: Extension CSP Compliancy, Dynamic Popup sizing, & Local Sync Stack Refactor
-* **Extension CSP Inline Script Bypass:** Replaced `vite-plugin-singlefile` inlining with standard external code asset compilation to comply with strict Manifest V3 Content Security Policy (CSP), resolving the extension blank/black screen issue.
-* **Dynamic Popup Sizing:** Added dynamic CSS injection inside `src/main.tsx` to lock popup dimensions (`380x550px`) only when running inside the Chrome extension context.
-* **WebShowcase Layout Bypass:** Updated `VaultSetup.tsx` and `VaultUnlock.tsx` layout logic to hide desktop/web info showcase pages inside the extension and mobile browsers, directly loading the centered login/creation form.
-* **Local Sync Stack Overflow Fix:** Refactored base64 conversion blocks using safe loop-based methods (`uint8ArrayToBase64`/`base64ToUint8Array`) to replace stack-size limited spread operators (`...`), fixing the `atob` decryption crash on large database sync payloads.
-* **TypeScript Buffer Source Type Casting:** Patched type checking warnings inside `LocalSync.tsx` by casting parameters (`iv: resIv as any` and `combined.buffer as ArrayBuffer`) to cleanly pass compile verification checks.
+### 🛡️ v1.4.2: Extension CSP Compliancy, Sync Protocol Integrity & 6 Critical Sync Bugfixes
+* **Extension CSP Inline Script Bypass:** Replaced `vite-plugin-singlefile` inlining with external code asset compilation compliant with Manifest V3 CSP — resolving the extension blank/black screen issue.
+* **Dynamic Popup Sizing:** Added dynamic CSS injection in `src/main.tsx` to lock popup dimensions (`380x550px`) inside Chrome extension context.
+* **WebShowcase Layout Bypass:** `VaultSetup.tsx` and `VaultUnlock.tsx` skip the desktop showcase panel inside extension/mobile, rendering clean centered forms.
+* **Ghost Credential Resurrection Fix (Tombstone Tracking):** Deleted credential IDs are now stored in a `deletedCredentialIds` tombstone list (persisted to `localStorage`) and propagated via the new `SyncPayload` interface during Wi-Fi and Cloud Relay sync — deleted passwords can no longer be resurrected by a peer sync.
+* **Auto-Discover Dynamic Subnets:** `Auto-Discover` requests actual local network interface subnets from Electron (`safevault:get-local-subnets` IPC) instead of relying on hardcoded subnet guesses.
+* **Server Stale Credentials Fix:** Wi-Fi sync server reads freshly-referenced credentials (`credentialsRef`) on every incoming request, preventing stale React closure state from corrupting merge results.
+* **Cloud Relay QR Code + Auto Channel ID:** Cloud Relay mode now auto-generates random Channel IDs (e.g. `vault-a3f7-k9x2`) with a single click and displays a live QR code when both fields are filled — scannable by the other device to auto-fill sync details.
+* **Last Sync Timestamp:** `lastSyncedAt` is persisted in `localStorage` and shown in the Sync Center header as "Last synced: X minutes ago".
+* **Extension Defaults to Cloud Relay:** Browser Extension auto-selects Cloud Relay mode (Wi-Fi tab hidden) since extensions cannot host local HTTP servers.
+
 
 ### 🛡️ v1.4.1: Sync E2EE Security Hardening, Audit Logs, & Privacy Dashboard
 * **Wi-Fi Sync E2EE Strength Upgrade:** Upgraded local Wi-Fi sync key-derivation transport KDF from PBKDF2 (10,000 iterations) to a memory-hard **Argon2id WASM key derivation** (matching the relay-sync security level).

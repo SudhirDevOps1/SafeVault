@@ -79,7 +79,7 @@ SafeVault is engineered with zero-trust principles. Below is the breakdown of ou
 * **Constant-Time Comparison:** Blocks timing attack probes.
 
 ### 📱 Full Feature Set
-* **Auto-Discovery Subnet Scanner:** Dynamic parallel subnet scanner check over port `58241` for quick, zero-config peer-to-peer Wi-Fi synchronization.
+* **Auto-Discovery Subnet Scanner:** Fetches real local network interface subnets from Electron (`os.networkInterfaces()`) and performs a parallel port-`58241` scan for zero-config peer-to-peer Wi-Fi synchronization — no hardcoded guesses.
 * **TOTP 2FA Authenticator:** Real-time generation of 6-digit codes with visual countdown meters.
 * **Universal CSV Importer:** Directly parse and import credentials from Bitwarden, ProtonPass, Brave, DuckDuckGo, Chrome, and 40+ other formats.
 * **Security Health Audit:** Local zero-knowledge scanner checking passwords against leaked breach lists using the k-Anonymity privacy protocol.

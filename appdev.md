@@ -196,5 +196,27 @@ This section logs identified feature gaps and implementation architectures for t
 ### I. 📄 [COMPLETED] Zero-Knowledge Offline Recovery Kit Sheet (v1.2.0)
 * **Status:** **FULLY IMPLEMENTED** (v1.2.0). Implemented BIP39 24-word emergency recovery kit. Enforced write-down and verification check step during setup. The derived master key is securely wrapped (AES-GCM encrypted) with the recovery key, enabling instant login restoration path.
 
-### J. 📡 [COMPLETED] Local Subnet Scanner Auto-Discovery (v1.2.0)
-* **Status:** **FULLY IMPLEMENTED** (v1.2.0). Bypassed browser sandboxing limits by creating a parallel subnet scanner that checks local network segments on port 58241, auto-discovering the active sync host.
+### J. 📡 [COMPLETED] Local Subnet Scanner Auto-Discovery (v1.2.0 → v1.4.2 Enhanced)
+* **Status:** **FULLY IMPLEMENTED AND ENHANCED** (v1.2.0 initial, v1.4.2 enhancement). Now uses real Electron `os.networkInterfaces()` data via `safevault:get-local-subnets` IPC to build accurate subnet scan list. Fallback to common subnets when running outside Electron.
+
+### K. 🔄 [COMPLETED] Sync Protocol Integrity Overhaul (v1.4.2)
+* **Status:** **FULLY IMPLEMENTED** (v1.4.2). Resolved 6 critical sync bugs:
+  1. **Ghost Credential Tombstone Tracking** — `deletedCredentialIds[]` stored in `localStorage`, propagated in `SyncPayload`, respected during merge.
+  2. **Auto-Discover Dynamic Subnets** — Electron IPC provides real interface subnets.
+  3. **Stale Server Credentials** — Server uses `credentialsRef` for always-fresh reads.
+  4. **Cloud Relay QR + Auto Channel ID** — One-click random channel generation + live QR display.
+  5. **Last Sync Timestamp** — `lastSyncedAt` persisted and shown in Sync Center header.
+  6. **Extension defaults to Cloud Relay** — Wi-Fi tab hidden in extension context.
+
+### L. ⚡ Future Sync Improvements (Next Stage Roadmap)
+* **Real-Time Sync (WebSocket):**
+  * **Gap:** Sync is currently manual (user must press "Initiate Sync"). Changes on one device are not pushed automatically.
+  * **Execution Plan:** Implement a WebSocket server inside the Electron Node process that broadcasts a lightweight "vault-changed" signal when `saveVault()` runs. Connected extension/web clients subscribe and trigger a silent auto-pull.
+
+* **Cloud Relay TTL Expiry (Cloudflare Workers):**
+  * **Gap:** Pushed encrypted payloads sit on the relay indefinitely — privacy risk.
+  * **Execution Plan:** Add `expirationTtl: 86400` (24h) to the Cloudflare Workers KV `put()` call so stale relay data auto-expires.
+
+* **HTTPS Local Sync (Self-Signed TLS):**
+  * **Gap:** Local Wi-Fi sync runs over plain `http://`. Metadata (timing, IPs) is visible on the network even though payload is E2EE.
+  * **Execution Plan:** Generate a per-session self-signed TLS certificate in the Electron main process using Node's `crypto.generateCertificate`, serve the sync server over HTTPS, and pin the certificate hash inside the QR code for the client to verify.
