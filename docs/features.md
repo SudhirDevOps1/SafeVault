@@ -194,10 +194,10 @@ SafeVault आपका सबसे एंटरप्राइज़-रेड�
    सारा डेटा IndexedDB (Dexie) में locally store होता है। कोई cloud sync नहीं, कोई telemetry नहीं, कोई third-party CDN नहीं। "Your passwords. Your device. Your control. Nothing leaves your machine."
 
 3. **📦 Cross-Platform — 4 Platforms पर एक साथ**
-   - **Windows:** `.exe` (Installer + Portable) ✅ v1.1.5
-   - **macOS:** `.dmg` + `.zip` (Apple Silicon) ✅ v1.1.5
-   - **Linux:** `.AppImage` ✅ v1.1.5
-   - **Android:** `.apk` (Capacitor) ✅ v1.1.5
+    - **Windows:** `.exe` (Installer + Portable) ✅ v1.4.2
+    - **macOS:** `.dmg` + `.zip` (Apple Silicon) ✅ v1.4.2
+    - **Linux:** `.AppImage` ✅ v1.4.2
+    - **Android:** `.apk` (Capacitor) ✅ v1.4.2
 
 4. **🧪 Testing Suite — आपके दूसरे प्रोजेक्ट्स में नहीं है**
    SafeVault में पूरा test suite है:
