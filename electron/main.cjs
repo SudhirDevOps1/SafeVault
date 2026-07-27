@@ -267,7 +267,7 @@ ipcMain.handle('safevault:download-and-install-update', async (event, downloadUr
   const fs = require('fs');
   const path = require('path');
   const https = require('https');
-  const { exec } = require('child_process');
+  const { shell } = require('electron');
 
   const tempDir = app.getPath('temp');
   const tempFilePath = path.join(tempDir, 'SafeVault-Update-Setup.exe');
@@ -278,8 +278,6 @@ ipcMain.handle('safevault:download-and-install-update', async (event, downloadUr
       try { fs.unlinkSync(tempFilePath); } catch (e) {}
     }
 
-    const file = fs.createWriteStream(tempFilePath);
-    
     const download = (url) => {
       https.get(url, (response) => {
         // Follow redirects
@@ -293,6 +291,8 @@ ipcMain.handle('safevault:download-and-install-update', async (event, downloadUr
           return;
         }
 
+        // Initialize file stream only on verified HTTP 200 OK
+        const file = fs.createWriteStream(tempFilePath);
         const totalBytes = parseInt(response.headers['content-length'] || '0', 10);
         let downloadedBytes = 0;
 
@@ -308,25 +308,27 @@ ipcMain.handle('safevault:download-and-install-update', async (event, downloadUr
         response.on('end', () => {
           file.end();
           
-          // Launch the downloaded setup installer
-          setTimeout(() => {
+          // Launch setup installer with shell.openPath to trigger UAC elevation prompt
+          setTimeout(async () => {
             try {
-              exec(`"${tempFilePath}"`, (err) => {
-                if (err) {
-                  console.error('Failed to run update setup', err);
-                }
-              });
-              // Close Electron so installer can replace binaries
-              app.quit();
+              await shell.openPath(tempFilePath);
+              // Gracefully shut down so the installer is not locked out from replacing executable files
+              setTimeout(() => {
+                app.quit();
+              }, 500);
               resolve({ success: true });
             } catch (err) {
               resolve({ success: false, error: err.message });
             }
           }, 1000);
         });
+
+        response.on('error', (err) => {
+          file.close();
+          try { fs.unlinkSync(tempFilePath); } catch (e) {}
+          resolve({ success: false, error: err.message });
+        });
       }).on('error', (err) => {
-        file.close();
-        try { fs.unlinkSync(tempFilePath); } catch (e) {}
         resolve({ success: false, error: err.message });
       });
     };
