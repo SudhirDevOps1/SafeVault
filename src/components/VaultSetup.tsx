@@ -63,6 +63,9 @@ export default function VaultSetup() {
   };
 
   const isElectron = typeof window !== 'undefined' && 'electron' in window;
+  const isExtension = typeof window !== 'undefined' && (window as any).chrome && (window as any).chrome.runtime && (window as any).chrome.runtime.id;
+  const isMobile = typeof window !== 'undefined' && /android|iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  const showShowcase = !isElectron && !isExtension && !isMobile;
 
   const renderFormStep = () => {
     if (step === 'password') {
@@ -318,7 +321,7 @@ export default function VaultSetup() {
     </div>
   );
 
-  if (!isElectron) {
+  if (showShowcase) {
     return (
       <div className="min-h-screen flex flex-col md:flex-row bg-gray-950 text-white">
         {/* Left Side: Showcase */}
