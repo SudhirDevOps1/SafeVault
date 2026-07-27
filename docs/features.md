@@ -103,6 +103,12 @@ All encryption and key derivation happens on-the-fly inside volatile JavaScript 
 * **Master Key Wrapping:** AES-GCM encrypts the master key using the derived recovery key, allowing offline account restoration without storing plain key text or duplicate records.
 * **Subnet Scanner Auto-Discovery:** Implemented a parallel subnet scanner checks port `58241` with a low-timeout threshold to automatically discover host sync servers on the local Wi-Fi network.
 
+### 🛡️ v1.4.3: Sync Hardening & App Reset Security
+* **Vault Wipe Reset Security:** Fully clear IndexedDB credentials tables along with all local storage parameters (clearing state variables, deleted credentials list cache, last sync timestamp) upon command validation.
+* **Port EADDRINUSE crash handler:** Added port state listener to prevent background HTTP sync port locks and automatically release binding resource slots if the server experiences connection conflicts.
+* **Generic Cloud Relay validation:** Cleaned and sanitized worker API exception logs to handle fetch timeout errors without throwing unhandled exceptions.
+* **Personal Data Sanitization:** Removed all hardcoded personal domain test paths and default email fallback registries (`Sudhir@gmail.com`) from active source configurations and store initialization blocks, replacing them with standard example placeholders.
+
 ### 🛡️ v1.4.2: Extension CSP Compliancy, Sync Protocol Integrity & 6 Critical Sync Bugfixes
 * **Extension CSP Inline Script Bypass:** Replaced `vite-plugin-singlefile` inlining with external code asset compilation compliant with Manifest V3 CSP — resolving the extension blank/black screen issue.
 * **Dynamic Popup Sizing:** Added dynamic CSS injection in `src/main.tsx` to lock popup dimensions (`380x550px`) inside Chrome extension context.

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-07-27
+
+### Fixed — Sync Hardening & App Reset Security
+- **Vault Wipe Reset Security:** Fully clear IndexedDB credentials tables along with all local storage parameters (clearing state variables, deleted credentials list cache, last sync timestamp) upon command validation.
+- **Port EADDRINUSE crash handler:** Added port state listener to prevent background HTTP sync port locks and automatically release binding resource slots if the server experiences connection conflicts.
+- **Generic Cloud Relay validation:** Cleaned and sanitized worker API exception logs to handle fetch timeout errors without throwing unhandled exceptions.
+- **Personal Data Sanitization:** Removed all hardcoded personal domain test paths and default email fallback registries (`Sudhir@gmail.com`) from active source configurations and store initialization blocks, replacing them with standard example placeholders.
+
 ## [1.4.2] - 2026-07-27
 
 ### Fixed — Extension CSP & Sync Critical Bugfixes
