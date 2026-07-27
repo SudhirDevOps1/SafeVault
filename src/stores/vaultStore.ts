@@ -146,7 +146,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   updateDownloadUrl: null,
   updateAssets: [],
   networkApprovedThisSession: false,
-  baseEmails: JSON.parse(localStorage.getItem('safevault_base_emails') || '["Sudhir@gmail.com"]'),
+  baseEmails: JSON.parse(localStorage.getItem('safevault_base_emails') || '["user@example.com"]'),
   auditLog: [],
   honeypotCredentialId: localStorage.getItem('safevault_honeypot_id') || null,
   deletedCredentialIds: JSON.parse(localStorage.getItem('safevault_deleted_ids') || '[]'),

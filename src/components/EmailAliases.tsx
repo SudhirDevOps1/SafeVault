@@ -11,7 +11,7 @@ export default function EmailAliases() {
   const [newBaseEmail, setNewBaseEmail] = useState('');
   
   // Generation Configuration
-  const [selectedBase, setSelectedBase] = useState(baseEmails[0] || 'Sudhir@gmail.com');
+  const [selectedBase, setSelectedBase] = useState(baseEmails[0] || 'user@example.com');
   const [serviceUrl, setServiceUrl] = useState('');
   const [parsedHandle, setParsedHandle] = useState('');
   const [aliasFormat, setAliasFormat] = useState<'plus' | 'dot'>('plus');
@@ -197,7 +197,7 @@ export default function EmailAliases() {
     e.preventDefault();
     const email = newBaseEmail.trim();
     if (!email || (!email.includes('@') && !email.startsWith('@'))) {
-      setStatusMessage({ type: 'error', text: 'Enter a valid email address or catch-all domain (e.g. @sudhir.com).' });
+      setStatusMessage({ type: 'error', text: 'Enter a valid email address or catch-all domain (e.g. @yourdomain.com).' });
       return;
     }
     addBaseEmail(email);
@@ -287,7 +287,7 @@ export default function EmailAliases() {
           <form onSubmit={handleAddBase} className="flex gap-2">
             <input
               type="text"
-              placeholder="e.g. Sudhir@gmail.com or @domain.com"
+              placeholder="e.g. user@example.com or @yourdomain.com"
               value={newBaseEmail}
               onChange={(e) => setNewBaseEmail(e.target.value)}
               className="flex-1 px-3 py-2 bg-white/5 border border-white/5 rounded-xl text-xs text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 transition-all font-mono"

@@ -78,9 +78,9 @@ All encryption and key derivation happens on-the-fly inside volatile JavaScript 
 ### 🛰️ v1.1.5: local Wi-Fi Sync, Email Aliases & Autofill Compliance
 * **Peer-to-Peer Wi-Fi Sync:** Secure local database synchronization directly between devices over local networks (no cloud required).
 * **Email & Identity Alias Generator (AliasVault Style):**
-  * **Base Email Registry:** Securely store primary email templates (e.g. `Sudhir@gmail.com` or custom domain addresses) locally.
+  * **Base Email Registry:** Securely store primary email templates (e.g. `user@example.com` or custom domain addresses) locally.
   * **Automatic URL Parsing & Subdomain Extraction:** Paste a website URL (e.g., `https://uniapp-web.pages.dev/`), and the app automatically extracts clean domain handles (e.g., parsing `uniapp`).
-  * **Sub-addressing & Suffix Configurations:** Instantly choose between Plus/Dot formats or Catch-All domains (e.g. `Sudhir+uniapp@gmail.com` or `uniapp@sudhir.com`).
+  * **Sub-addressing & Suffix Configurations:** Instantly choose between Plus/Dot formats or Catch-All domains (e.g. `user+service@example.com` or `service@yourdomain.com`).
   * **Fake Profile Identity Generator:** Automatically create anonymous credentials templates (First/Last Names, Birthdate, Gender, and Usernames) with custom length password sliders.
   * **Individual Copy Controls:** Quick 1-click copy buttons added for First/Last Name, Gender, and Birthdate inside the identity generator card.
   * **DuckDuckGo Favicon Engine:** Transitioned to DuckDuckGo's privacy-focused icons server to display high-quality website logos locally.
