@@ -139,56 +139,63 @@ goto menu
 :run1
 cls
 echo.
-echo %C_CYAN%[1] Starting SafeVault Desktop Application - Electron Dev Mode...%C_RESET%
+echo %C_CYAN%[1] Starting SafeVault Desktop App - Opening in new window...%C_RESET%
 echo.
-call npm run electron:dev
+echo %C_WHITE%  Electron app will open in a new window.%C_RESET%
+echo %C_WHITE%  Close that window to stop the app.%C_RESET%
 echo.
-echo %C_GREEN%[DONE] App closed. Press any key to return to menu...%C_RESET%
+start "SafeVault Desktop" cmd /k "title SafeVault Desktop Dev && npm run electron:dev & echo. & echo [DONE] App closed. Close this window."
+echo %C_GREEN%[DONE] Desktop app launched. Press any key to return to menu...%C_RESET%
 pause >nul
 goto menu
 
 :run2
 cls
 echo.
-echo %C_CYAN%[2] Building Production Desktop Package Installer...%C_RESET%
+echo %C_CYAN%[2] Building Production Desktop Installer - Opening in new window...%C_RESET%
 echo.
-call npm run electron:build
+echo %C_WHITE%  Build will run in a new window. Check that window for output.%C_RESET%
 echo.
-echo %C_GREEN%[DONE] Build finished. Press any key to return to menu...%C_RESET%
+start "SafeVault Build" cmd /k "title SafeVault - Build Installer && npm run electron:build & echo. & echo [DONE] Build complete. Press any key to close. & pause"
+echo %C_GREEN%[DONE] Build started in new window. Press any key to return to menu...%C_RESET%
 pause >nul
 goto menu
 
 :run3
 cls
 echo.
-echo %C_CYAN%[3] Syncing Web Assets to Capacitor Mobile App...%C_RESET%
+echo %C_CYAN%[3] Syncing Mobile Assets - Opening in new window...%C_RESET%
 echo.
-call npm run mobile:sync
+echo %C_WHITE%  Mobile sync will run in a new window. Check that window for output.%C_RESET%
 echo.
-echo %C_GREEN%[DONE] Sync complete. Press any key to return to menu...%C_RESET%
+start "SafeVault Mobile Sync" cmd /k "title SafeVault - Mobile Sync && npm run mobile:sync & echo. & echo [DONE] Sync complete. Press any key to close. & pause"
+echo %C_GREEN%[DONE] Sync started in new window. Press any key to return to menu...%C_RESET%
 pause >nul
 goto menu
 
 :run4
 cls
 echo.
-echo %C_GREEN%[4] Starting Web Client - Local Dev Server on http://localhost:3000 ...%C_RESET%
+echo %C_GREEN%[4] Starting Web Dev Server - Opening in new window...%C_RESET%
 echo.
-call npm run dev
+echo %C_WHITE%  Server will run at http://localhost:3000%C_RESET%
+echo %C_WHITE%  Press Ctrl+C in that window to stop the server.%C_RESET%
 echo.
-echo %C_GREEN%[DONE] Dev server stopped. Press any key to return to menu...%C_RESET%
+start "SafeVault Web Dev" cmd /k "title SafeVault - Web Dev Server && npm run dev & echo. & echo [DONE] Server stopped. Press any key to close. & pause"
+echo %C_GREEN%[DONE] Web server launched. Press any key to return to menu...%C_RESET%
 pause >nul
 goto menu
 
 :run5
 cls
 echo.
-echo %C_YELLOW%[5] Building and Starting Optimized Production Server...%C_RESET%
+echo %C_YELLOW%[5] Build and Start Production Server - Opening in new window...%C_RESET%
 echo.
-call npm run build
-call npm run start
+echo %C_WHITE%  Production build and server will run in a new window.%C_RESET%
+echo %C_WHITE%  Press Ctrl+C in that window to stop the server.%C_RESET%
 echo.
-echo %C_GREEN%[DONE] Server stopped. Press any key to return to menu...%C_RESET%
+start "SafeVault Production" cmd /k "title SafeVault - Production Server && npm run build && npm run start & echo. & echo [DONE] Server stopped. Press any key to close. & pause"
+echo %C_GREEN%[DONE] Production server started in new window. Press any key to return to menu...%C_RESET%
 pause >nul
 goto menu
 
@@ -209,19 +216,13 @@ goto menu
 :run7
 cls
 echo.
-echo %C_RED%[7] Executing Deep Reset and Dependency Cleanup...%C_RESET%
+echo %C_RED%[7] Deep Auto-Repair - Opening in new window...%C_RESET%
 echo.
-if exist "node_modules\" (
-    echo   Removing node_modules folder...
-    rmdir /s /q node_modules >nul 2>&1
-)
-if exist "package-lock.json" del /f /q package-lock.json >nul 2>&1
-echo   Reinstalling fresh packages...
-call npm install --no-audit --no-fund <nul
-echo   Relinking global CLI with force flag...
-call npm link --force <nul
+echo %C_WHITE%  Repair will run in a new window. Do NOT close it until done.%C_RESET%
+echo %C_WHITE%  It will delete node_modules and reinstall everything fresh.%C_RESET%
 echo.
-echo %C_GREEN%[SUCCESS] Deep Auto-Repair completed. Press any key to return to menu...%C_RESET%
+start "SafeVault Auto-Repair" cmd /k "title SafeVault - Auto Repair && echo [STEP 1/3] Removing node_modules... && if exist node_modules rmdir /s /q node_modules && if exist package-lock.json del /f /q package-lock.json && echo [STEP 2/3] Reinstalling packages... && npm install --no-audit --no-fund && echo [STEP 3/3] Relinking CLI... && npm link --force && echo. && echo [SUCCESS] Auto-Repair complete. Press any key to close. & pause"
+echo %C_GREEN%[DONE] Auto-Repair started in new window. Press any key to return to menu...%C_RESET%
 pause >nul
 goto menu
 
