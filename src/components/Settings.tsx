@@ -24,6 +24,7 @@ export default function Settings() {
     strictOfflineMode, setStrictOfflineMode,
     disableRemoteFavicons, setDisableRemoteFavicons,
     auditLog, exportAuditLog,
+    isPinUnlockEnabled, setupPinUnlock, disablePinUnlock
   } = useVaultStore();
 
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -36,6 +37,10 @@ export default function Settings() {
   const [auditResults, setAuditResults] = useState<{title: string, count: number}[]>([]);
   const [auditing, setAuditing] = useState(false);
   const [auditMessage, setAuditMessage] = useState('');
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [confirmPinValue, setConfirmPinValue] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
 
   const strength = evaluatePasswordStrength(newPassword);
   const policy = validateMasterPassword(newPassword);
@@ -119,6 +124,26 @@ export default function Settings() {
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
+    }
+  };
+
+  const handleSetupPin = async () => {
+    if (pinValue.length < 4 || pinValue.length > 8) {
+      setPinError('PIN must be between 4 and 8 digits.');
+      return;
+    }
+    if (pinValue !== confirmPinValue) {
+      setPinError('PIN inputs do not match.');
+      return;
+    }
+    setPinError(null);
+    try {
+      await setupPinUnlock(pinValue);
+      setShowPinSetup(false);
+      setPinValue('');
+      setConfirmPinValue('');
+    } catch (err: any) {
+      setPinError(err.message || 'PIN configuration failed.');
     }
   };
 
@@ -525,6 +550,92 @@ export default function Settings() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Quick PIN Unlock */}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+            <Key className="w-4 h-4" aria-hidden="true" /> Quick PIN Unlock
+          </h3>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold text-white block">PIN Mode Protection</span>
+                <p className="text-[10px] text-gray-400">Unlock your vault using a 4-8 digit numeric PIN.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isPinUnlockEnabled) {
+                    disablePinUnlock();
+                  } else {
+                    setShowPinSetup(!showPinSetup);
+                    setPinValue('');
+                    setConfirmPinValue('');
+                    setPinError(null);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                  isPinUnlockEnabled
+                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20'
+                    : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
+                }`}
+              >
+                {isPinUnlockEnabled ? 'Disable PIN' : 'Configure PIN'}
+              </button>
+            </div>
+
+            {showPinSetup && !isPinUnlockEnabled && (
+              <div className="space-y-3 p-3 bg-white/5 border border-white/5 rounded-xl animate-fade-in">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-gray-400 font-bold block">Enter New PIN (4-8 digits)</label>
+                  <input
+                    type="password"
+                    maxLength={8}
+                    placeholder="••••"
+                    value={pinValue}
+                    onChange={e => setPinValue(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 text-center tracking-widest font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-gray-400 font-bold block">Confirm PIN</label>
+                  <input
+                    type="password"
+                    maxLength={8}
+                    placeholder="••••"
+                    value={confirmPinValue}
+                    onChange={e => setConfirmPinValue(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/30 text-center tracking-widest font-bold"
+                  />
+                </div>
+
+                {pinError && (
+                  <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg text-[11px] text-rose-400 leading-normal">
+                    {pinError}
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setShowPinSetup(false); setPinValue(''); setConfirmPinValue(''); setPinError(null); }}
+                    className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSetupPin}
+                    className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow"
+                  >
+                    Save PIN
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Export / Backup */}

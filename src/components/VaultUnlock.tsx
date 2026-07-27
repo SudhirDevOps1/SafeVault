@@ -7,7 +7,18 @@ import { logger } from '@/utils/logger';
 import WebShowcase from './WebShowcase';
 
 export default function VaultUnlock() {
-  const { unlockVault, unlockVaultWithRecovery, importEncryptedBackup, loading, error, setError } = useVaultStore();
+  const { 
+    unlockVault, 
+    unlockVaultWithRecovery, 
+    importEncryptedBackup, 
+    loading, 
+    error, 
+    setError,
+    isPinUnlockEnabled,
+    pinAttemptsLeft,
+    unlockWithPin
+  } = useVaultStore();
+
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -18,6 +29,8 @@ export default function VaultUnlock() {
   const [unlockProgress, setUnlockProgress] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetInput, setResetInput] = useState('');
+  const [pinInput, setPinInput] = useState('');
+  const [unlockMode, setUnlockMode] = useState<'password' | 'pin'>(isPinUnlockEnabled ? 'pin' : 'password');
 
   const handleResetVault = async () => {
     if (resetInput !== 'RESET') {
@@ -43,6 +56,17 @@ export default function VaultUnlock() {
     logger.info('Attempting to unlock vault');
     await unlockVault(password);
     setUnlockProgress(false);
+  };
+
+  const handlePinUnlock = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (pinInput.length < 4) return;
+    setError(null);
+    logger.info('Attempting to unlock vault with PIN');
+    const success = await unlockWithPin(pinInput);
+    if (!success) {
+      setPinInput(''); // Clear on failure
+    }
   };
 
   const handleRecoveryUnlock = async () => {
@@ -240,6 +264,82 @@ export default function VaultUnlock() {
       );
     }
 
+    if (unlockMode === 'pin' && isPinUnlockEnabled) {
+      return (
+        <form onSubmit={handlePinUnlock} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl" role="form" aria-label="PIN unlock form">
+          <div className="space-y-5">
+            <div className="text-center space-y-1">
+              <label htmlFor="unlock-pin" className="block text-sm font-semibold text-gray-300">
+                Enter Quick PIN
+              </label>
+              <p className="text-[10px] text-gray-500">Fast, local E2EE session unlock</p>
+            </div>
+            
+            {pinAttemptsLeft < 3 && (
+              <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center text-xs text-amber-400">
+                ⚠️ {pinAttemptsLeft} PIN unlock attempt(s) remaining before lockout database reset.
+              </div>
+            )}
+            
+            <div className="flex justify-center gap-3 py-2">
+              <input
+                id="unlock-pin"
+                type="password"
+                maxLength={6}
+                value={pinInput}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setPinInput(val);
+                  if (val.length === 6) {
+                    setError(null);
+                    unlockWithPin(val).then(success => {
+                      if (!success) setPinInput('');
+                    });
+                  }
+                }}
+                placeholder="••••••"
+                autoComplete="off"
+                autoFocus
+                className="w-36 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-center text-2xl font-bold tracking-widest font-mono"
+              />
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex gap-2" role="alert">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-400">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={pinInput.length < 4 || loading}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-xs"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Unlocking...</span>
+                </>
+              ) : (
+                <span>Unlock Vault</span>
+              )}
+            </button>
+
+            <div className="pt-2 border-t border-white/5 text-center">
+              <button
+                type="button"
+                onClick={() => { setError(null); setUnlockMode('password'); }}
+                className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
+              >
+                Use Master Password instead
+              </button>
+            </div>
+          </div>
+        </form>
+      );
+    }
+
     return (
       <form onSubmit={(e) => { e.preventDefault(); handleUnlock(); }} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl" role="form" aria-label="Vault unlock form">
         <div className="space-y-5">
@@ -353,8 +453,17 @@ export default function VaultUnlock() {
         <p className="text-gray-400">
           {showImport && 'Import your encrypted backup file'}
           {showRecovery && 'Verify your emergency mnemonic'}
-          {!showImport && !showRecovery && 'Enter your master password to unlock'}
+          {!showImport && !showRecovery && (unlockMode === 'pin' ? 'Enter your quick PIN to unlock' : 'Enter your master password to unlock')}
         </p>
+        {!showImport && !showRecovery && isPinUnlockEnabled && unlockMode === 'password' && (
+          <button
+            type="button"
+            onClick={() => { setError(null); setUnlockMode('pin'); }}
+            className="mt-2 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+          >
+            Switch to Quick PIN Unlock
+          </button>
+        )}
       </div>
 
       {renderUnlockView()}

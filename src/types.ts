@@ -51,3 +51,9 @@ export interface PasswordGeneratorOptions {
 
 export type VaultState = 'loading' | 'setup' | 'locked' | 'unlocked';
 export type SidebarView = 'all' | 'favorites' | 'trash' | 'generator' | 'settings' | 'aliases';
+
+export interface WrappedKeyData {
+  ciphertext: string;
+  iv: string;
+  salt: string;
+}

@@ -26,6 +26,8 @@ import {
   deriveKeyFromRecoveryPhrase,
   wrapKey,
   unwrapKey,
+  bufferToBase64,
+  base64ToBuffer,
 } from '@/utils/crypto';
 import { validateMnemonic } from '@/utils/bip39';
 import { logger } from '@/utils/logger';
@@ -120,6 +122,11 @@ interface VaultStore {
   getSyncPayload: () => { credentials: Credential[]; deletedIds: string[]; syncedAt: number };
   getSyncPayloadDoubleLayer: () => Promise<{ encryptedLayer1: { ciphertext: string; iv: string }; syncedAt: number }>;
   mergeCredentialsDoubleLayer: (encryptedLayer1: { ciphertext: string; iv: string }) => Promise<Credential[]>;
+  isPinUnlockEnabled: boolean;
+  pinAttemptsLeft: number;
+  setupPinUnlock: (pin: string) => Promise<void>;
+  disablePinUnlock: () => void;
+  unlockWithPin: (pin: string) => Promise<boolean>;
 }
 
 export const useVaultStore = create<VaultStore>((set, get) => ({
@@ -153,6 +160,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   honeypotCredentialId: localStorage.getItem('safevault_honeypot_id') || null,
   deletedCredentialIds: JSON.parse(localStorage.getItem('safevault_deleted_ids') || '[]'),
   lastSyncedAt: localStorage.getItem('safevault_last_synced') ? Number(localStorage.getItem('safevault_last_synced')) : null,
+  isPinUnlockEnabled: !!localStorage.getItem('safevault_wrapped_key'),
+  pinAttemptsLeft: Number(localStorage.getItem('safevault_pin_attempts') || '3'),
 
   initializeVault: async () => {
     const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
@@ -844,6 +853,130 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       get().addAuditLog('HONEYPOT_SET', `Credential ${id} marked as honeypot/decoy`);
     } else {
       get().addAuditLog('HONEYPOT_CLEARED', 'Honeypot credential cleared');
+    }
+  },
+
+  // ─── Quick PIN Unlock Security Actions ─────────────────────────────────────
+  setupPinUnlock: async (pin) => {
+    const { encryptionKey } = get();
+    if (!encryptionKey) {
+      throw new Error('Vault must be unlocked to configure PIN.');
+    }
+    try {
+      set({ loading: true, error: null });
+      const salt = await createVerificationHashArgon2id(pin, 'safevault-pin-salt');
+      const saltBase64 = window.btoa(salt).slice(0, 16);
+      
+      // Derive E2EE PIN Key
+      const pinKey = await deriveKeyArgon2id(pin, saltBase64);
+      
+      // Wrap Master Key using PIN Key
+      const rawMasterKey = await crypto.subtle.exportKey('raw', encryptionKey);
+      const wrapped = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: window.crypto.getRandomValues(new Uint8Array(12)) },
+        pinKey,
+        rawMasterKey
+      );
+      
+      const wrappedData = {
+        ciphertext: bufferToBase64(new Uint8Array(wrapped.slice(0, wrapped.byteLength - 16))),
+        iv: bufferToBase64(new Uint8Array(wrapped).slice(0, 12)),
+        tag: bufferToBase64(new Uint8Array(wrapped).slice(wrapped.byteLength - 16)),
+        salt: saltBase64,
+      };
+      
+      localStorage.setItem('safevault_wrapped_key', JSON.stringify(wrappedData));
+      localStorage.setItem('safevault_pin_attempts', '3');
+      set({ isPinUnlockEnabled: true, pinAttemptsLeft: 3, loading: false });
+      get().addAuditLog('PIN_UNLOCK_ENABLED', 'Quick PIN Unlock configured successfully');
+    } catch (err: any) {
+      set({ loading: false, error: err.message || 'Failed to setup PIN' });
+      throw err;
+    }
+  },
+
+  disablePinUnlock: () => {
+    localStorage.removeItem('safevault_wrapped_key');
+    localStorage.removeItem('safevault_pin_attempts');
+    set({ isPinUnlockEnabled: false, pinAttemptsLeft: 3 });
+    get().addAuditLog('PIN_UNLOCK_DISABLED', 'Quick PIN Unlock disabled');
+  },
+
+  unlockWithPin: async (pin) => {
+    const wrappedStr = localStorage.getItem('safevault_wrapped_key');
+    if (!wrappedStr) {
+      throw new Error('PIN unlock is not enabled.');
+    }
+    const attempts = Number(localStorage.getItem('safevault_pin_attempts') || '3');
+    if (attempts <= 0) {
+      throw new Error('PIN Locked out. Use Master Password.');
+    }
+    
+    try {
+      set({ loading: true, error: null });
+      const wrappedData = JSON.parse(wrappedStr);
+      
+      // Derive PIN Session Key
+      const pinKey = await deriveKeyArgon2id(pin, wrappedData.salt);
+      
+      // Combine ciphertext and auth tag for decrypt
+      const resCiphertext = base64ToBuffer(wrappedData.ciphertext);
+      const resIv = base64ToBuffer(wrappedData.iv);
+      const resTag = base64ToBuffer(wrappedData.tag);
+      const combined = new Uint8Array(resCiphertext.length + resTag.length);
+      combined.set(resCiphertext);
+      combined.set(resTag, resCiphertext.length);
+      
+      const decryptedBuffer = await window.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: resIv as any },
+        pinKey,
+        combined.buffer as ArrayBuffer
+      );
+      
+      // Import the decrypted raw master key
+      const masterKey = await crypto.subtle.importKey(
+        'raw',
+        decryptedBuffer,
+        { name: 'AES-GCM' },
+        true,
+        ['encrypt', 'decrypt']
+      );
+      
+      // Load Vault data using restored master key
+      const vaultRecord = await db.vault.get('main');
+      if (!vaultRecord) throw new Error('Vault database main record missing');
+      
+      const decryptedVaultJson = await decrypt(vaultRecord.encryptedData, vaultRecord.iv, masterKey);
+      const credentials = JSON.parse(decryptedVaultJson);
+      
+      localStorage.setItem('safevault_pin_attempts', '3');
+      set({
+        encryptionKey: masterKey,
+        credentials,
+        vaultState: 'unlocked',
+        pinAttemptsLeft: 3,
+        loading: false,
+        lastActivity: Date.now(),
+      });
+      
+      get().addAuditLog('VAULT_UNLOCKED_PIN', 'Vault unlocked using Quick PIN');
+      return true;
+    } catch (err: any) {
+      const remainingAttempts = attempts - 1;
+      localStorage.setItem('safevault_pin_attempts', remainingAttempts.toString());
+      set({ pinAttemptsLeft: remainingAttempts, loading: false });
+      
+      if (remainingAttempts <= 0) {
+        // LOCKOUT WIPE!
+        localStorage.removeItem('safevault_wrapped_key');
+        localStorage.removeItem('safevault_pin_attempts');
+        set({ isPinUnlockEnabled: false, pinAttemptsLeft: 3, error: 'Too many incorrect PIN attempts. PIN unlock disabled.' });
+        get().addAuditLog('PIN_LOCKOUT_WIPE', 'PIN lockout triggered: wrapped key database deleted');
+      } else {
+        set({ error: `Incorrect PIN. ${remainingAttempts} attempts remaining.` });
+        get().addAuditLog('PIN_UNLOCK_FAILED', `PIN unlock failed: ${remainingAttempts} attempts remaining`);
+      }
+      return false;
     }
   },
 }));
