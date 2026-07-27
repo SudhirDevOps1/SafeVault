@@ -140,6 +140,11 @@ function startSyncServer(vaultData, callback) {
     }
   });
 
+  server.on('error', (err) => {
+    console.error('Sync server error:', err);
+    stopSyncServer();
+  });
+
   server.listen(port, '0.0.0.0', () => {
     console.log(`Sync server listening on port ${port}`);
   });
@@ -153,7 +158,11 @@ function startSyncServer(vaultData, callback) {
 
 function stopSyncServer() {
   if (server) {
-    server.close();
+    try {
+      server.close();
+    } catch (e) {
+      console.error('Error closing sync server:', e);
+    }
     server = null;
   }
   activePIN = null;

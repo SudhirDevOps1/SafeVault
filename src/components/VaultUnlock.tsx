@@ -25,9 +25,9 @@ export default function VaultUnlock() {
       return;
     }
     try {
-      // Clear IndexedDB vault table
+      // Clear all IndexedDB tables (SafeVault only has vault store)
       await db.vault.clear();
-      // Clear local storage
+      // Clear local storage (wipes deleted credentials list, last sync info, theme, etc.)
       localStorage.clear();
       // Reload page to return to setup state
       window.location.reload();
