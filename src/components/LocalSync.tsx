@@ -67,9 +67,9 @@ export default function LocalSync() {
         combined.set(resTag, resCiphertext.length);
         
         const decryptedBuffer = await window.crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: resIv },
+          { name: 'AES-GCM', iv: resIv as any },
           aesKey,
-          combined
+          combined.buffer as ArrayBuffer
         );
         
         const decryptedJson = new TextDecoder().decode(decryptedBuffer);
@@ -479,9 +479,9 @@ export default function LocalSync() {
         combined.set(resTag, resCiphertext.length);
         
         const decryptedBuffer = await window.crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: resIv },
+          { name: 'AES-GCM', iv: resIv as any },
           aesKey,
-          combined
+          combined.buffer as ArrayBuffer
         );
         
         const decryptedJson = new TextDecoder().decode(decryptedBuffer);
