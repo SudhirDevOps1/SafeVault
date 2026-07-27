@@ -73,7 +73,7 @@ function createWindow() {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.google.com; connect-src 'self' https://api.github.com https://api.pwnedpasswords.com http://*:* https://*:*; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
+          "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.google.com; connect-src 'self' https://api.github.com https://api.pwnedpasswords.com http://*:* https://*:*; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
         ],
       },
     });
