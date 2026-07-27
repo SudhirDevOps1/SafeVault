@@ -1,7 +1,7 @@
 import { Shield, Download, Lock, Terminal, Cpu } from 'lucide-react';
 
 export default function WebShowcase() {
-  const APP_VERSION = '1.1.5';
+  const APP_VERSION = '1.4.1';
   const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
   let detectedOS = 'Windows';
   let directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault.Setup.${APP_VERSION}.exe`;
@@ -9,7 +9,7 @@ export default function WebShowcase() {
   if (userAgent.includes('mac')) {
     detectedOS = 'macOS';
     directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}-arm64.dmg`;
-  } else if (userAgent.includes('linux')) {
+  } else if (userAgent.includes('linux') && !userAgent.includes('android')) {
     detectedOS = 'Linux';
     directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}.AppImage`;
   }

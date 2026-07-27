@@ -106,7 +106,7 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
 
       {/* Desktop App Download Options (Web Only) */}
       {!(typeof window !== 'undefined' && 'electron' in window) && (() => {
-        const APP_VERSION = '1.1.5';
+        const APP_VERSION = '1.4.1';
         const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
         const isMobile = /android|iphone|ipad|ipod/i.test(userAgent);
         
@@ -119,7 +119,7 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
         } else if (userAgent.includes('mac')) {
           detectedOS = 'macOS';
           directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}-arm64.dmg`;
-        } else if (userAgent.includes('linux')) {
+        } else if (userAgent.includes('linux') && !userAgent.includes('android')) {
           detectedOS = 'Linux';
           directUrl = `https://github.com/SudhirDevOps1/SafeVault/releases/download/v${APP_VERSION}/SafeVault-${APP_VERSION}.AppImage`;
         }
