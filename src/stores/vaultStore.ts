@@ -780,14 +780,30 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       
       const record = backup.data;
       
-      const verificationHash = await createVerificationHash(password, record.verificationSalt);
-      if (!constantTimeCompare(verificationHash, record.verificationHash)) {
-        set({ error: 'Incorrect password for this backup.', loading: false });
-        logger.warn('Failed backup import - incorrect password');
-        return;
+      // Support both PBKDF2 and legacy Argon2id backup formats
+      let isPasswordCorrect = false;
+      let key: CryptoKey;
+
+      if (record.kdf === 'argon2id') {
+        const verHash = await createVerificationHashArgon2id(password, record.verificationSalt);
+        isPasswordCorrect = constantTimeCompare(verHash, record.verificationHash);
+        if (!isPasswordCorrect) {
+          set({ error: 'Incorrect password for this backup.', loading: false });
+          logger.warn('Failed backup import - incorrect password (argon2id)');
+          return;
+        }
+        key = await deriveKeyArgon2id(password, record.salt);
+      } else {
+        const verHash = await createVerificationHash(password, record.verificationSalt);
+        isPasswordCorrect = constantTimeCompare(verHash, record.verificationHash);
+        if (!isPasswordCorrect) {
+          set({ error: 'Incorrect password for this backup.', loading: false });
+          logger.warn('Failed backup import - incorrect password (pbkdf2)');
+          return;
+        }
+        key = await deriveKey(password, record.salt);
       }
 
-      const key = await deriveKey(password, record.salt);
       const decryptedData = await decrypt(record.encryptedData, record.iv, key);
       const credentials: Credential[] = JSON.parse(decryptedData);
 
@@ -858,21 +874,24 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       const saltBytes = window.crypto.getRandomValues(new Uint8Array(16));
       const saltBase64 = bufferToBase64(saltBytes);
       
-      // Derive E2EE PIN Key
-      const pinKey = await deriveKeyArgon2id(pin, saltBase64);
+      // Derive PIN Key using PBKDF2 (works in all environments: Desktop, Extension, Mobile)
+      const pinKey = await deriveKey(pin, saltBase64);
       
-      // Wrap Master Key using PIN Key
+      // Wrap Master Key using PIN Key — IV stored separately (not sliced from ciphertext)
       const rawMasterKey = await crypto.subtle.exportKey('raw', encryptionKey);
+      const ivBytes = window.crypto.getRandomValues(new Uint8Array(12));
       const wrapped = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: window.crypto.getRandomValues(new Uint8Array(12)) },
+        { name: 'AES-GCM', iv: ivBytes },
         pinKey,
         rawMasterKey
       );
       
+      // AES-GCM output = ciphertext + 16-byte auth tag (GCM tag is appended by WebCrypto)
+      const wrappedUint8 = new Uint8Array(wrapped);
       const wrappedData = {
-        ciphertext: bufferToBase64(new Uint8Array(wrapped.slice(0, wrapped.byteLength - 16))),
-        iv: bufferToBase64(new Uint8Array(wrapped).slice(0, 12)),
-        tag: bufferToBase64(new Uint8Array(wrapped).slice(wrapped.byteLength - 16)),
+        ciphertext: bufferToBase64(wrappedUint8.slice(0, wrappedUint8.length - 16)),
+        tag: bufferToBase64(wrappedUint8.slice(wrappedUint8.length - 16)),
+        iv: bufferToBase64(ivBytes),  // Store IV separately — never derive from ciphertext
         salt: saltBase64,
       };
       
@@ -907,10 +926,10 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       set({ loading: true, error: null });
       const wrappedData = JSON.parse(wrappedStr);
       
-      // Derive PIN Session Key
-      const pinKey = await deriveKeyArgon2id(pin, wrappedData.salt);
+      // Derive PIN Key using PBKDF2 — must match setupPinUnlock
+      const pinKey = await deriveKey(pin, wrappedData.salt);
       
-      // Combine ciphertext and auth tag for decrypt
+      // Combine ciphertext + GCM auth tag before decrypting
       const resCiphertext = base64ToBuffer(wrappedData.ciphertext);
       const resIv = base64ToBuffer(wrappedData.iv);
       const resTag = base64ToBuffer(wrappedData.tag);
@@ -924,7 +943,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         combined.buffer as ArrayBuffer
       );
       
-      // Import the decrypted raw master key
+      // Import the decrypted raw master key back as CryptoKey
       const masterKey = await crypto.subtle.importKey(
         'raw',
         decryptedBuffer,
@@ -948,6 +967,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         pinAttemptsLeft: 3,
         loading: false,
         lastActivity: Date.now(),
+        autoLockMinutes: vaultRecord.autoLockMinutes,
       });
       
       get().addAuditLog('VAULT_UNLOCKED_PIN', 'Vault unlocked using Quick PIN');
@@ -958,7 +978,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       set({ pinAttemptsLeft: remainingAttempts, loading: false });
       
       if (remainingAttempts <= 0) {
-        // LOCKOUT WIPE!
+        // LOCKOUT WIPE — remove wrapped key on too many failures
         localStorage.removeItem('safevault_wrapped_key');
         localStorage.removeItem('safevault_pin_attempts');
         set({ isPinUnlockEnabled: false, pinAttemptsLeft: 3, error: 'Too many incorrect PIN attempts. PIN unlock disabled.' });
