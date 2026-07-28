@@ -166,8 +166,9 @@ export default function LocalSync() {
         setTimeout(() => setSyncStatus(null), 5000);
       } catch (err: any) {
         respond(err.message || 'Decryption/merge failed', null);
-        setSyncStatus(`Sync failed: ${err.message || 'Encryption key compatibility mismatch'}`);
-        setTimeout(() => setSyncStatus(null), 5000);
+        const userFriendlyMsg = 'Sync failed: Both devices must have the SAME Master Password to sync.';
+        setSyncStatus(userFriendlyMsg);
+        setTimeout(() => setSyncStatus(null), 8000);
       }
     });
 
@@ -470,7 +471,11 @@ export default function LocalSync() {
         throw new Error('Invalid server package response');
       }
     } catch (err: any) {
-      setClientStatus({ type: 'error', message: err.message || 'Key verification mismatch.' });
+      const isKeyError = err.message && (err.message.includes('key') || err.message.includes('decrypt') || err.message.includes('compatibility') || err.message.includes('Verification'));
+      const friendlyMsg = isKeyError 
+        ? 'Sync failed: Both devices must have the SAME Master Password to sync.' 
+        : (err.message || 'Key verification mismatch.');
+      setClientStatus({ type: 'error', message: friendlyMsg });
     } finally {
       setClientLoading(false);
     }
@@ -528,6 +533,14 @@ export default function LocalSync() {
         >
           Cloud Relay (E2EE)
         </button>
+      </div>
+
+      {/* Zero-Knowledge Master Password Matching Requirement Notice */}
+      <div className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-start gap-2.5">
+        <Shield className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+        <p className="text-[10px] text-gray-400 leading-normal">
+          <strong className="text-emerald-400 font-semibold">Security Requirement:</strong> Both devices must be unlocked using the <strong>SAME master password</strong> to decrypt and merge sync data, since all credentials are encrypted zero-knowledge.
+        </p>
       </div>
 
       {syncMode === 'wifi' ? (
