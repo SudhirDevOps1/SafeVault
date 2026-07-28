@@ -101,12 +101,12 @@ export const logger = {
     if (err instanceof Error) {
       safeErr = { name: err.name, message: err.message, stack: err.stack };
     } else if (err && typeof err === 'object') {
-      const errObj = err as Record<string, unknown>;
+      const redactedObj = redact(err) as Record<string, unknown>;
       const baseErr = {
-        message: errObj.message || errObj.error || errObj.err || (typeof errObj.toString === 'function' && errObj.toString() !== '[object Object]' ? errObj.toString() : JSON.stringify(errObj)),
-        ...errObj
+        message: redactedObj.message || redactedObj.error || redactedObj.err || (typeof redactedObj.toString === 'function' && redactedObj.toString() !== '[object Object]' ? redactedObj.toString() : JSON.stringify(redactedObj)),
+        ...redactedObj
       };
-      safeErr = redact(baseErr);
+      safeErr = baseErr;
     } else {
       safeErr = redact(err);
     }
