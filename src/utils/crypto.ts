@@ -43,7 +43,8 @@ export function generateIV(): string {
 
 export async function deriveKey(
   password: string,
-  saltBase64: string
+  saltBase64: string,
+  extractable = true  // true allows wrapKey(masterKey) to export raw bytes for recovery wrapping
 ): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const passwordBuffer = encoder.encode(password);
@@ -69,7 +70,7 @@ export async function deriveKey(
       name: 'AES-GCM',
       length: KEY_LENGTH,
     },
-    false,
+    extractable,
     ['encrypt', 'decrypt']
   );
 }
