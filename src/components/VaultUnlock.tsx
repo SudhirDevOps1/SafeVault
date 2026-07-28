@@ -285,22 +285,17 @@ export default function VaultUnlock() {
               <input
                 id="unlock-pin"
                 type="password"
-                maxLength={6}
+                maxLength={8}
                 value={pinInput}
                 onChange={e => {
                   const val = e.target.value.replace(/\D/g, '');
                   setPinInput(val);
-                  if (val.length === 6) {
-                    setError(null);
-                    unlockWithPin(val).then(success => {
-                      if (!success) setPinInput('');
-                    });
-                  }
+                  setError(null);
                 }}
-                placeholder="••••••"
+                placeholder="••••••••"
                 autoComplete="off"
                 autoFocus
-                className="w-36 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-center text-2xl font-bold tracking-widest font-mono"
+                className="w-40 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-center text-2xl font-bold tracking-widest font-mono"
               />
             </div>
 

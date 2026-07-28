@@ -127,6 +127,28 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
             </div>
             
             <div className="flex items-center gap-1">
+              {typeof window !== 'undefined' && 'chrome' in window && (window as any).chrome?.tabs && (
+                <button
+                  onClick={() => {
+                    const chrome = (window as any).chrome;
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
+                      if (tabs[0]?.id) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                          action: "autofillCredentials",
+                          username: credential.username || '',
+                          password: credential.password || ''
+                        }, () => {
+                          addAuditLog('AUTOFILL_TRIGGERED', `⚡ Autofilled credentials for "${credential.title}"`);
+                        });
+                      }
+                    });
+                  }}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition-all mr-1"
+                  title="Autofill this site"
+                >
+                  ⚡ Autofill
+                </button>
+              )}
               <button
                 onClick={() => setHoneypotCredential(isHoneypot ? null : credential.id)}
                 className={`p-2 rounded-lg transition-colors text-xs ${isHoneypot ? 'text-amber-400 hover:bg-amber-500/10' : 'text-gray-500 hover:bg-white/10'}`}

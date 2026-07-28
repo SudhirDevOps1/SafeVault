@@ -18,6 +18,8 @@ export default function CredentialList() {
     // Filter by view
     if (sidebarView === 'favorites') {
       filtered = filtered.filter(c => c.favorite);
+    } else if (sidebarView === 'cards') {
+      filtered = filtered.filter(c => c.category === 'Payment Card');
     }
 
     // Filter by search

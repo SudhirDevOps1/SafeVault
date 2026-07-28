@@ -81,9 +81,12 @@ SafeVault is engineered with zero-trust principles. Below is the breakdown of ou
 ### 📱 Full Feature Set
 * **Auto-Discovery Subnet Scanner:** Fetches real local network interface subnets from Electron (`os.networkInterfaces()`) and performs a parallel port-`58241` scan for zero-config peer-to-peer Wi-Fi synchronization — no hardcoded guesses.
 * **TOTP 2FA Authenticator:** Real-time generation of 6-digit codes with visual countdown meters.
-* **Universal CSV Importer:** Directly parse and import credentials from Bitwarden, ProtonPass, Brave, DuckDuckGo, Chrome, and 40+ other formats.
-* **Security Health Audit:** Local zero-knowledge scanner checking passwords against leaked breach lists using the k-Anonymity privacy protocol.
-* **Interactive CLI Companion:** Global console tool (`safevault`) featuring case-insensitive fuzzy matching and specific property flags (`-u`, `-p`, `-t`).
+* **Smart Multi-Format Importer:** Automatically parses and maps credentials from Bitwarden JSON, 1Password JSON, LastPass CSV, KeePass XML, Chrome JSON, and generic custom CSV files with dynamic auto-detection.
+* **Payment Card Storage:** Dedicated credit/debit card secure storage with dynamic card type detection, formatted spaces, dynamic CVV hide/reveal toggle, and card dashboard layout.
+* **Password Health Dashboard:** Interactive audit interface displaying overall vault health score, reused password cross-checks, weak/old logins categorization, and zero-knowledge k-Anonymity HaveIBeenPwned leak scanner.
+* **"Safe Share" E2EE Package:** Export selective credentials into an encrypted `.svault` file package using Argon2id-derived KEK (Key Encryption Key) and AES-256-GCM. Supports custom expiration TTL timeouts (1 day, 7 days, 30 days) and dynamic auto-merging.
+* **Passkey Storage Support:** Store modern WebAuthn FIDO2 credentials locally. Securely saves Rp ID, username handles, credential IDs, and Base64 public keys. Includes one-click test mock key generator.
+* **Extension Autofill Bridge:** Dynamic popup window that communicates directly with browser tabs content script via messages to autofill matching credential details.
 * **Appearance Customization:** Fully responsive light/dark styling preferences, dynamically saved and persisted.
 
 ### 🌐 Privacy & Network Control

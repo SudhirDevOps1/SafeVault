@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-07-28
+
+### Added — Premium Upgrades (Smart Importer, Cards, Health, Safe Share, Passkeys)
+- **Smart Multi-Format Importer:** Automatically parses and maps credentials from Bitwarden JSON, 1Password JSON, LastPass CSV, KeePass XML, Chrome JSON, and generic custom CSV files with dynamic auto-detection.
+- **Payment Card Storage:** Dedicated credit/debit card secure storage with dynamic card type detection, formatted spaces, dynamic CVV hide/reveal toggle, and card dashboard layout.
+- **Password Health Dashboard:** Interactive audit interface displaying overall vault health score, reused password cross-checks, weak/old logins categorization, and zero-knowledge k-Anonymity HaveIBeenPwned leak scanner.
+- **"Safe Share" E2EE Package:** Export selective credentials into an encrypted `.svault` file package using Argon2id-derived KEK (Key Encryption Key) and AES-256-GCM. Supports custom expiration TTL timeouts (1 day, 7 days, 30 days) and dynamic auto-merging.
+- **Passkey Storage Support:** Store modern WebAuthn FIDO2 credentials locally. Securely saves Rp ID, username handles, credential IDs, and Base64 public keys. Includes one-click test mock key generator.
+
 ## [2.0.1] - 2026-07-28
 
 ### Fixed — Cross-Platform KDF Unification & Critical Bug Fixes

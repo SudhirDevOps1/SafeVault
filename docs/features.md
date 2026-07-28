@@ -103,6 +103,13 @@ All encryption and key derivation happens on-the-fly inside volatile JavaScript 
 * **Master Key Wrapping:** AES-GCM encrypts the master key using the derived recovery key, allowing offline account restoration without storing plain key text or duplicate records.
 * **Subnet Scanner Auto-Discovery:** Implemented a parallel subnet scanner checks port `58241` with a low-timeout threshold to automatically discover host sync servers on the local Wi-Fi network.
 
+### 🔒 v3.0.0: Smart Importer, Cards, Health Dashboard, Safe Share, & Passkeys
+* **Smart Multi-Format Importer:** Automatically parses and maps credentials from Bitwarden JSON, 1Password JSON, LastPass CSV, KeePass XML, Chrome JSON, and generic custom CSV files with dynamic auto-detection.
+* **Payment Card Storage:** Dedicated credit/debit card secure storage with dynamic card type detection, formatted spaces, dynamic CVV hide/reveal toggle, and card dashboard layout.
+* **Password Health Dashboard:** Interactive audit interface displaying overall vault health score, reused password cross-checks, weak/old logins categorization, and zero-knowledge k-Anonymity HaveIBeenPwned leak scanner.
+* **"Safe Share" E2EE Package:** Export selective credentials into an encrypted `.svault` file package using Argon2id-derived KEK (Key Encryption Key) and AES-256-GCM. Supports custom expiration TTL timeouts (1 day, 7 days, 30 days) and dynamic auto-merging.
+* **Passkey Storage Support:** Store modern WebAuthn FIDO2 credentials locally. Securely saves Rp ID, username handles, credential IDs, and Base64 public keys. Includes one-click test mock key generator.
+
 ### 🛡️ v1.4.3: Sync Hardening & App Reset Security
 * **Vault Wipe Reset Security:** Fully clear IndexedDB credentials tables along with all local storage parameters (clearing state variables, deleted credentials list cache, last sync timestamp) upon command validation.
 * **Port EADDRINUSE crash handler:** Added port state listener to prevent background HTTP sync port locks and automatically release binding resource slots if the server experiences connection conflicts.

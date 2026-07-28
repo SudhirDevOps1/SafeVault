@@ -8,6 +8,8 @@ import PasswordGenerator from './PasswordGenerator';
 import Settings from './Settings';
 import PrivacyPolicy from './PrivacyPolicy';
 import EmailAliases from './EmailAliases';
+import PasswordHealth from './PasswordHealth';
+import SecureShare from './SecureShare';
 import UpdateModal from './UpdateModal';
 import { useAutoLock } from '@/hooks/useAutoLock';
 import { useSystemSleepLock } from '@/hooks/useSystemSleepLock';
@@ -123,6 +125,22 @@ export default function Dashboard() {
           <div className="max-w-2xl mx-auto">
             <EmailAliases />
           </div>
+        </div>
+      );
+    }
+
+    if (sidebarView === 'health') {
+      return (
+        <div className="h-full overflow-y-auto" role="main" aria-label="Password Health">
+          <PasswordHealth />
+        </div>
+      );
+    }
+
+    if (sidebarView === 'share') {
+      return (
+        <div className="h-full overflow-y-auto" role="main" aria-label="Secure Share">
+          <SecureShare />
         </div>
       );
     }

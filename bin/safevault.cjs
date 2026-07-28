@@ -20,7 +20,7 @@ const https = require('https');
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
-const VERSION = '2.0.0';
+const VERSION = '2.0.1';
 const VAULT_PATH = path.join(os.homedir(), '.safevault.db');
 const PBKDF2_ITERATIONS = 600000;
 const CLIPBOARD_WIPE_MS = 15000;
