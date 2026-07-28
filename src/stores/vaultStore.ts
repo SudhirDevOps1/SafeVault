@@ -189,8 +189,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       const salt = generateSalt();
       const verificationSalt = generateSalt();
       
-      const key = await deriveKeyArgon2id(masterPassword, salt);
-      const verificationHash = await createVerificationHashArgon2id(masterPassword, verificationSalt);
+      const key = await deriveKey(masterPassword, salt);
+      const verificationHash = await createVerificationHash(masterPassword, verificationSalt);
       
       const { ciphertext, iv } = await encrypt(JSON.stringify([]), key);
       
@@ -205,14 +205,14 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         createdAt: Date.now(),
         updatedAt: Date.now(),
         version: 1,
-        kdf: 'argon2id',
+        kdf: 'pbkdf2',
       };
 
       if (recoveryPhrase) {
         const recSalt = generateSalt();
         const recVerSalt = generateSalt();
         const recKey = await deriveKeyFromRecoveryPhrase(recoveryPhrase, recSalt);
-        const recVerHash = await createVerificationHashArgon2id(recoveryPhrase, recVerSalt);
+        const recVerHash = await createVerificationHash(recoveryPhrase, recVerSalt);
         
         // Wrap the Master Key (key) using the Recovery Key (recKey)
         const { ciphertext: wrappedKeyHex, iv: wrappedIv } = await wrapKey(key, recKey);
@@ -234,7 +234,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         lastActivity: Date.now(),
         loading: false,
       });
-      logger.info('Vault created successfully using Argon2id and Key Wrap');
+      logger.info('Vault created successfully using PBKDF2 and Key Wrap');
     } catch (err) {
       logger.error('Failed to create vault', err);
       set({ error: 'Failed to create vault. Please try again.', loading: false });
@@ -284,25 +284,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         const legacyKey = await deriveKey(masterPassword, vaultRecord.salt);
         const decryptedData = await decrypt(vaultRecord.encryptedData, vaultRecord.iv, legacyKey);
         credentials = JSON.parse(decryptedData);
-
-        // SILENT AUTO-MIGRATION to Argon2id
-        logger.info('Migrating vault from PBKDF2 to Argon2id KDF standard...');
-        const newSalt = generateSalt();
-        const newVerSalt = generateSalt();
-        key = await deriveKeyArgon2id(masterPassword, newSalt);
-        const newVerHash = await createVerificationHashArgon2id(masterPassword, newVerSalt);
-        const { ciphertext, iv } = await encrypt(JSON.stringify(credentials), key);
-
-        await db.vault.update('main', {
-          encryptedData: ciphertext,
-          iv,
-          salt: newSalt,
-          verificationHash: newVerHash,
-          verificationSalt: newVerSalt,
-          kdf: 'argon2id',
-          updatedAt: Date.now(),
-        });
-        logger.info('Vault KDF migration to Argon2id completed successfully');
+        key = legacyKey;
       }
 
       set({
@@ -337,7 +319,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
 
       // Verify recovery verification hash if available
       if (vaultRecord.recoveryVerificationHash && vaultRecord.recoveryVerificationSalt) {
-        const verHash = await createVerificationHashArgon2id(recoveryPhrase, vaultRecord.recoveryVerificationSalt);
+        const verHash = await createVerificationHash(recoveryPhrase, vaultRecord.recoveryVerificationSalt);
         if (!constantTimeCompare(verHash, vaultRecord.recoveryVerificationHash)) {
           set({ error: 'Incorrect recovery phrase.', loading: false });
           return false;
@@ -412,8 +394,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
 
       const newSalt = generateSalt();
       const newVerificationSalt = generateSalt();
-      const newKey = await deriveKeyArgon2id(newPassword, newSalt);
-      const newVerificationHash = await createVerificationHashArgon2id(newPassword, newVerificationSalt);
+      const newKey = await deriveKey(newPassword, newSalt);
+      const newVerificationHash = await createVerificationHash(newPassword, newVerificationSalt);
 
       const { credentials } = get();
       const { ciphertext, iv } = await encrypt(JSON.stringify(credentials), newKey);
@@ -425,7 +407,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         salt: newSalt,
         verificationHash: newVerificationHash,
         verificationSalt: newVerificationSalt,
-        kdf: 'argon2id',
+        kdf: 'pbkdf2',
         updatedAt: Date.now(),
       };
 
@@ -440,7 +422,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       await db.vault.put(updatedRecord);
 
       set({ encryptionKey: newKey, loading: false });
-      logger.info('Master password changed successfully and KDF upgraded/updated to Argon2id');
+      logger.info('Master password changed successfully using PBKDF2');
     } catch (err) {
       logger.error('Failed to change password', err);
       set({ error: 'Failed to change password.', loading: false });

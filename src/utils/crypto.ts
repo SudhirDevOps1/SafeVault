@@ -163,7 +163,7 @@ export async function deriveKeyFromRecoveryPhrase(
   saltBase64: string
 ): Promise<CryptoKey> {
   const cleanPhrase = recoveryPhrase.trim().toLowerCase().replace(/\s+/g, ' ');
-  return deriveKeyArgon2id(cleanPhrase, saltBase64);
+  return deriveKey(cleanPhrase, saltBase64);
 }
 
 export async function wrapKey(
