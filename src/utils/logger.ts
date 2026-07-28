@@ -97,9 +97,19 @@ export const logger = {
   },
   error(msg: string, err?: unknown) {
     if (!shouldLog('error')) return;
-    const safeErr = err instanceof Error
-      ? { name: err.name, message: err.message }
-      : redact(err);
+    let safeErr: unknown;
+    if (err instanceof Error) {
+      safeErr = { name: err.name, message: err.message, stack: err.stack };
+    } else if (err && typeof err === 'object') {
+      const errObj = err as Record<string, unknown>;
+      const baseErr = {
+        message: errObj.message || errObj.error || errObj.err || (typeof errObj.toString === 'function' && errObj.toString() !== '[object Object]' ? errObj.toString() : JSON.stringify(errObj)),
+        ...errObj
+      };
+      safeErr = redact(baseErr);
+    } else {
+      safeErr = redact(err);
+    }
     console.error(formatMessage('error', msg), safeErr);
   },
   /**
