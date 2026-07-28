@@ -190,8 +190,13 @@ This section logs identified feature gaps and implementation architectures for t
   2. **Mobile Sync Server support:** Enable running a lightweight HTTP socket server on mobile apps using Capacitor community socket plugins, allowing a mobile device to host the sync server and display its local IP QR code for another mobile or desktop client to scan and pull.
   3. **Universal Scan Handlers:** Build auto-fallback interfaces where any client type (Desktop, Mobile, or Web client) can dynamically scan sync QR credentials and pair as a receiver.
 
-### H. 🔐 [COMPLETED] Argon2id Key Derivation Integration (v1.2.0 Upgrade)
-* **Status:** **FULLY IMPLEMENTED** (v1.2.0). Replaced PBKDF2 KDF with memory-hard Argon2id (Memory: 64MB, Iterations: 3, Parallelism: 4) using highly-optimized WASM runtimes. Added transparent background auto-migration upgrading legacy PBKDF2 databases on first successful login.
+### H. 🔐 [REVERTED to PBKDF2] Argon2id Key Derivation Integration (v1.2.0 → v2.0.1 Revert)
+* **Previous Status:** Was implemented in v1.2.0 with Argon2id WASM.
+* **v2.0.1 Revert Reason:** Argon2id uses a WASM binary (`hash-wasm`) that is dynamically loaded at runtime. Chrome Extension Manifest V3 sandboxes block dynamic WASM module instantiation even with `wasm-unsafe-eval` in CSP. This caused:
+  1. Extension vault unlock to always fall back to PBKDF2, creating key mismatch with Desktop (Argon2id)
+  2. Sync to fail: "Both devices must have the SAME Master Password"
+  3. PIN unlock to silently fail on Extension/Mobile
+* **Current Standard:** All KDF operations now use **native PBKDF2** (600K iterations, SHA-512) via `crypto.subtle` — works identically on Desktop, Extension, Mobile, and any future platform without any WASM dependency.
 
 ### I. 📄 [COMPLETED] Zero-Knowledge Offline Recovery Kit Sheet (v1.2.0)
 * **Status:** **FULLY IMPLEMENTED** (v1.2.0). Implemented BIP39 24-word emergency recovery kit. Enforced write-down and verification check step during setup. The derived master key is securely wrapped (AES-GCM encrypted) with the recovery key, enabling instant login restoration path.
@@ -214,11 +219,12 @@ This section logs identified feature gaps and implementation architectures for t
   - **Live Auto-Sync:** Debounced automatic push trigger on vault save state mutations.
   - **Universal Role Switching:** Allows Capacitor mobile and browser extensions to act as client senders natively.
 
-### M. 🔑 [COMPLETED] Quick PIN Unlock Security (v1.4.3)
-* **Status:** **FULLY IMPLEMENTED**. 
-  - **Zero-Knowledge Key Wrapping:** AES-GCM 256-bit encrypts Master Key using PIN key derived locally via Argon2id WASM.
-  - **Keypad UI Toggle:** VaultUnlock default rendering switches to PIN mode if configured.
-  - **3-Strike Lockout Auto-Wipe:** Auto-deletes wrapped keys on 3 incorrect attempts.
+### M. 🔑 [FIXED in v2.0.1] Quick PIN Unlock Security (v1.4.3 → v2.0.1)
+* **Status:** **FULLY FIXED** (v2.0.1). Original implementation had 3 critical bugs:
+  1. **WASM KDF Failure:** Used `deriveKeyArgon2id` for PIN key — Extension/Mobile WASM block caused silent failure. **Fixed:** Now uses PBKDF2.
+  2. **IV Storage Bug:** IV was sliced from ciphertext output bytes (`wrapped.slice(0,12)`) — completely wrong. AES-GCM IV must be stored separately before encryption. **Fixed:** `ivBytes` stored and written independently.
+  3. **autoLockMinutes Not Restored:** PIN unlock didn't restore auto-lock setting. **Fixed:** `autoLockMinutes: vaultRecord.autoLockMinutes` added to state restore.
+* **Current Behavior:** PIN wraps Master Key using PBKDF2-derived PIN key with correctly stored IV. Works on all platforms.
 
 ### N. ⚡ Future Sync & Security Improvements (Next Stage Roadmap)
 * **Cloud Relay TTL Expiry (Cloudflare Workers):**
@@ -228,3 +234,21 @@ This section logs identified feature gaps and implementation architectures for t
 * **HTTPS Local Sync (Self-Signed TLS):**
   * **Gap:** Local Wi-Fi sync runs over plain `http://`. Metadata (timing, IPs) is visible on the network even though payload is E2EE.
   * **Execution Plan:** Generate a per-session self-signed TLS certificate in the Electron main process using Node's `crypto.generateCertificate`, serve the sync server over HTTPS, and pin the certificate hash inside the QR code for the client to verify.
+
+### O. 🔮 Next-Stage Developer Roadmap (Identified in v2.0.1 Session)
+
+* **Argon2id Platform Compatibility (Future):**
+  * **Context:** Argon2id is significantly stronger than PBKDF2 for password hashing (memory-hard). However, it cannot be used uniformly across all SafeVault platforms due to WASM runtime restrictions in Chrome Extension Manifest V3 service workers.
+  * **Execution Plan (If Needed):** Investigate using Argon2id via `node-argon2` native binary in Electron only, and keep PBKDF2 as the universal standard in Extension/Mobile. Use a `kdf` field in the vault record to handle per-platform derivation on unlock — never auto-migrate silently.
+
+* **Logger Test Fix (`src/utils/logger.test.ts`):**
+  * **Gap:** `should redact sensitive keys` test is failing in CI. Logger's `redactSensitiveKeys` function is not properly masking nested or dynamic keys.
+  * **Execution Plan:** Read the test spec, update the logger's redaction logic to handle the failing test case pattern, run `npm test` to confirm all tests pass.
+
+* **Unit Tests for New Crypto Functions:**
+  * **Gap:** `deriveKeyFromRecoveryPhrase` (PBKDF2), `setupPinUnlock` (PBKDF2 + IV fix), `importEncryptedBackup` (dual-KDF) have no dedicated test coverage.
+  * **Execution Plan:** Add test cases in `src/test/crypto.test.ts` and `src/test/pin.test.ts` to cover all new PBKDF2 paths.
+
+* **Extension Session Key Persistence (background.js):**
+  * **Gap:** `background.js` now stores raw AES key bytes as base64. The extension UI (`vaultStore.ts`) still uses old `storeSessionKey` / `getSessionKey` message format expecting a `CryptoKey` object directly. The bridge needs to be updated to serialize/deserialize the key via `exportKey('raw')` and `importKey('raw')` on both ends.
+  * **Execution Plan:** Update extension's vault unlock flow to export key → send base64 → background stores it → on retrieval, re-import as CryptoKey before use.

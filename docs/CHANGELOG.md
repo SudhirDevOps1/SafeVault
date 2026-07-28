@@ -5,7 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-07-28
+
+### Fixed — Cross-Platform KDF Unification & Critical Bug Fixes
+
+#### 🔐 Sync Compatibility (Desktop ↔ Extension ↔ Mobile)
+- **Transit Session Key Mismatch (LocalSync.tsx):** Wi-Fi pairing 6-digit PIN was deriving transit Layer-2 session keys using `Argon2id WASM` on Desktop but falling back to `PBKDF2` on Extension/Mobile (WASM blocked by sandbox CSP). Unified both to use native **PBKDF2** — all platforms now derive identical transit keys from the same PIN input.
+- **Vault Auto-Migration Removed (vaultStore.ts `unlockVault`):** Desktop silently auto-migrated PBKDF2 vaults to Argon2id on every unlock. This broke Extension/Mobile compatibility permanently. Removed the auto-migration block — vaults now remain in their original KDF format after unlock.
+- **`changeMasterPassword` KDF Unified (vaultStore.ts):** Password changes now write vault using **PBKDF2** (`kdf: 'pbkdf2'`) instead of Argon2id, ensuring Extension and Mobile can always re-derive the same key.
+- **`unlockVaultWithRecovery` Hash KDF Unified (vaultStore.ts):** Recovery phrase verification hash now uses `createVerificationHash` (PBKDF2) instead of `createVerificationHashArgon2id`.
+- **`deriveKeyFromRecoveryPhrase` KDF Unified (crypto.ts):** Recovery phrase key derivation changed from Argon2id to PBKDF2 for full cross-platform compatibility.
+
+#### 🏦 Vault Creation Fix (Extension)
+- **"Failed to create vault" in Extension (crypto.ts `deriveKey`):** The PBKDF2-derived Master Key had `extractable: false`, causing `wrapKey()` → `exportKey('raw', masterKey)` to throw a `DOMException: key is not extractable` during vault creation with a Recovery Phrase. Changed `extractable` to `true` (default) — key never leaves the app origin, security is preserved.
+
+#### 🔑 PIN Unlock Bugs (vaultStore.ts)
+- **PIN Key Derivation WASM Failure:** `setupPinUnlock` and `unlockWithPin` both used `deriveKeyArgon2id` — Extension/Mobile WASM sandbox blocks caused silent PIN setup/unlock failure. Unified both to **PBKDF2** derivation.
+- **IV Storage Bug (setupPinUnlock):** IV was incorrectly sliced from the AES-GCM ciphertext output buffer (`wrapped.slice(0, 12)`) instead of being stored separately from the `iv` variable passed to `encrypt()`. Fixed by storing `ivBytes` separately before encryption and writing it to the JSON record independently.
+- **`autoLockMinutes` Not Restored on PIN Unlock:** `unlockWithPin` was not restoring `autoLockMinutes` from the vault record into state, causing auto-lock to default to 5 minutes regardless of user preference. Added `autoLockMinutes: vaultRecord.autoLockMinutes` to the set() call.
+
+#### 📦 Backup Import Fix (vaultStore.ts)
+- **Argon2id Backup Import Failure (`importEncryptedBackup`):** Function only verified and decrypted using PBKDF2 — any backup file created with Argon2id KDF would silently fail with "Incorrect password". Added `record.kdf` branch check: Argon2id backups use `createVerificationHashArgon2id` + `deriveKeyArgon2id`, PBKDF2 backups use standard functions.
+
+#### 🧩 Chrome Extension Background Fix (extension/background.js)
+- **CryptoKey Non-Serialization Bug:** `storeSessionKey` was storing a raw `CryptoKey` object into `chrome.storage.session`. `CryptoKey` is a non-serializable Web API object — Chrome's storage APIs silently drop non-serializable values, causing retrieved keys to always be `undefined`. Fixed by storing the AES key as a **base64-encoded raw byte string** (`keyBase64`) and re-importing as `CryptoKey` on retrieval.
+
+---
+
 ## [2.0.0] - 2026-07-27
+
 
 ### Added — CLI Complete Overhaul (bin/safevault.cjs)
 - **`safevault edit <title>`** — Edit any existing credential entry with field-by-field prompts
