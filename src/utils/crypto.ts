@@ -108,44 +108,54 @@ export async function deriveKeyArgon2id(
   password: string,
   saltBase64: string
 ): Promise<CryptoKey> {
-  const salt = base64ToBuffer(saltBase64);
-  const hashBytes = await argon2id({
-    password: password,
-    salt: salt,
-    iterations: 3,
-    memorySize: 65536, // 64 MB
-    parallelism: 4,
-    hashLength: 32, // 256 bits
-    outputType: 'binary',
-  });
+  try {
+    const salt = base64ToBuffer(saltBase64);
+    const hashBytes = await argon2id({
+      password: password,
+      salt: salt,
+      iterations: 3,
+      memorySize: 65536, // 64 MB
+      parallelism: 4,
+      hashLength: 32, // 256 bits
+      outputType: 'binary',
+    });
 
-  const key = await crypto.subtle.importKey(
-    'raw',
-    hashBytes as BufferSource,
-    { name: 'AES-GCM' },
-    true, // Set to true to allow key wrapping for recovery phrases
-    ['encrypt', 'decrypt']
-  );
+    const key = await crypto.subtle.importKey(
+      'raw',
+      hashBytes as BufferSource,
+      { name: 'AES-GCM' },
+      true, // Set to true to allow key wrapping for recovery phrases
+      ['encrypt', 'decrypt']
+    );
 
-  // Securely scrub the temporary derived hash bytes from RAM memory
-  hashBytes.fill(0);
-  return key;
+    // Securely scrub the temporary derived hash bytes from RAM memory
+    hashBytes.fill(0);
+    return key;
+  } catch (wasmError) {
+    console.warn("Argon2id WASM failed, falling back to PBKDF2:", wasmError);
+    return deriveKey(password, saltBase64);
+  }
 }
 
 export async function createVerificationHashArgon2id(
   password: string,
   saltBase64: string
 ): Promise<string> {
-  const salt = base64ToBuffer(saltBase64);
-  return argon2id({
-    password: password,
-    salt: salt,
-    iterations: 3,
-    memorySize: 65536, // 64 MB
-    parallelism: 4,
-    hashLength: 32,
-    outputType: 'hex',
-  });
+  try {
+    const salt = base64ToBuffer(saltBase64);
+    return await argon2id({
+      password: password,
+      salt: salt,
+      iterations: 3,
+      memorySize: 65536, // 64 MB
+      parallelism: 4,
+      hashLength: 32,
+      outputType: 'hex',
+    });
+  } catch (wasmError) {
+    console.warn("Argon2id WASM hash failed, falling back to PBKDF2:", wasmError);
+    return createVerificationHash(password, saltBase64);
+  }
 }
 
 export async function deriveKeyFromRecoveryPhrase(
