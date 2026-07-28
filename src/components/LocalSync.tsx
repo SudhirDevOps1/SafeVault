@@ -16,7 +16,11 @@ function uint8ArrayToBase64(uint8Array: Uint8Array): string {
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {
-  const binaryString = window.atob(base64.trim());
+  let normalized = base64.trim().replace(/-/g, '+').replace(/_/g, '/');
+  while (normalized.length % 4) {
+    normalized += '=';
+  }
+  const binaryString = window.atob(normalized);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
