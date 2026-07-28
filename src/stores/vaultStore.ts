@@ -649,7 +649,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       if (!response.ok) return;
       const data = await response.json();
       const latestVersion = data.tag_name;
-      const currentVersion = 'v2.0.0'; // Current client version
+      const currentVersion = 'v2.0.1'; // Current client version
       
       const isNewerVersion = (latest: string, current: string): boolean => {
         const l = latest.split('.').map(Number);
