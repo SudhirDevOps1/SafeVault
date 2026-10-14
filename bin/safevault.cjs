@@ -263,13 +263,24 @@ function unlockVault(vault, password) {
   }
 }
 
+/** Atomic file writer preventing race conditions and partial file corruption */
+function safeAtomicWrite(targetPath, data, mode = 0o600) {
+  const dir = path.dirname(targetPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const tempPath = path.join(dir, `.tmp-${crypto.randomBytes(8).toString('hex')}`);
+  fs.writeFileSync(tempPath, data, { mode });
+  fs.renameSync(tempPath, targetPath);
+}
+
 /** Save credentials back to vault (re-encrypts). */
 function saveVault(vault, credentials, key) {
   const { ciphertext, iv } = encrypt(JSON.stringify(credentials), key);
   vault.encryptedData = ciphertext;
   vault.iv = iv;
   vault.updatedAt = Date.now();
-  fs.writeFileSync(VAULT_PATH, JSON.stringify(vault, null, 2), { mode: 0o600 });
+  safeAtomicWrite(VAULT_PATH, JSON.stringify(vault, null, 2), 0o600);
 }
 
 /** FIX: Password strength checker — was completely missing */
@@ -400,7 +411,7 @@ async function init() {
     updatedAt: Date.now(),
   };
 
-  fs.writeFileSync(VAULT_PATH, JSON.stringify(vault, null, 2), { mode: 0o600 });
+  safeAtomicWrite(VAULT_PATH, JSON.stringify(vault, null, 2), 0o600);
   console.log(`\n${c.green}Vault initialized successfully at ${VAULT_PATH}${c.reset}`);
 }
 
@@ -719,17 +730,18 @@ async function audit() {
   let weakPasswords = 0;
   let dupPasswords  = 0;
   const seenHashes  = new Map();
+  const ephemeralKey = crypto.randomBytes(32);
 
   for (const cred of auth.credentials) {
     if (!cred.password) continue;
 
-    // FIX: Detect duplicate/reused passwords
-    const sha1 = crypto.createHash('sha1').update(cred.password).digest('hex').toUpperCase();
-    if (seenHashes.has(sha1)) {
-      console.log(`${c.yellow}[REUSED  ]${c.reset} "${cred.title}" shares password with "${seenHashes.get(sha1)}"`);
+    // Detect duplicate/reused passwords using ephemeral keyed HMAC
+    const pwdHash = crypto.createHmac('sha256', ephemeralKey).update(cred.password).digest('hex');
+    if (seenHashes.has(pwdHash)) {
+      console.log(`${c.yellow}[REUSED  ]${c.reset} "${cred.title}" shares password with "${seenHashes.get(pwdHash)}"`);
       dupPasswords++;
     } else {
-      seenHashes.set(sha1, cred.title);
+      seenHashes.set(pwdHash, cred.title);
     }
 
     // FIX: Check password strength per entry
@@ -818,7 +830,7 @@ async function importBackup(filePath) {
       if (confirm.toLowerCase() !== 'y') { console.log('Aborted.'); return; }
     }
 
-    fs.writeFileSync(VAULT_PATH, JSON.stringify(data, null, 2), { mode: 0o600 });
+    safeAtomicWrite(VAULT_PATH, JSON.stringify(data, null, 2), 0o600);
     console.log(`${c.green}Backup imported successfully to ${VAULT_PATH}${c.reset}`);
   } catch (err) {
     console.log(`${c.red}Failed to import backup: ${err.message}${c.reset}`);

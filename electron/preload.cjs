@@ -7,12 +7,6 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Whitelist of allowed IPC channels
-const ALLOWED_CHANNELS = [
-  'safevault:lock',
-  'safevault:unlock',
-];
-
 // Expose protected API
 contextBridge.exposeInMainWorld('safevault', {
   // App info

@@ -10,7 +10,7 @@
  * - WebPreferences locked down
  */
 
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeTheme, shell, dialog, powerMonitor } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, shell, dialog, powerMonitor } = require('electron');
 const path = require('path');
 const syncServer = require('./sync-server.cjs');
 
@@ -273,16 +273,42 @@ ipcMain.handle('safevault:download-and-install-update', async (event, downloadUr
   const tempFilePath = path.join(tempDir, 'SafeVault-Update-Setup.exe');
 
   return new Promise((resolve) => {
+    // Validate download URL origin strictly to official GitHub releases domains
+    const isAllowedUrl = (urlString) => {
+      try {
+        const parsed = new URL(urlString);
+        const allowedHosts = ['github.com', 'objects.githubusercontent.com', 'api.github.com'];
+        return parsed.protocol === 'https:' && (allowedHosts.includes(parsed.hostname) || parsed.hostname.endsWith('.githubusercontent.com'));
+      } catch {
+        return false;
+      }
+    };
+
+    if (!isAllowedUrl(downloadUrl)) {
+      resolve({ success: false, error: 'Untrusted update source URL' });
+      return;
+    }
+
     // Delete if file already exists
     if (fs.existsSync(tempFilePath)) {
       try { fs.unlinkSync(tempFilePath); } catch (e) {}
     }
 
     const download = (url) => {
+      if (!isAllowedUrl(url)) {
+        resolve({ success: false, error: 'Redirect to untrusted update source URL rejected' });
+        return;
+      }
+
       https.get(url, (response) => {
         // Follow redirects
         if (response.statusCode === 302 || response.statusCode === 301) {
-          download(response.headers.location);
+          const redirectLocation = response.headers.location;
+          if (!redirectLocation) {
+            resolve({ success: false, error: 'Redirect location missing' });
+            return;
+          }
+          download(redirectLocation);
           return;
         }
 

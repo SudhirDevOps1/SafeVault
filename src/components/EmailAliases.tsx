@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Plus, Trash2, Wand2, Copy, Check, Save, Info, Sparkles, User, RefreshCw, Key, Globe, ShieldCheck } from 'lucide-react';
 import { useVaultStore } from '../stores/vaultStore';
 import { useClipboard } from '../hooks/useClipboard';
+import { generatePassword } from '../utils/password';
+
+function secureRandomInt(min: number, max: number): number {
+  const buf = new Uint32Array(1);
+  (typeof window !== 'undefined' && window.crypto ? window.crypto : crypto).getRandomValues(buf);
+  const ratio = buf[0] / (0xffffffff + 1);
+  return Math.floor(min + ratio * (max - min + 1));
+}
+
+function secureRandomChoice<T>(arr: T[]): T {
+  return arr[secureRandomInt(0, arr.length - 1)];
+}
 
 export default function EmailAliases() {
   const { credentials, baseEmails, addBaseEmail, removeBaseEmail, addCredential, setSidebarView } = useVaultStore();
@@ -45,19 +57,15 @@ export default function EmailAliases() {
 
   // Helper to generate a fake profile
   const handleGenerateFakeProfile = () => {
-    const isFemale = Math.random() > 0.5;
+    const isFemale = secureRandomInt(0, 1) === 1;
     const gender = isFemale ? 'Female' : 'Male';
-    const firstName = isFemale 
-      ? femaleFirstNames[Math.floor(Math.random() * femaleFirstNames.length)]
-      : maleFirstNames[Math.floor(Math.random() * maleFirstNames.length)];
-    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    const firstName = isFemale ? secureRandomChoice(femaleFirstNames) : secureRandomChoice(maleFirstNames);
+    const lastName = secureRandomChoice(lastNames);
     
     // Random birthdate between 1950 and 2000
-    const startYear = 1950;
-    const endYear = 2000;
-    const year = Math.floor(startYear + Math.random() * (endYear - startYear + 1));
-    const month = String(Math.floor(1 + Math.random() * 12)).padStart(2, '0');
-    const day = String(Math.floor(1 + Math.random() * 28)).padStart(2, '0');
+    const year = secureRandomInt(1950, 2000);
+    const month = String(secureRandomInt(1, 12)).padStart(2, '0');
+    const day = String(secureRandomInt(1, 28)).padStart(2, '0');
     const birthdate = `${year}-${month}-${day}`;
 
     setProfileData({ firstName, lastName, gender, birthdate });
@@ -155,11 +163,14 @@ export default function EmailAliases() {
 
   // Generate password helper
   const handleGeneratePassword = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|';
-    let pass = '';
-    for (let i = 0; i < passwordLength; i++) {
-      pass += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    const pass = generatePassword({
+      length: passwordLength,
+      includeUppercase: true,
+      includeLowercase: true,
+      includeNumbers: true,
+      includeSymbols: true,
+      excludeAmbiguous: false,
+    });
     setGeneratedPassword(pass);
   };
 

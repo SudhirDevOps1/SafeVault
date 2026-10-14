@@ -41,8 +41,11 @@ function formatRelativeTime(ts: number | null): string {
 }
 
 function generateChannelId(): string {
-  const rand = () => Math.random().toString(36).slice(2, 6);
-  return `vault-${rand()}-${rand()}`;
+  const bytes = new Uint8Array(4);
+  (typeof window !== 'undefined' && window.crypto ? window.crypto : crypto).getRandomValues(bytes);
+  const part1 = Array.from(bytes.slice(0, 2), b => b.toString(16).padStart(2, '0')).join('');
+  const part2 = Array.from(bytes.slice(2, 4), b => b.toString(16).padStart(2, '0')).join('');
+  return `vault-${part1}-${part2}`;
 }
 
 export default function LocalSync() {

@@ -314,8 +314,10 @@ export default function CredentialForm({ credential, onClose }: CredentialFormPr
                   <button
                     type="button"
                     onClick={() => {
-                      const mockId = btoa(Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 32);
-                      const mockPub = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA' + btoa(Math.random().toString()).slice(0, 64) + 'IDAQAB';
+                      const randBytes = new Uint8Array(32);
+                      (typeof window !== 'undefined' && window.crypto ? window.crypto : crypto).getRandomValues(randBytes);
+                      const mockId = btoa(Array.from(randBytes.slice(0, 24), b => String.fromCharCode(b)).join('')).slice(0, 32);
+                      const mockPub = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA' + btoa(Array.from(randBytes, b => String.fromCharCode(b)).join('')).slice(0, 64) + 'IDAQAB';
                       setPasskeyId(mockId);
                       setPasskeyPublicKey(mockPub);
                     }}

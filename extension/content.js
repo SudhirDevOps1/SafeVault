@@ -343,6 +343,16 @@
     }, true);
   }
 
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   // Prompt user to save credential
   function showSavePrompt(username, password) {
     if (savePromptEl) savePromptEl.remove();
@@ -365,6 +375,9 @@
       boxSizing: 'border-box'
     });
 
+    const safeHost = escapeHtml(window.location.hostname);
+    const safeUser = escapeHtml(username);
+
     banner.innerHTML = `
       <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px;">
         <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #10b981;">
@@ -374,8 +387,8 @@
         <button id="safevault-close-prompt" style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 16px; line-height: 1;">✕</button>
       </div>
       <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">
-        <div><strong>Site:</strong> ${window.location.hostname}</div>
-        ${username ? `<div><strong>User:</strong> ${username}</div>` : ''}
+        <div><strong>Site:</strong> ${safeHost}</div>
+        ${safeUser ? `<div><strong>User:</strong> ${safeUser}</div>` : ''}
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
         <button id="safevault-dismiss-save" style="background: #1e293b; color: #94a3b8; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer;">

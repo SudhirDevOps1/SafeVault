@@ -1,0 +1,83 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Release Please
+        id: release
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.1.4
+        with:
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Step 4: Runs only when a new release has been created by Release Please
+      - name: Checkout repository
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: Verify No Secrets or .env Files Present
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          echo "Scanning for forbidden .env and secret files..."
+          FOUND_SECRETS=$(find . -maxdepth 3 -type f \( -name "*.env*" -o -name "*id_rsa*" -o -name "*.pem" -o -name "*.key" \) ! -path "./node_modules/*" ! -path "./.git/*" || true)
+          if [ -n "$FOUND_SECRETS" ]; then
+            echo "::error::Sensitive files detected prior to release build: $FOUND_SECRETS"
+            exit 1
+          fi
+          echo "No secret or .env files detected."
+
+      - name: Setup pnpm
+        if: ${{ steps.release.outputs.release_created }}
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.1.0
+        with:
+          version: 10
+
+      - name: Setup Node.js 22
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        if: ${{ steps.release.outputs.release_created }}
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Build Web App & Chrome Extension
+        if: ${{ steps.release.outputs.release_created }}
+        run: pnpm run build
+
+      - name: Package Release Artifacts and Generate SHA-256 Checksums
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          VERSION="${{ steps.release.outputs.version }}"
+          mkdir -p release-artifacts
+
+          # 1. Package Chrome Extension
+          (cd extension && zip -r "../release-artifacts/safevault-extension-v${VERSION}.zip" . -x "*.DS_Store*")
+
+          # 2. Package Web Production Build
+          tar -czf "release-artifacts/safevault-web-v${VERSION}.tar.gz" -C dist .
+
+          # 3. Generate SHA-256 checksums
+          cd release-artifacts
+          sha256sum safevault-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload Artifacts to GitHub Release
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ steps.release.outputs.tag_name }}"
+          gh release upload "$TAG_NAME" release-artifacts/* --clobber
