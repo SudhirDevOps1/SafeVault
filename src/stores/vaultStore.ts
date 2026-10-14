@@ -937,16 +937,17 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     }
     try {
       set({ loading: true, error: null });
-      const saltBytes = window.crypto.getRandomValues(new Uint8Array(16));
+      const cryptoApi = (typeof window !== 'undefined' && window.crypto?.subtle) ? window.crypto : (globalThis.crypto || crypto);
+      const saltBytes = cryptoApi.getRandomValues(new Uint8Array(16));
       const saltBase64 = bufferToBase64(saltBytes);
       
       // Derive PIN Key using PBKDF2 (works in all environments: Desktop, Extension, Mobile)
       const pinKey = await deriveKey(pin, saltBase64);
       
       // Wrap Master Key using PIN Key — IV stored separately (not sliced from ciphertext)
-      const rawMasterKey = await crypto.subtle.exportKey('raw', encryptionKey);
-      const ivBytes = window.crypto.getRandomValues(new Uint8Array(12));
-      const wrapped = await crypto.subtle.encrypt(
+      const rawMasterKey = await cryptoApi.subtle.exportKey('raw', encryptionKey);
+      const ivBytes = cryptoApi.getRandomValues(new Uint8Array(12));
+      const wrapped = await cryptoApi.subtle.encrypt(
         { name: 'AES-GCM', iv: ivBytes },
         pinKey,
         rawMasterKey
@@ -990,6 +991,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     
     try {
       set({ loading: true, error: null });
+      const cryptoApi = (typeof window !== 'undefined' && window.crypto?.subtle) ? window.crypto : (globalThis.crypto || crypto);
       const wrappedData = JSON.parse(wrappedStr);
       
       // Derive PIN Key using PBKDF2 — must match setupPinUnlock
@@ -1003,14 +1005,14 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       combined.set(resCiphertext);
       combined.set(resTag, resCiphertext.length);
       
-      const decryptedBuffer = await window.crypto.subtle.decrypt(
+      const decryptedBuffer = await cryptoApi.subtle.decrypt(
         { name: 'AES-GCM', iv: resIv as any },
         pinKey,
         combined.buffer as ArrayBuffer
       );
       
       // Import the decrypted raw master key back as CryptoKey
-      const masterKey = await crypto.subtle.importKey(
+      const masterKey = await cryptoApi.subtle.importKey(
         'raw',
         decryptedBuffer,
         { name: 'AES-GCM' },

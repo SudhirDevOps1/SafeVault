@@ -1,26 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { webcrypto } from 'node:crypto';
+import { describe, it, expect } from 'vitest';
 import { deriveKey, encrypt, decrypt, constantTimeCompare, evaluatePasswordStrength } from '../utils/crypto';
 
 describe('Cryptography Engine', () => {
-  let originalCrypto: any;
-
-  beforeAll(() => {
-    originalCrypto = (globalThis as any).crypto;
-    Object.defineProperty(globalThis, 'crypto', {
-      value: webcrypto,
-      writable: true,
-      configurable: true
-    });
-  });
-
-  afterAll(() => {
-    Object.defineProperty(globalThis, 'crypto', {
-      value: originalCrypto,
-      writable: true,
-      configurable: true
-    });
-  });
 
   it('should encrypt and decrypt data successfully', async () => {
     const password = 'my-super-secret-password-123!';

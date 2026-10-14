@@ -1,5 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { webcrypto } from 'node:crypto';
+import { describe, it, expect } from 'vitest';
 import {
   deriveKey,
   encrypt,
@@ -20,24 +19,6 @@ import { generateTOTP, isValidTOTPSecret } from '../utils/totp';
 import { hashPasswordSHA1 } from '../utils/breachCheck';
 
 describe('Advanced Cryptographic Security & Tamper-Proofing', () => {
-  let originalCrypto: any;
-
-  beforeAll(() => {
-    originalCrypto = (globalThis as any).crypto;
-    Object.defineProperty(globalThis, 'crypto', {
-      value: webcrypto,
-      writable: true,
-      configurable: true,
-    });
-  });
-
-  afterAll(() => {
-    Object.defineProperty(globalThis, 'crypto', {
-      value: originalCrypto,
-      writable: true,
-      configurable: true,
-    });
-  });
 
   const masterPassword = 'MySuperSecurePassword2026!#$';
   const salt = generateSalt();

@@ -1,26 +1,7 @@
-import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest';
-import { webcrypto } from 'node:crypto';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { deriveKeyArgon2id, bufferToBase64 } from '../utils/crypto';
 
 describe('Quick PIN Unlock Key Wrapping', () => {
-  let originalCrypto: any;
-
-  beforeAll(() => {
-    originalCrypto = (globalThis as any).crypto;
-    Object.defineProperty(globalThis, 'crypto', {
-      value: webcrypto,
-      writable: true,
-      configurable: true
-    });
-  });
-
-  afterAll(() => {
-    Object.defineProperty(globalThis, 'crypto', {
-      value: originalCrypto,
-      writable: true,
-      configurable: true
-    });
-  });
 
   beforeEach(() => {
     const mockStore: Record<string, string> = {};

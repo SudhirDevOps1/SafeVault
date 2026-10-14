@@ -1,28 +1,9 @@
-import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
-import { webcrypto } from 'node:crypto';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { useVaultStore } from '../stores/vaultStore';
 import { generateMnemonic } from '../utils/bip39';
 import { db } from '../utils/db';
 
 describe('SafeVault Local End-to-End (E2E) Flow', () => {
-  let originalCrypto: any;
-
-  beforeAll(() => {
-    originalCrypto = (globalThis as any).crypto;
-    Object.defineProperty(globalThis, 'crypto', {
-      value: webcrypto,
-      writable: true,
-      configurable: true,
-    });
-  });
-
-  afterAll(() => {
-    Object.defineProperty(globalThis, 'crypto', {
-      value: originalCrypto,
-      writable: true,
-      configurable: true,
-    });
-  });
 
   beforeEach(async () => {
     localStorage.clear();

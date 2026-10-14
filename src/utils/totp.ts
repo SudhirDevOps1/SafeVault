@@ -37,16 +37,27 @@ function intToBytes(num: number): ArrayBuffer {
   return buffer;
 }
 
+function getSubtle(): SubtleCrypto {
+  if (typeof window !== 'undefined' && window.crypto?.subtle) {
+    return window.crypto.subtle;
+  }
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.subtle) {
+    return globalThis.crypto.subtle;
+  }
+  return crypto.subtle;
+}
+
 /** Generate HMAC-SHA1 */
 async function hmacSha1(key: Uint8Array<ArrayBuffer>, data: ArrayBuffer): Promise<ArrayBuffer> {
-  const cryptoKey = await crypto.subtle.importKey(
+  const subtle = getSubtle();
+  const cryptoKey = await subtle.importKey(
     'raw',
     key,
     { name: 'HMAC', hash: 'SHA-1' },
     false,
     ['sign']
   );
-  return crypto.subtle.sign('HMAC', cryptoKey, data);
+  return subtle.sign('HMAC', cryptoKey, data);
 }
 
 /** Dynamic truncation as per RFC 4226 */

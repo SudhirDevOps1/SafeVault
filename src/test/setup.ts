@@ -15,15 +15,25 @@ const subtle = {
   exportKey: vi.fn((...args: any[]) => (webcrypto.subtle as any).exportKey(...args)),
 };
 
+const cryptoPolyfill = {
+  getRandomValues: <T extends ArrayBufferView>(arr: T): T => webcrypto.getRandomValues(arr as any) as T,
+  subtle,
+  randomUUID: () => webcrypto.randomUUID(),
+};
+
 Object.defineProperty(globalThis, 'crypto', {
-  value: {
-    getRandomValues: <T extends ArrayBufferView>(arr: T): T => webcrypto.getRandomValues(arr as any) as T,
-    subtle,
-    randomUUID: () => webcrypto.randomUUID(),
-  },
+  value: cryptoPolyfill,
   writable: true,
   configurable: true,
 });
+
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'crypto', {
+    value: cryptoPolyfill,
+    writable: true,
+    configurable: true,
+  });
+}
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -39,3 +49,11 @@ const localStorageMock = (() => {
 })();
 
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
+
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+    writable: true,
+    configurable: true,
+  });
+}
