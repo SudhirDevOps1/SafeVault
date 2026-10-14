@@ -1,35 +1,21 @@
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
-import { vi } from 'vitest';
 import { webcrypto } from 'node:crypto';
 
-// Delegate subtle crypto methods to Node.js native webcrypto
-const subtle = {
-  importKey: vi.fn((...args: any[]) => (webcrypto.subtle as any).importKey(...args)),
-  deriveKey: vi.fn((...args: any[]) => (webcrypto.subtle as any).deriveKey(...args)),
-  deriveBits: vi.fn((...args: any[]) => (webcrypto.subtle as any).deriveBits(...args)),
-  encrypt: vi.fn((...args: any[]) => (webcrypto.subtle as any).encrypt(...args)),
-  decrypt: vi.fn((...args: any[]) => (webcrypto.subtle as any).decrypt(...args)),
-  sign: vi.fn((...args: any[]) => (webcrypto.subtle as any).sign(...args)),
-  digest: vi.fn((...args: any[]) => (webcrypto.subtle as any).digest(...args)),
-  exportKey: vi.fn((...args: any[]) => (webcrypto.subtle as any).exportKey(...args)),
-};
+// Ensure standard WebCrypto is available on both globalThis and window (JSDOM)
+const nativeCrypto = (globalThis.crypto && (globalThis.crypto as any).subtle) ? globalThis.crypto : webcrypto;
 
-const cryptoPolyfill = {
-  getRandomValues: <T extends ArrayBufferView>(arr: T): T => webcrypto.getRandomValues(arr as any) as T,
-  subtle,
-  randomUUID: () => webcrypto.randomUUID(),
-};
-
-Object.defineProperty(globalThis, 'crypto', {
-  value: cryptoPolyfill,
-  writable: true,
-  configurable: true,
-});
+if (!globalThis.crypto || !(globalThis.crypto as any).subtle) {
+  Object.defineProperty(globalThis, 'crypto', {
+    value: nativeCrypto,
+    writable: true,
+    configurable: true,
+  });
+}
 
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'crypto', {
-    value: cryptoPolyfill,
+    value: nativeCrypto,
     writable: true,
     configurable: true,
   });
