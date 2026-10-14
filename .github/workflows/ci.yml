@@ -5,6 +5,17 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      build_desktop:
+        description: 'Build Desktop & Mobile Apps (consumes more runner minutes)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   actions: read
@@ -62,6 +73,7 @@ jobs:
   build-desktop:
     name: Build Desktop App
     needs: lint-and-test
+    if: github.event_name == 'workflow_dispatch' && inputs.build_desktop == true
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
