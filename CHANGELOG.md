@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/SudhirDevOps1/SafeVault/compare/v0.2.0...v0.2.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* **extension:** guarantee character diversity in password generator to eliminate test flakiness ([d1f88d6](https://github.com/SudhirDevOps1/SafeVault/commit/d1f88d63333296ef1ef584857e8abf6101955cfc))
+
 ## [0.2.0](https://github.com/SudhirDevOps1/SafeVault/compare/v0.1.0...v0.2.0) (2026-10-14)
 
 
