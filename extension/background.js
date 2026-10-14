@@ -66,6 +66,11 @@ function generateSecurePassword(length = 20) {
   return result.join('');
 }
 
+const MULTI_PART_TLDS = [
+  'co.uk', 'co.in', 'com.au', 'com.br', 'co.jp', 'co.nz', 'co.za',
+  'org.uk', 'gov.in', 'ac.uk', 'pages.dev', 'github.io', 'web.app'
+];
+
 // Extract base domain for matching (e.g., login.example.com -> example.com)
 function extractDomain(urlOrHost) {
   if (!urlOrHost) return '';
@@ -74,8 +79,14 @@ function extractDomain(urlOrHost) {
     if (urlOrHost.includes('://')) {
       hostname = new URL(urlOrHost).hostname;
     }
-    hostname = hostname.toLowerCase().trim();
-    hostname = hostname.split(':')[0];
+    hostname = hostname.toLowerCase().trim().split(':')[0].replace(/^www\./, '');
+    for (const tld of MULTI_PART_TLDS) {
+      if (hostname.endsWith('.' + tld)) {
+        const sub = hostname.slice(0, -(tld.length + 1)).split('.');
+        const domainName = sub[sub.length - 1];
+        return domainName ? `${domainName}.${tld}` : hostname;
+      }
+    }
     const parts = hostname.split('.');
     if (parts.length >= 2) {
       return parts.slice(-2).join('.');
@@ -83,6 +94,72 @@ function extractDomain(urlOrHost) {
     return hostname;
   } catch {
     return urlOrHost.toLowerCase().trim();
+  }
+}
+
+// Extract clean service name (e.g. accounts.google.com -> google, github.com -> github, amazon.co.in -> amazon)
+function extractCleanServiceName(urlOrHost) {
+  if (!urlOrHost) return 'service';
+  try {
+    let hostname = urlOrHost.trim();
+    if (hostname.includes('://')) {
+      hostname = new URL(hostname).hostname;
+    }
+    hostname = hostname.toLowerCase().split(':')[0].replace(/^www\./, '');
+
+    for (const tld of MULTI_PART_TLDS) {
+      if (hostname.endsWith('.' + tld)) {
+        const sub = hostname.slice(0, -(tld.length + 1)).split('.');
+        const candidate = sub[sub.length - 1];
+        if (candidate) return candidate.replace(/[^a-z0-9]/g, '');
+      }
+    }
+
+    const parts = hostname.split('.');
+    if (parts.length >= 2) {
+      return parts[parts.length - 2].replace(/[^a-z0-9]/g, '') || 'service';
+    }
+    return parts[0].replace(/[^a-z0-9]/g, '') || 'service';
+  } catch {
+    return 'service';
+  }
+}
+
+// Extract normalized full hostname (e.g. accounts.google.com)
+function extractFullHostname(urlOrHost) {
+  if (!urlOrHost) return '';
+  try {
+    let hostname = urlOrHost.trim();
+    if (hostname.includes('://')) {
+      hostname = new URL(hostname).hostname;
+    }
+    return hostname.toLowerCase().split(':')[0].replace(/^www\./, '');
+  } catch {
+    return (urlOrHost || '').toLowerCase().trim();
+  }
+}
+
+// Check if a credential matches a target website based on user's Autofill Matching Mode
+function isCredentialMatch(c, targetUrl, matchingMode) {
+  if (!c.url && !c.title) return false;
+  const targetHost = extractFullHostname(targetUrl);
+  const credHost = extractFullHostname(c.url);
+  const targetBase = extractDomain(targetUrl);
+  const credBase = extractDomain(c.url);
+  const targetService = extractCleanServiceName(targetUrl);
+
+  if (matchingMode === 'exact') {
+    return Boolean(credHost && targetHost && credHost === targetHost);
+  } else if (matchingMode === 'subdomain') {
+    if (credHost && targetHost && credHost === targetHost) return true;
+    return Boolean(credBase && targetBase && credBase === targetBase);
+  } else {
+    // 'wildcard' (default): URL + subdomain + name wildcard
+    if (credHost && targetHost && credHost === targetHost) return true;
+    if (credBase && targetBase && (credBase === targetBase || credBase.includes(targetBase) || targetBase.includes(credBase))) return true;
+    if (c.title && targetService && c.title.toLowerCase().includes(targetService)) return true;
+    if (c.title && targetBase && c.title.toLowerCase().includes(targetBase)) return true;
+    return false;
   }
 }
 
@@ -169,14 +246,27 @@ async function updateBadgeForTab(tabId, url) {
     return;
   }
 
+  // Check autofill settings & blocked sites
+  const localData = await chrome.storage.local.get(['safevault_autofill_settings']);
+  let settings = { autofillMatchingMode: 'wildcard', blockedSites: [] };
+  if (localData?.safevault_autofill_settings) {
+    try { settings = JSON.parse(localData.safevault_autofill_settings); } catch {}
+  }
+
+  const targetHost = extractFullHostname(url);
+  const isBlocked = (settings.blockedSites || []).some(b => {
+    const clean = (b || '').toLowerCase().trim();
+    return clean && (targetHost === clean || targetHost.endsWith('.' + clean));
+  });
+
+  if (isBlocked) {
+    await chrome.action.setBadgeText({ tabId, text: '' });
+    return;
+  }
+
   try {
     const credentials = JSON.parse(session.credentialsJson);
-    const domain = extractDomain(url);
-    const matches = credentials.filter(c => {
-      if (!c.url) return false;
-      const cDomain = extractDomain(c.url);
-      return cDomain && domain && (cDomain === domain || cDomain.includes(domain) || domain.includes(cDomain));
-    });
+    const matches = credentials.filter(c => isCredentialMatch(c, url, settings.autofillMatchingMode || 'wildcard'));
 
     if (matches.length > 0) {
       await chrome.action.setBadgeText({ tabId, text: String(matches.length) });
@@ -233,7 +323,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     switch (request.action) {
       // 1. Session Synchronization from Popup/React App
       case 'SYNC_VAULT_DATA': {
-        const { credentials, isUnlocked, sessionKeyBase64, autoLockMinutes, baseEmails } = request;
+        const { credentials, isUnlocked, sessionKeyBase64, autoLockMinutes, baseEmails, autofillSettings } = request;
         await chrome.storage.session.set({
           isUnlocked: !!isUnlocked,
           sessionKeyBase64: sessionKeyBase64 || null,
@@ -244,6 +334,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (baseEmails && Array.isArray(baseEmails)) {
           await chrome.storage.local.set({ safevault_base_emails: JSON.stringify(baseEmails) });
         }
+        if (autofillSettings) {
+          await chrome.storage.local.set({ safevault_autofill_settings: JSON.stringify(autofillSettings) });
+        }
 
         // Broadcast to all active tabs so in-field dropdowns immediately refresh
         broadcastVaultState(!!isUnlocked);
@@ -252,6 +345,53 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id && tab.url) {
           updateBadgeForTab(tab.id, tab.url);
+        }
+        sendResponse({ success: true });
+        break;
+      }
+
+      // Sync Autofill Settings explicitly
+      case 'SYNC_AUTOFILL_SETTINGS': {
+        if (request.settings) {
+          await chrome.storage.local.set({ safevault_autofill_settings: JSON.stringify(request.settings) });
+          // Broadcast to tabs
+          chrome.tabs.query({}, (tabs) => {
+            if (Array.isArray(tabs)) {
+              tabs.forEach(tab => {
+                if (tab?.id) {
+                  chrome.tabs.sendMessage(tab.id, { action: 'AUTOFILL_SETTINGS_UPDATED', settings: request.settings }).catch(() => {});
+                }
+              });
+            }
+          });
+        }
+        sendResponse({ success: true });
+        break;
+      }
+
+      // Block a site
+      case 'BLOCK_SITE': {
+        const siteToBlock = extractFullHostname(request.domain || request.hostname);
+        if (siteToBlock) {
+          const localData = await chrome.storage.local.get(['safevault_autofill_settings']);
+          let settings = { blockedSites: [] };
+          if (localData?.safevault_autofill_settings) {
+            try { settings = JSON.parse(localData.safevault_autofill_settings); } catch {}
+          }
+          if (!settings.blockedSites) settings.blockedSites = [];
+          if (!settings.blockedSites.includes(siteToBlock)) {
+            settings.blockedSites.push(siteToBlock);
+            await chrome.storage.local.set({ safevault_autofill_settings: JSON.stringify(settings) });
+            chrome.tabs.query({}, (tabs) => {
+              if (Array.isArray(tabs)) {
+                tabs.forEach(tab => {
+                  if (tab?.id) {
+                    chrome.tabs.sendMessage(tab.id, { action: 'AUTOFILL_SETTINGS_UPDATED', settings }).catch(() => {});
+                  }
+                });
+              }
+            });
+          }
         }
         sendResponse({ success: true });
         break;
@@ -289,16 +429,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
 
         try {
-          const credentials = JSON.parse(session.credentialsJson);
-          const targetUrl = request.url || sender.tab?.url || '';
-          const targetDomain = extractDomain(targetUrl);
+          const localData = await chrome.storage.local.get(['safevault_autofill_settings']);
+          let settings = { autofillMatchingMode: 'wildcard', blockedSites: [] };
+          if (localData?.safevault_autofill_settings) {
+            try { settings = JSON.parse(localData.safevault_autofill_settings); } catch {}
+          }
 
-          const matches = credentials.filter(c => {
-            if (!c.url && !c.title) return false;
-            const cDomain = extractDomain(c.url);
-            const titleMatch = targetDomain && c.title && c.title.toLowerCase().includes(targetDomain);
-            return (cDomain && targetDomain && (cDomain === targetDomain || cDomain.includes(targetDomain) || targetDomain.includes(cDomain))) || titleMatch;
+          const targetUrl = request.url || sender.tab?.url || '';
+          const targetHost = extractFullHostname(targetUrl);
+          const isBlocked = (settings.blockedSites || []).some(b => {
+            const clean = (b || '').toLowerCase().trim();
+            return clean && (targetHost === clean || targetHost.endsWith('.' + clean));
           });
+
+          if (isBlocked) {
+            sendResponse({ isUnlocked: true, credentials: [], isBlocked: true });
+            return;
+          }
+
+          const credentials = JSON.parse(session.credentialsJson);
+          const matches = credentials.filter(c => isCredentialMatch(c, targetUrl, settings.autofillMatchingMode || 'wildcard'));
 
           // Compute live TOTP codes for all matching credentials
           const resolvedMatches = await Promise.all(matches.map(async c => ({
@@ -313,7 +463,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           sendResponse({
             isUnlocked: true,
-            credentials: resolvedMatches
+            credentials: resolvedMatches,
+            isBlocked: false
           });
         } catch (err) {
           sendResponse({ isUnlocked: true, credentials: [], error: err.message });
@@ -407,8 +558,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       // 8. Generate and Save Unlimited Email Alias directly from In-Field Pill
       case 'GENERATE_AND_SAVE_ALIAS': {
-        const { hostname, url } = request;
-        const service = extractDomain(hostname || url || 'service').split('.')[0] || 'service';
+        const { hostname, url, format = 'plus' } = request;
+        const service = extractCleanServiceName(hostname || url);
 
         // Retrieve user's configured base email or default
         const localData = await chrome.storage.local.get(['safevault_base_emails']);
@@ -425,7 +576,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           alias = `${service}${baseEmail}`;
         } else if (baseEmail.includes('@')) {
           const [u, d] = baseEmail.split('@');
-          alias = `${u}+${service}@${d}`;
+          if (format === 'dot') {
+            alias = `${u}.${service}@${d}`;
+          } else {
+            alias = `${u}+${service}@${d}`;
+          }
         } else {
           alias = `${service}@safevault.local`;
         }
@@ -436,13 +591,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (session.isUnlocked && session.credentialsJson) {
           try {
             const credentials = JSON.parse(session.credentialsJson);
+            const capitalizedTitle = service.charAt(0).toUpperCase() + service.slice(1);
             credentials.push({
               id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()),
-              title: `${cleanHost.charAt(0).toUpperCase() + cleanHost.slice(1)} Alias`,
+              title: `${capitalizedTitle} Alias`,
               url: url || `https://${hostname}`,
               username: alias,
               password: generatedPassword,
-              notes: `Auto-generated email alias from ${baseEmail}`,
+              notes: `Auto-generated email alias from ${baseEmail} for ${service}`,
               totpSecret: '',
               category: 'Alias',
               aliasStatus: 'active',
@@ -459,7 +615,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           } catch {}
         }
 
-        sendResponse({ success: true, alias, password: generatedPassword, baseEmail });
+        sendResponse({ success: true, alias, password: generatedPassword, baseEmail, service });
         break;
       }
 

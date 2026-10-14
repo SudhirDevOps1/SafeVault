@@ -137,4 +137,81 @@ describe('Chrome Extension Background & Autofill Engine', () => {
     expect(generateAlias('admin@gmail.com', 'netflix.com', 'dot')).toBe('admin.netflix@gmail.com');
     expect(generateAlias('@aliasvault.me', 'spotify.com', 'plus')).toBe('spotify.999@aliasvault.me');
   });
+
+  it('extractCleanServiceName accurately extracts website name across complex subdomains and country TLDs', () => {
+    const MULTI_PART_TLDS = [
+      'co.uk', 'co.in', 'com.au', 'com.br', 'co.jp', 'co.nz', 'co.za',
+      'org.uk', 'gov.in', 'ac.uk', 'pages.dev', 'github.io', 'web.app'
+    ];
+
+    function extractCleanServiceName(urlOrHost: string) {
+      if (!urlOrHost) return 'service';
+      try {
+        let hostname = urlOrHost.trim();
+        if (hostname.includes('://')) {
+          hostname = new URL(hostname).hostname;
+        }
+        hostname = hostname.toLowerCase().split(':')[0].replace(/^www\./, '');
+
+        for (const tld of MULTI_PART_TLDS) {
+          if (hostname.endsWith('.' + tld)) {
+            const sub = hostname.slice(0, -(tld.length + 1)).split('.');
+            const candidate = sub[sub.length - 1];
+            if (candidate) return candidate.replace(/[^a-z0-9]/g, '');
+          }
+        }
+
+        const parts = hostname.split('.');
+        if (parts.length >= 2) {
+          return parts[parts.length - 2].replace(/[^a-z0-9]/g, '') || 'service';
+        }
+        return parts[0].replace(/[^a-z0-9]/g, '') || 'service';
+      } catch {
+        return 'service';
+      }
+    }
+
+    expect(extractCleanServiceName('https://github.com/login')).toBe('github');
+    expect(extractCleanServiceName('https://accounts.google.com/signin/v2')).toBe('google');
+    expect(extractCleanServiceName('https://login.live.com')).toBe('live');
+    expect(extractCleanServiceName('https://www.amazon.co.in/ap/signin')).toBe('amazon');
+    expect(extractCleanServiceName('https://dashboard.stripe.com/login')).toBe('stripe');
+    expect(extractCleanServiceName('https://app.slack.com/client')).toBe('slack');
+    expect(extractCleanServiceName('https://myproject.pages.dev')).toBe('myproject');
+  });
+
+  it('supports Autofill Matching modes: exact, subdomain, and wildcard', () => {
+    const cred = {
+      title: 'GitHub Work Account',
+      url: 'https://github.com/login',
+    };
+
+    function isMatch(c: typeof cred, targetUrl: string, mode: 'wildcard' | 'subdomain' | 'exact') {
+      const getHost = (u: string) => {
+        try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; }
+      };
+      const getBase = (u: string) => {
+        const h = getHost(u);
+        const p = h.split('.');
+        return p.length >= 2 ? p.slice(-2).join('.') : h;
+      };
+
+      const targetHost = getHost(targetUrl);
+      const credHost = getHost(c.url);
+      const targetBase = getBase(targetUrl);
+      const credBase = getBase(c.url);
+
+      if (mode === 'exact') return credHost === targetHost;
+      if (mode === 'subdomain') return credHost === targetHost || credBase === targetBase;
+      return credHost === targetHost || credBase === targetBase || c.title.toLowerCase().includes(targetBase.split('.')[0]);
+    }
+
+    // Subdomain target: gist.github.com vs cred url https://github.com/login
+    expect(isMatch(cred, 'https://gist.github.com/new', 'exact')).toBe(false);
+    expect(isMatch(cred, 'https://gist.github.com/new', 'subdomain')).toBe(true);
+    expect(isMatch(cred, 'https://gist.github.com/new', 'wildcard')).toBe(true);
+
+    // Exact target: github.com vs cred url https://github.com/login
+    expect(isMatch(cred, 'https://github.com/settings', 'exact')).toBe(true);
+  });
 });

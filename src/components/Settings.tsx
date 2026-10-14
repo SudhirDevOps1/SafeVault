@@ -3,7 +3,7 @@ import {
   Settings as SettingsIcon, Clock, Download, Upload, Shield,
   AlertTriangle, Lock, Eye, EyeOff, FileText, Key, Moon, Sun,
   Database, Save, ShieldAlert, Activity, CheckCircle, XCircle,
-  Printer, ShieldOff
+  Printer, ShieldOff, Zap, ChevronDown, ChevronUp, Plus, Trash2
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import { evaluatePasswordStrength } from '@/utils/crypto';
@@ -27,8 +27,17 @@ export default function Settings() {
     disableRemoteFavicons, setDisableRemoteFavicons,
     auditLog, exportAuditLog,
     isPinUnlockEnabled, setupPinUnlock, disablePinUnlock,
-    isDuressPinEnabled, setupDuressPin, disableDuressPin
+    isDuressPinEnabled, setupDuressPin, disableDuressPin,
+    credentialAutofillEnabled, setCredentialAutofillEnabled,
+    twoFactorAutofillEnabled, setTwoFactorAutofillEnabled,
+    autoCopy2faToClipboard, setAutoCopy2faToClipboard,
+    saveLoginPromptEnabled, setSaveLoginPromptEnabled,
+    blockedSites, addBlockedSite, removeBlockedSite,
+    autofillMatchingMode, setAutofillMatchingMode
   } = useVaultStore();
+
+  const [showBlockedSites, setShowBlockedSites] = useState(false);
+  const [newBlockedSiteInput, setNewBlockedSiteInput] = useState('');
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
@@ -587,6 +596,193 @@ export default function Settings() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Autofill Settings (Proton Pass & Bitwarden Grade) */}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-5" role="region" aria-label="Autofill Settings">
+          <div className="flex items-center justify-between border-b border-white/5 pb-3">
+            <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-emerald-400" aria-hidden="true" /> Autofill Settings
+            </h3>
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-full font-semibold border border-emerald-500/20">
+              Extension & Browser
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {/* Credential autofill */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-semibold text-white block">Credential autofill</span>
+                <p className="text-[11px] text-gray-400">Show autofill popup when username/password fields are detected</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCredentialAutofillEnabled(!credentialAutofillEnabled)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border shrink-0 ${
+                  credentialAutofillEnabled
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
+                    : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'
+                }`}
+              >
+                {credentialAutofillEnabled ? 'Enabled' : 'Disabled'}
+              </button>
+            </div>
+
+            {/* 2FA code autofill */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-semibold text-white block">2FA code autofill</span>
+                <p className="text-[11px] text-gray-400">Show autofill popup when 2FA code fields are detected</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTwoFactorAutofillEnabled(!twoFactorAutofillEnabled)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border shrink-0 ${
+                  twoFactorAutofillEnabled
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
+                    : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'
+                }`}
+              >
+                {twoFactorAutofillEnabled ? 'Enabled' : 'Disabled'}
+              </button>
+            </div>
+
+            {/* Auto-copy 2FA to clipboard */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-semibold text-white block">Auto-copy 2FA to clipboard</span>
+                <p className="text-[11px] text-gray-400">Automatically copy the first 2FA code to clipboard after autofilling credentials</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAutoCopy2faToClipboard(!autoCopy2faToClipboard)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border shrink-0 ${
+                  autoCopy2faToClipboard
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
+                    : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'
+                }`}
+              >
+                {autoCopy2faToClipboard ? 'Enabled' : 'Disabled'}
+              </button>
+            </div>
+
+            {/* Save Login Prompt */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-semibold text-white block">Save Login Prompt</span>
+                <p className="text-[11px] text-gray-400">Show a prompt to save login credentials when you submit a login form on a website.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSaveLoginPromptEnabled(!saveLoginPromptEnabled)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border shrink-0 ${
+                  saveLoginPromptEnabled
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
+                    : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'
+                }`}
+              >
+                {saveLoginPromptEnabled ? 'Enabled' : 'Disabled'}
+              </button>
+            </div>
+
+            {/* Blocked Sites Section */}
+            <div className="border border-white/5 bg-black/20 rounded-xl p-3.5 space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowBlockedSites(!showBlockedSites)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <div>
+                  <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                    Blocked sites ({blockedSites.length})
+                  </span>
+                  <p className="text-[10px] text-gray-400">Sites where the save prompt will never appear.</p>
+                </div>
+                {showBlockedSites ? (
+                  <ChevronUp className="w-4 h-4 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                )}
+              </button>
+
+              {showBlockedSites && (
+                <div className="space-y-3 pt-2 border-t border-white/5 animate-fade-in">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. accounts.google.com or bank.com"
+                      value={newBlockedSiteInput}
+                      onChange={e => setNewBlockedSiteInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newBlockedSiteInput.trim()) {
+                            addBlockedSite(newBlockedSiteInput);
+                            setNewBlockedSiteInput('');
+                          }
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newBlockedSiteInput.trim()) {
+                          addBlockedSite(newBlockedSiteInput);
+                          setNewBlockedSiteInput('');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add
+                    </button>
+                  </div>
+
+                  {blockedSites.length === 0 ? (
+                    <p className="text-[11px] text-gray-500 text-center py-2">No blocked sites yet.</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      {blockedSites.map((site) => (
+                        <div key={site} className="flex items-center justify-between p-2 bg-white/5 rounded-lg text-xs">
+                          <span className="font-mono text-gray-300 truncate">{site}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeBlockedSite(site)}
+                            className="p-1 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded transition-colors"
+                            title="Unblock site"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Autofill Matching Mode */}
+            <div className="pt-2 border-t border-white/5 space-y-2">
+              <h4 className="text-xs font-bold text-gray-300">Autofill Matching</h4>
+              <div>
+                <label className="text-xs font-semibold text-white block mb-0.5">Autofill matching mode</label>
+                <p className="text-[11px] text-gray-400 mb-2">
+                  Determines which credentials are considered a match and shown as suggestions in the autofill popup for a given website.
+                </p>
+                <select
+                  value={autofillMatchingMode}
+                  onChange={(e) => setAutofillMatchingMode(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500/50"
+                >
+                  <option value="wildcard" className="bg-slate-900 text-white">URL + subdomain + name wildcard</option>
+                  <option value="subdomain" className="bg-slate-900 text-white">URL + subdomain</option>
+                  <option value="exact" className="bg-slate-900 text-white">Exact URL domain only</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Quick PIN Unlock */}

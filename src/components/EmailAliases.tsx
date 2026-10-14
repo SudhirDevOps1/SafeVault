@@ -93,7 +93,7 @@ export default function EmailAliases() {
     }
   }, [baseEmails, selectedBase]);
 
-  // Helper to extract clean service name (e.g. github.com -> github, accounts.google.com -> google)
+  // Helper to extract clean service name (e.g. github.com -> github, accounts.google.com -> google, amazon.co.in -> amazon)
   const extractDomainHandle = (urlStr: string): string => {
     if (!urlStr.trim()) return '';
     try {
@@ -101,19 +101,23 @@ export default function EmailAliases() {
       if (!tempUrl.startsWith('http://') && !tempUrl.startsWith('https://')) {
         tempUrl = 'https://' + tempUrl;
       }
-      const hostname = new URL(tempUrl).hostname.toLowerCase().replace(/^www\./, '');
-      const known2ndLevelTLDs = ['co.uk', 'co.in', 'com.au', 'com.br', 'co.jp', 'co.nz', 'pages.dev', 'github.io'];
+      const hostname = new URL(tempUrl).hostname.toLowerCase().split(':')[0].replace(/^www\./, '');
+      const known2ndLevelTLDs = [
+        'co.uk', 'co.in', 'com.au', 'com.br', 'co.jp', 'co.nz', 'co.za',
+        'org.uk', 'gov.in', 'ac.uk', 'pages.dev', 'github.io', 'web.app'
+      ];
       for (const tld of known2ndLevelTLDs) {
         if (hostname.endsWith('.' + tld)) {
           const sub = hostname.slice(0, -(tld.length + 1)).split('.');
-          return sub[sub.length - 1];
+          const candidate = sub[sub.length - 1];
+          if (candidate) return candidate.replace(/[^a-z0-9]/g, '');
         }
       }
       const parts = hostname.split('.');
       if (parts.length >= 2) {
-        return parts[parts.length - 2];
+        return parts[parts.length - 2].replace(/[^a-z0-9]/g, '');
       }
-      return parts[0];
+      return parts[0].replace(/[^a-z0-9]/g, '');
     } catch {
       return urlStr.toLowerCase().replace(/[^a-z0-9]/g, '');
     }

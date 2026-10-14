@@ -106,3 +106,15 @@ export interface SharePayload {
   credential: Pick<Credential, 'title' | 'url' | 'username' | 'password' | 'notes' | 'totpSecret'>;
   expiresAt: number;        // Unix timestamp (24h from creation)
 }
+
+// Autofill & Browser Integration types (Proton Pass & Bitwarden grade)
+export type AutofillMatchingMode = 'wildcard' | 'subdomain' | 'exact';
+
+export interface AutofillSettings {
+  credentialAutofillEnabled: boolean;
+  twoFactorAutofillEnabled: boolean;
+  autoCopy2faToClipboard: boolean;
+  saveLoginPromptEnabled: boolean;
+  blockedSites: string[];
+  autofillMatchingMode: AutofillMatchingMode;
+}

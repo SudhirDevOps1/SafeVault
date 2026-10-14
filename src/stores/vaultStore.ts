@@ -11,7 +11,7 @@
  */
 
 import { create } from 'zustand';
-import type { Credential, VaultState, SidebarView } from '@/types';
+import type { Credential, VaultState, SidebarView, AutofillSettings, AutofillMatchingMode } from '@/types';
 import { db } from '@/utils/db';
 import {
   deriveKey,
@@ -131,6 +131,31 @@ interface VaultStore {
   isDuressPinEnabled: boolean;
   setupDuressPin: (pin: string) => Promise<void>;
   disableDuressPin: () => void;
+  // Autofill Settings (Proton Pass / Bitwarden Grade)
+  credentialAutofillEnabled: boolean;
+  setCredentialAutofillEnabled: (enabled: boolean) => void;
+  twoFactorAutofillEnabled: boolean;
+  setTwoFactorAutofillEnabled: (enabled: boolean) => void;
+  autoCopy2faToClipboard: boolean;
+  setAutoCopy2faToClipboard: (enabled: boolean) => void;
+  saveLoginPromptEnabled: boolean;
+  setSaveLoginPromptEnabled: (enabled: boolean) => void;
+  blockedSites: string[];
+  addBlockedSite: (site: string) => void;
+  removeBlockedSite: (site: string) => void;
+  autofillMatchingMode: AutofillMatchingMode;
+  setAutofillMatchingMode: (mode: AutofillMatchingMode) => void;
+}
+
+function broadcastAutofillSettingsToExtension(settings: AutofillSettings) {
+  if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id) {
+    try {
+      (window as any).chrome.runtime.sendMessage({
+        action: 'SYNC_AUTOFILL_SETTINGS',
+        settings
+      });
+    } catch {}
+  }
 }
 
 async function syncToExtension(credentials: Credential[], key: CryptoKey | null, isUnlocked: boolean, baseEmails?: string[]) {
@@ -149,12 +174,29 @@ async function syncToExtension(credentials: Credential[], key: CryptoKey | null,
           emails = JSON.parse(localStorage.getItem('safevault_base_emails') || '[]');
         } catch {}
       }
+      let blocked: string[] = [];
+      let matchMode: AutofillMatchingMode = 'wildcard';
+      if (typeof localStorage !== 'undefined') {
+        try {
+          blocked = JSON.parse(localStorage.getItem('safevault_blocked_sites') || '["accounts.google.com/oauth"]');
+          matchMode = (localStorage.getItem('safevault_autofill_match_mode') as AutofillMatchingMode) || 'wildcard';
+        } catch {}
+      }
+      const autofillSettings: AutofillSettings = {
+        credentialAutofillEnabled: typeof localStorage !== 'undefined' ? localStorage.getItem('safevault_autofill_credential') !== 'false' : true,
+        twoFactorAutofillEnabled: typeof localStorage !== 'undefined' ? localStorage.getItem('safevault_autofill_2fa') !== 'false' : true,
+        autoCopy2faToClipboard: typeof localStorage !== 'undefined' ? localStorage.getItem('safevault_autofill_copy_2fa') !== 'false' : true,
+        saveLoginPromptEnabled: typeof localStorage !== 'undefined' ? localStorage.getItem('safevault_autofill_save_prompt') !== 'false' : true,
+        blockedSites: blocked,
+        autofillMatchingMode: matchMode
+      };
       (window as any).chrome.runtime.sendMessage({
         action: 'SYNC_VAULT_DATA',
         credentials: isUnlocked ? credentials : [],
         isUnlocked,
         sessionKeyBase64,
-        baseEmails: emails || []
+        baseEmails: emails || [],
+        autofillSettings
       });
     } catch { /* proceed */ }
   }
@@ -195,6 +237,13 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   pinAttemptsLeft: Number(localStorage.getItem('safevault_pin_attempts') || '3'),
   isDecoyVault: false,
   isDuressPinEnabled: !!localStorage.getItem('safevault_duress_pin'),
+  // Autofill Settings initial state
+  credentialAutofillEnabled: localStorage.getItem('safevault_autofill_credential') !== 'false',
+  twoFactorAutofillEnabled: localStorage.getItem('safevault_autofill_2fa') !== 'false',
+  autoCopy2faToClipboard: localStorage.getItem('safevault_autofill_copy_2fa') !== 'false',
+  saveLoginPromptEnabled: localStorage.getItem('safevault_autofill_save_prompt') !== 'false',
+  blockedSites: JSON.parse(localStorage.getItem('safevault_blocked_sites') || '["accounts.google.com/oauth"]'),
+  autofillMatchingMode: (localStorage.getItem('safevault_autofill_match_mode') as AutofillMatchingMode) || 'wildcard',
 
   initializeVault: async () => {
     const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
@@ -719,6 +768,103 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   setDisableRemoteFavicons: (enabled) => {
     localStorage.setItem('safevault_disable_remote_favicons', String(enabled));
     set({ disableRemoteFavicons: enabled });
+  },
+
+  setCredentialAutofillEnabled: (enabled) => {
+    localStorage.setItem('safevault_autofill_credential', String(enabled));
+    set({ credentialAutofillEnabled: enabled });
+    broadcastAutofillSettingsToExtension({
+      credentialAutofillEnabled: enabled,
+      twoFactorAutofillEnabled: get().twoFactorAutofillEnabled,
+      autoCopy2faToClipboard: get().autoCopy2faToClipboard,
+      saveLoginPromptEnabled: get().saveLoginPromptEnabled,
+      blockedSites: get().blockedSites,
+      autofillMatchingMode: get().autofillMatchingMode,
+    });
+  },
+
+  setTwoFactorAutofillEnabled: (enabled) => {
+    localStorage.setItem('safevault_autofill_2fa', String(enabled));
+    set({ twoFactorAutofillEnabled: enabled });
+    broadcastAutofillSettingsToExtension({
+      credentialAutofillEnabled: get().credentialAutofillEnabled,
+      twoFactorAutofillEnabled: enabled,
+      autoCopy2faToClipboard: get().autoCopy2faToClipboard,
+      saveLoginPromptEnabled: get().saveLoginPromptEnabled,
+      blockedSites: get().blockedSites,
+      autofillMatchingMode: get().autofillMatchingMode,
+    });
+  },
+
+  setAutoCopy2faToClipboard: (enabled) => {
+    localStorage.setItem('safevault_autofill_copy_2fa', String(enabled));
+    set({ autoCopy2faToClipboard: enabled });
+    broadcastAutofillSettingsToExtension({
+      credentialAutofillEnabled: get().credentialAutofillEnabled,
+      twoFactorAutofillEnabled: get().twoFactorAutofillEnabled,
+      autoCopy2faToClipboard: enabled,
+      saveLoginPromptEnabled: get().saveLoginPromptEnabled,
+      blockedSites: get().blockedSites,
+      autofillMatchingMode: get().autofillMatchingMode,
+    });
+  },
+
+  setSaveLoginPromptEnabled: (enabled) => {
+    localStorage.setItem('safevault_autofill_save_prompt', String(enabled));
+    set({ saveLoginPromptEnabled: enabled });
+    broadcastAutofillSettingsToExtension({
+      credentialAutofillEnabled: get().credentialAutofillEnabled,
+      twoFactorAutofillEnabled: get().twoFactorAutofillEnabled,
+      autoCopy2faToClipboard: get().autoCopy2faToClipboard,
+      saveLoginPromptEnabled: enabled,
+      blockedSites: get().blockedSites,
+      autofillMatchingMode: get().autofillMatchingMode,
+    });
+  },
+
+  addBlockedSite: (site) => {
+    const clean = site.toLowerCase().trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    if (!clean) return;
+    const current = get().blockedSites;
+    if (current.includes(clean)) return;
+    const next = [...current, clean];
+    localStorage.setItem('safevault_blocked_sites', JSON.stringify(next));
+    set({ blockedSites: next });
+    broadcastAutofillSettingsToExtension({
+      credentialAutofillEnabled: get().credentialAutofillEnabled,
+      twoFactorAutofillEnabled: get().twoFactorAutofillEnabled,
+      autoCopy2faToClipboard: get().autoCopy2faToClipboard,
+      saveLoginPromptEnabled: get().saveLoginPromptEnabled,
+      blockedSites: next,
+      autofillMatchingMode: get().autofillMatchingMode,
+    });
+  },
+
+  removeBlockedSite: (site) => {
+    const next = get().blockedSites.filter(s => s !== site);
+    localStorage.setItem('safevault_blocked_sites', JSON.stringify(next));
+    set({ blockedSites: next });
+    broadcastAutofillSettingsToExtension({
+      credentialAutofillEnabled: get().credentialAutofillEnabled,
+      twoFactorAutofillEnabled: get().twoFactorAutofillEnabled,
+      autoCopy2faToClipboard: get().autoCopy2faToClipboard,
+      saveLoginPromptEnabled: get().saveLoginPromptEnabled,
+      blockedSites: next,
+      autofillMatchingMode: get().autofillMatchingMode,
+    });
+  },
+
+  setAutofillMatchingMode: (mode) => {
+    localStorage.setItem('safevault_autofill_match_mode', mode);
+    set({ autofillMatchingMode: mode });
+    broadcastAutofillSettingsToExtension({
+      credentialAutofillEnabled: get().credentialAutofillEnabled,
+      twoFactorAutofillEnabled: get().twoFactorAutofillEnabled,
+      autoCopy2faToClipboard: get().autoCopy2faToClipboard,
+      saveLoginPromptEnabled: get().saveLoginPromptEnabled,
+      blockedSites: get().blockedSites,
+      autofillMatchingMode: mode,
+    });
   },
 
   checkLatestRelease: async () => {

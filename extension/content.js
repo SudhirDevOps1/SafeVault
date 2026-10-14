@@ -20,6 +20,70 @@
   let savePromptEl = null;
   let clipboardClearTimer = null;
 
+  // Autofill configuration (synced from SafeVault settings)
+  let autofillSettings = {
+    credentialAutofillEnabled: true,
+    twoFactorAutofillEnabled: true,
+    autoCopy2faToClipboard: true,
+    saveLoginPromptEnabled: true,
+    blockedSites: ['accounts.google.com/oauth'],
+    autofillMatchingMode: 'wildcard'
+  };
+
+  // Multi-part country code TLDs
+  const MULTI_PART_TLDS = [
+    'co.uk', 'co.in', 'com.au', 'com.br', 'co.jp', 'co.nz', 'co.za',
+    'org.uk', 'gov.in', 'ac.uk', 'pages.dev', 'github.io', 'web.app'
+  ];
+
+  // Extract clean service name (e.g. accounts.google.com -> google, github.com -> github, amazon.co.in -> amazon)
+  function extractCleanServiceName(urlOrHost) {
+    if (!urlOrHost) return 'service';
+    try {
+      let hostname = urlOrHost.trim();
+      if (hostname.includes('://')) {
+        hostname = new URL(hostname).hostname;
+      }
+      hostname = hostname.toLowerCase().split(':')[0].replace(/^www\./, '');
+
+      for (const tld of MULTI_PART_TLDS) {
+        if (hostname.endsWith('.' + tld)) {
+          const sub = hostname.slice(0, -(tld.length + 1)).split('.');
+          const candidate = sub[sub.length - 1];
+          if (candidate) return candidate.replace(/[^a-z0-9]/g, '');
+        }
+      }
+
+      const parts = hostname.split('.');
+      if (parts.length >= 2) {
+        return parts[parts.length - 2].replace(/[^a-z0-9]/g, '') || 'service';
+      }
+      return parts[0].replace(/[^a-z0-9]/g, '') || 'service';
+    } catch {
+      return 'service';
+    }
+  }
+
+  // Check if current site is in blocked sites list
+  function isSiteBlocked() {
+    const currentHost = window.location.hostname.toLowerCase();
+    return (autofillSettings.blockedSites || []).some(site => {
+      const clean = (site || '').toLowerCase().trim();
+      return clean && (currentHost === clean || currentHost.endsWith('.' + clean));
+    });
+  }
+
+  // Load autofill settings from chrome.storage.local
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    chrome.storage.local.get(['safevault_autofill_settings'], (res) => {
+      if (res?.safevault_autofill_settings) {
+        try {
+          autofillSettings = { ...autofillSettings, ...JSON.parse(res.safevault_autofill_settings) };
+        } catch {}
+      }
+    });
+  }
+
   function escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -209,6 +273,13 @@
     const creds = credsData.credentials || [];
     const isEmailField = (anchorInput.getAttribute('type') || '').toLowerCase() === 'email' ||
       (anchorInput.getAttribute('name') || '').toLowerCase().includes('email');
+    const isTotpField = (anchorInput.getAttribute('autocomplete') || '').toLowerCase() === 'one-time-code' ||
+      (anchorInput.getAttribute('name') || '').toLowerCase().includes('otp') ||
+      (anchorInput.getAttribute('name') || '').toLowerCase().includes('totp') ||
+      (anchorInput.getAttribute('name') || '').toLowerCase().includes('2fa') ||
+      (anchorInput.getAttribute('name') || '').toLowerCase().includes('code') ||
+      (anchorInput.getAttribute('id') || '').toLowerCase().includes('otp') ||
+      (anchorInput.getAttribute('id') || '').toLowerCase().includes('totp');
 
     let contentHtml = `
       <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 8px; border-bottom: 1px solid #1e293b; margin-bottom: 6px;">
@@ -235,28 +306,32 @@
       `;
     } else {
       creds.forEach((c, index) => {
+        const hasTotp = !!c.totpCode;
         contentHtml += `
           <div class="safevault-cred-item" data-index="${index}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 8px; cursor: pointer; transition: background 0.15s; margin-bottom: 4px; background: #1e293b;">
             <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px;">
               <div style="font-weight: 600; color: #ffffff;">${escapeHtml(c.title || c.username)}</div>
-              <div style="font-size: 11px; color: #94a3b8;">${escapeHtml(c.username || 'No username')}</div>
+              ${isTotpField && hasTotp
+                ? `<div style="font-size: 12px; font-family: monospace; color: #34d399; font-weight: 700; letter-spacing: 0.5px;">🔐 Code: ${escapeHtml(c.totpCode)}</div>`
+                : `<div style="font-size: 11px; color: #94a3b8;">${escapeHtml(c.username || 'No username')}</div>`
+              }
             </div>
             <button class="safevault-fill-btn" style="background: #10b981; color: #022c22; font-weight: 600; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer;">
-              Fill
+              ${isTotpField && hasTotp ? 'Fill Code' : 'Fill'}
             </button>
           </div>
         `;
       });
     }
 
-    // In-Field Email Alias Creation Pill (Proton Pass Style)
+    // In-Field Email Alias Creation Pill (Proton Pass Style) - Clean Service Name
     if (isEmailField) {
-      const hostPart = window.location.hostname.replace(/^www\./i, '').split('.')[0] || 'site';
+      const cleanService = extractCleanServiceName(window.location.hostname);
       contentHtml += `
         <div id="safevault-alias-btn" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; margin-top: 4px; border-radius: 8px; cursor: pointer; background: #1e1b4b; color: #c7d2fe; font-size: 12px; font-weight: 500; border: 1px solid #4338ca;">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span>📧</span>
-            <span>Create Alias (+${escapeHtml(hostPart)})</span>
+            <span>Create Alias (+${escapeHtml(cleanService)})</span>
           </div>
           <span style="font-size: 10px; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc; font-weight: 600;">SafeVault</span>
         </div>
@@ -417,8 +492,21 @@
 
   // Attach Proton Pass / Bitwarden style in-field shield icon
   function attachFieldBadges() {
+    if (isSiteBlocked()) return;
+    if (autofillSettings.credentialAutofillEnabled === false && autofillSettings.twoFactorAutofillEnabled === false) return;
+
     const fields = scanFormFields();
-    const targetInputs = [fields.passwordInput, fields.emailInput, fields.usernameInput].filter(Boolean);
+    const targetInputs = [];
+
+    if (autofillSettings.credentialAutofillEnabled !== false) {
+      if (fields.passwordInput) targetInputs.push(fields.passwordInput);
+      if (fields.emailInput) targetInputs.push(fields.emailInput);
+      if (fields.usernameInput) targetInputs.push(fields.usernameInput);
+    }
+
+    if (autofillSettings.twoFactorAutofillEnabled !== false && fields.totpInput) {
+      targetInputs.push(fields.totpInput);
+    }
 
     targetInputs.forEach(input => {
       if (input.dataset.safevaultAttached) return;
@@ -482,6 +570,7 @@
   // Intercept Form Submission to Prompt Save Credential
   function interceptFormSubmissions() {
     document.addEventListener('submit', (e) => {
+      if (isSiteBlocked() || autofillSettings.saveLoginPromptEnabled === false) return;
       const form = e.target;
       const fields = scanFormFields(form);
       if (!fields.passwordInput || !fields.passwordInput.value) return;
@@ -513,7 +602,7 @@
       zIndex: '2147483647',
       fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: '13px',
-      maxWidth: '340px',
+      maxWidth: '360px',
       animation: 'safevault-fade-in 0.2s ease-out'
     });
 
@@ -527,19 +616,33 @@
       <p style="margin: 0 0 12px 0; color: #94a3b8; font-size: 12px;">
         Save login for <strong style="color: #fff;">${escapeHtml(pageTitle)}</strong> (${escapeHtml(username || 'Account')})?
       </p>
-      <div style="display: flex; gap: 8px; justify-content: flex-end;">
-        <button id="safevault-cancel-save" style="background: transparent; color: #94a3b8; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">Never</button>
-        <button id="safevault-confirm-save" style="background: #10b981; color: #022c22; font-weight: 600; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px;">Save</button>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+        <button id="safevault-block-save" style="background: transparent; color: #f87171; border: 1px solid rgba(248,113,113,0.3); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px;">Never for this site</button>
+        <button id="safevault-cancel-save" style="background: transparent; color: #94a3b8; border: 1px solid #334155; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px;">Cancel</button>
+        <button id="safevault-confirm-save" style="background: #10b981; color: #022c22; font-weight: 600; border: none; padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 11px;">Save</button>
       </div>
     `;
 
     document.body.appendChild(banner);
 
-    banner.querySelector('#safevault-cancel-save').addEventListener('click', () => {
+    banner.querySelector('#safevault-cancel-save')?.addEventListener('click', () => {
       banner.remove();
     });
 
-    banner.querySelector('#safevault-confirm-save').addEventListener('click', () => {
+    banner.querySelector('#safevault-block-save')?.addEventListener('click', () => {
+      chrome.runtime.sendMessage({
+        action: 'BLOCK_SITE',
+        domain: window.location.hostname
+      }, () => {
+        if (!autofillSettings.blockedSites) autofillSettings.blockedSites = [];
+        autofillSettings.blockedSites.push(window.location.hostname.toLowerCase());
+        banner.remove();
+        document.querySelectorAll('.safevault-infield-badge').forEach(b => b.remove());
+        showToast(`Site blocked from save prompts: ${window.location.hostname}`);
+      });
+    });
+
+    banner.querySelector('#safevault-confirm-save')?.addEventListener('click', () => {
       chrome.runtime.sendMessage({
         action: 'SAVE_SUBMITTED_CREDENTIAL',
         username,
@@ -569,6 +672,14 @@
         totpCode: message.totpCode
       });
       sendResponse({ success: true });
+    } else if (message.action === 'AUTOFILL_SETTINGS_UPDATED') {
+      autofillSettings = { ...autofillSettings, ...(message.settings || {}) };
+      if (isSiteBlocked() || (autofillSettings.credentialAutofillEnabled === false && autofillSettings.twoFactorAutofillEnabled === false)) {
+        document.querySelectorAll('.safevault-infield-badge').forEach(b => b.remove());
+      } else {
+        attachFieldBadges();
+      }
+      sendResponse({ success: true });
     } else if (message.action === 'VAULT_STATE_UPDATED') {
       // Re-query credentials if dropdown is currently visible to eliminate stale locked state
       if (activeDropdown && activeAnchorInput) {
@@ -583,7 +694,7 @@
           autofillSingle(response.credentials[0]);
         } else if (response?.credentials?.length > 1) {
           const fields = scanFormFields();
-          const target = fields.passwordInput || fields.emailInput || fields.usernameInput;
+          const target = fields.passwordInput || fields.emailInput || fields.usernameInput || fields.totpInput;
           if (target) showDropdown(target, response);
         } else {
           showToast('No matching logins for this site.');
