@@ -16,6 +16,7 @@ permissions:
 jobs:
   analyze:
     name: CodeQL Static Security Analysis
+    if: github.repository == 'SudhirDevOps1/SafeVault'
     runs-on: ubuntu-latest
     timeout-minutes: 360
 

@@ -25,6 +25,7 @@ permissions:
 jobs:
   lint-and-test:
     name: Lint & Test
+    if: github.repository == 'SudhirDevOps1/SafeVault'
     runs-on: ubuntu-latest
     strategy:
       matrix:
