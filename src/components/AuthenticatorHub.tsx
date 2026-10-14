@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  ShieldCheck, Search, Plus, Copy, Check, ExternalLink, Key, AlertCircle, X
+  ShieldCheck, Search, Plus, Copy, Check, ExternalLink, Key, AlertCircle, X,
+  QrCode, Sparkles
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import { useClipboard } from '@/hooks/useClipboard';
-import { generateTOTP, getTOTPTimeRemaining, parseOtpAuthUri, isValidTOTPSecret, type TOTPAlgorithm } from '@/utils/totp';
+import {
+  generateTOTP, generateNextTOTP, getTOTPTimeRemaining, parseOtpAuthUri,
+  isValidTOTPSecret, parseGoogleAuthMigration, type TOTPAlgorithm, type GoogleAuthAccount
+} from '@/utils/totp';
 
 export default function AuthenticatorHub() {
   const credentials = useVaultStore(state => state.credentials);
@@ -13,8 +17,10 @@ export default function AuthenticatorHub() {
 
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(getTOTPTimeRemaining());
   const [codes, setCodes] = useState<Record<string, string>>({});
+  const [nextCodes, setNextCodes] = useState<Record<string, string>>({});
 
   // Add 2FA Modal Form State
   const [formUri, setFormUri] = useState('');
@@ -26,6 +32,13 @@ export default function AuthenticatorHub() {
   const [formPeriod, setFormPeriod] = useState<number>(30);
   const [formIsSteam, setFormIsSteam] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Google Authenticator Migration State
+  const [migrationInput, setMigrationInput] = useState('');
+  const [parsedAccounts, setParsedAccounts] = useState<GoogleAuthAccount[]>([]);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [migrationError, setMigrationError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Filter credentials that have 2FA
   const authAccounts = useMemo(() => {
@@ -48,21 +61,30 @@ export default function AuthenticatorHub() {
 
     const updateAllCodes = async () => {
       const newCodes: Record<string, string> = {};
+      const newNextCodes: Record<string, string> = {};
+
       for (const account of authAccounts) {
         if (!account.totpSecret) continue;
         try {
-          const code = await generateTOTP(account.totpSecret, {
+          const opts = {
             algorithm: account.totpAlgorithm,
             digits: account.totpDigits,
             period: account.totpPeriod,
             isSteam: account.isSteamTotp
-          });
+          };
+          const code = await generateTOTP(account.totpSecret, opts);
+          const next = await generateNextTOTP(account.totpSecret, opts);
           newCodes[account.id] = code;
+          newNextCodes[account.id] = next;
         } catch {
           newCodes[account.id] = 'ERROR';
+          newNextCodes[account.id] = 'ERROR';
         }
       }
-      if (isMounted) setCodes(newCodes);
+      if (isMounted) {
+        setCodes(newCodes);
+        setNextCodes(newNextCodes);
+      }
     };
 
     updateAllCodes();
@@ -146,6 +168,85 @@ export default function AuthenticatorHub() {
     }
   };
 
+  const handleMigrationInputChange = (val: string) => {
+    setMigrationInput(val);
+    setMigrationError(null);
+    if (!val.trim()) {
+      setParsedAccounts([]);
+      setSelectedIndices(new Set());
+      return;
+    }
+    try {
+      const accounts = parseGoogleAuthMigration(val);
+      if (accounts.length === 0) {
+        setMigrationError('No accounts detected. Make sure you pasted a valid otpauth-migration:// URI from Google Authenticator.');
+        setParsedAccounts([]);
+        setSelectedIndices(new Set());
+      } else {
+        setParsedAccounts(accounts);
+        setSelectedIndices(new Set(accounts.map((_, i) => i)));
+      }
+    } catch {
+      setMigrationError('Failed to parse Google Authenticator export data.');
+      setParsedAccounts([]);
+      setSelectedIndices(new Set());
+    }
+  };
+
+  const handleToggleSelectAccount = (index: number) => {
+    const next = new Set(selectedIndices);
+    if (next.has(index)) {
+      next.delete(index);
+    } else {
+      next.add(index);
+    }
+    setSelectedIndices(next);
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedIndices.size === parsedAccounts.length) {
+      setSelectedIndices(new Set());
+    } else {
+      setSelectedIndices(new Set(parsedAccounts.map((_, i) => i)));
+    }
+  };
+
+  const handleImportGoogleAccounts = async () => {
+    if (selectedIndices.size === 0) return;
+    setIsImporting(true);
+    setMigrationError(null);
+    try {
+      for (const idx of selectedIndices) {
+        const acc = parsedAccounts[idx];
+        if (!acc) continue;
+        const title = acc.issuer || acc.name.split(':')[0] || 'Imported 2FA';
+        const username = acc.name.includes(':') ? acc.name.split(':')[1].trim() : (acc.issuer ? acc.name : '');
+        
+        await addCredential({
+          title,
+          username,
+          password: '',
+          url: '',
+          notes: 'Imported from Google Authenticator (Zero-Knowledge)',
+          totpSecret: acc.secret,
+          totpAlgorithm: acc.algorithm,
+          totpDigits: acc.digits,
+          totpPeriod: 30,
+          category: 'Logins',
+          favorite: false
+        });
+      }
+      setShowGoogleModal(false);
+      setMigrationInput('');
+      setParsedAccounts([]);
+      setSelectedIndices(new Set());
+    } catch (err: any) {
+      setMigrationError(err.message || 'Failed to import 2FA accounts.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const progress = (timeRemaining / 30) * 100;
   const isLow = timeRemaining <= 5;
 
@@ -170,13 +271,24 @@ export default function AuthenticatorHub() {
           </div>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-gray-950 font-semibold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Add 2FA Code</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowGoogleModal(true)}
+            className="flex items-center gap-2 px-3.5 py-2 bg-white/5 hover:bg-white/10 text-white font-medium text-sm rounded-xl border border-white/10 transition-all active:scale-95"
+            title="Import all accounts from Google Authenticator QR/Export URI"
+          >
+            <QrCode className="w-4 h-4 text-emerald-400" />
+            <span>Import Google Auth</span>
+          </button>
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-gray-950 font-semibold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Add 2FA Code</span>
+          </button>
+        </div>
       </div>
 
       {/* Global Countdown & Search Bar */}
@@ -278,8 +390,18 @@ export default function AuthenticatorHub() {
 
                   {/* Code Display & Copy */}
                   <div className="bg-black/40 border border-white/5 rounded-xl p-3 flex items-center justify-between mt-auto">
-                    <div className={`font-mono text-2xl font-bold tracking-[0.2em] ${isLow ? 'text-red-400' : 'text-emerald-400'} transition-colors`}>
-                      {formattedCode}
+                    <div>
+                      <div className={`font-mono text-2xl font-bold tracking-[0.2em] ${isLow ? 'text-red-400' : 'text-emerald-400'} transition-colors`}>
+                        {formattedCode}
+                      </div>
+                      {nextCodes[account.id] && nextCodes[account.id] !== 'ERROR' && (
+                        <div className="text-[10px] text-gray-500 font-mono mt-0.5 flex items-center gap-1.5">
+                          <span className="text-gray-500">Next:</span>
+                          <span className={isLow ? 'text-amber-400 font-semibold' : 'text-gray-400'}>
+                            {nextCodes[account.id].length === 6 ? `${nextCodes[account.id].slice(0, 3)} ${nextCodes[account.id].slice(3)}` : nextCodes[account.id]}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <button
@@ -465,6 +587,159 @@ export default function AuthenticatorHub() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Google Authenticator Migration Modal */}
+      {showGoogleModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+            <button
+              onClick={() => {
+                setShowGoogleModal(false);
+                setMigrationInput('');
+                setParsedAccounts([]);
+                setSelectedIndices(new Set());
+                setMigrationError(null);
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white p-1"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                <QrCode className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>Google Authenticator Batch Import</span>
+                  <span className="text-[10px] font-bold bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">
+                    Zero-Knowledge
+                  </span>
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Import all your 2FA accounts in 1-click without any cloud intermediary
+                </p>
+              </div>
+            </div>
+
+            {migrationError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 flex items-center gap-2 shrink-0">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{migrationError}</span>
+              </div>
+            )}
+
+            <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                  Migration Payload or QR Data URL
+                </label>
+                <textarea
+                  value={migrationInput}
+                  onChange={(e) => handleMigrationInputChange(e.target.value)}
+                  placeholder="Paste otpauth-migration://offline?data=... export URL here"
+                  rows={3}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-gray-500 font-mono focus:outline-none focus:border-emerald-500/50"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  On phone: Open Google Authenticator → Menu (☰) → <strong>Transfer accounts</strong> → <strong>Export accounts</strong>.
+                </p>
+              </div>
+
+              {parsedAccounts.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <span className="text-xs font-semibold text-white">
+                      Discovered Accounts ({selectedIndices.size}/{parsedAccounts.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAll}
+                      className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                    >
+                      {selectedIndices.size === parsedAccounts.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {parsedAccounts.map((acc, index) => {
+                      const isSelected = selectedIndices.has(index);
+                      const title = acc.issuer || acc.name.split(':')[0] || '2FA Account';
+                      const user = acc.name.includes(':') ? acc.name.split(':')[1].trim() : (acc.issuer ? acc.name : '');
+
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => handleToggleSelectAccount(index)}
+                          className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                            isSelected
+                              ? 'bg-emerald-500/10 border-emerald-500/30'
+                              : 'bg-white/5 border-white/5 hover:border-white/15 opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // Controlled by container onClick
+                              className="rounded text-emerald-500 focus:ring-0 w-4 h-4 bg-gray-800 border-gray-700 pointer-events-none"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-white truncate">{title}</p>
+                              {user && <p className="text-[11px] text-gray-400 truncate">{user}</p>}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 bg-black/40 border border-white/10 rounded text-gray-400">
+                              {acc.algorithm}
+                            </span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 bg-black/40 border border-white/10 rounded text-gray-400">
+                              {acc.digits} Digits
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-white/5 mt-4 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGoogleModal(false);
+                  setMigrationInput('');
+                  setParsedAccounts([]);
+                  setSelectedIndices(new Set());
+                  setMigrationError(null);
+                }}
+                className="px-4 py-2 bg-transparent text-gray-400 hover:text-white text-xs font-semibold rounded-xl border border-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleImportGoogleAccounts}
+                disabled={selectedIndices.size === 0 || isImporting}
+                className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-950 font-bold text-xs rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+              >
+                {isImporting ? (
+                  <span>Importing...</span>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Import {selectedIndices.size} {selectedIndices.size === 1 ? 'Account' : 'Accounts'}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

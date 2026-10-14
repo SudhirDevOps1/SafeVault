@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Plus, Trash2, Wand2, Copy, Check, Save, Info, Sparkles, User, RefreshCw, Key, Globe, ShieldCheck } from 'lucide-react';
+import {
+  Mail, Plus, Trash2, Wand2, Copy, Check, Save, Info, Sparkles, User,
+  RefreshCw, Key, Globe, ShieldCheck, Filter
+} from 'lucide-react';
 import { useVaultStore } from '../stores/vaultStore';
 import { useClipboard } from '../hooks/useClipboard';
 import { generatePassword } from '../utils/password';
@@ -16,7 +19,7 @@ function secureRandomChoice<T>(arr: T[]): T {
 }
 
 export default function EmailAliases() {
-  const { credentials, baseEmails, addBaseEmail, removeBaseEmail, addCredential, setSidebarView } = useVaultStore();
+  const { credentials, baseEmails, addBaseEmail, removeBaseEmail, addCredential, updateCredential, setSidebarView } = useVaultStore();
   const { copiedField, copyToClipboard } = useClipboard();
 
   // Manage State
@@ -26,7 +29,7 @@ export default function EmailAliases() {
   const [selectedBase, setSelectedBase] = useState(baseEmails[0] || 'user@example.com');
   const [serviceUrl, setServiceUrl] = useState('');
   const [parsedHandle, setParsedHandle] = useState('');
-  const [aliasFormat, setAliasFormat] = useState<'plus' | 'dot'>('plus');
+  const [aliasFormat, setAliasFormat] = useState<'plus' | 'salted' | 'dot'>('plus');
   const [aliasPrefixType, setAliasPrefixType] = useState<'standard' | 'anonymous'>('standard');
   const [passwordLength, setPasswordLength] = useState(27);
 
@@ -90,7 +93,7 @@ export default function EmailAliases() {
     }
   }, [baseEmails, selectedBase]);
 
-  // Helper to extract domain/title handle
+  // Helper to extract clean service name (e.g. github.com -> github, accounts.google.com -> google)
   const extractDomainHandle = (urlStr: string): string => {
     if (!urlStr.trim()) return '';
     try {
@@ -98,21 +101,19 @@ export default function EmailAliases() {
       if (!tempUrl.startsWith('http://') && !tempUrl.startsWith('https://')) {
         tempUrl = 'https://' + tempUrl;
       }
-      const hostname = new URL(tempUrl).hostname;
-      let part = hostname.replace('www.', '');
-      
-      if (part.endsWith('.pages.dev')) {
-        return part.replace('.pages.dev', '');
+      const hostname = new URL(tempUrl).hostname.toLowerCase().replace(/^www\./, '');
+      const known2ndLevelTLDs = ['co.uk', 'co.in', 'com.au', 'com.br', 'co.jp', 'co.nz', 'pages.dev', 'github.io'];
+      for (const tld of known2ndLevelTLDs) {
+        if (hostname.endsWith('.' + tld)) {
+          const sub = hostname.slice(0, -(tld.length + 1)).split('.');
+          return sub[sub.length - 1];
+        }
       }
-      if (part.endsWith('.github.io')) {
-        return part.replace('.github.io', '');
+      const parts = hostname.split('.');
+      if (parts.length >= 2) {
+        return parts[parts.length - 2];
       }
-
-      const parts = part.split('.');
-      if (parts.length > 1) {
-        return parts[0];
-      }
-      return part;
+      return parts[0];
     } catch {
       return urlStr.toLowerCase().replace(/[^a-z0-9]/g, '');
     }
@@ -155,6 +156,9 @@ export default function EmailAliases() {
       }
       if (aliasFormat === 'plus') {
         setGeneratedAlias(`${user}+${prefix}@${domain}`);
+      } else if (aliasFormat === 'salted') {
+        const rand = secureRandomInt(100, 999);
+        setGeneratedAlias(`${user}+${prefix}.${rand}@${domain}`);
       } else {
         setGeneratedAlias(`${user}.${prefix}@${domain}`);
       }
@@ -245,7 +249,9 @@ export default function EmailAliases() {
         notes: notesContent,
         favorite: false,
         totpSecret: '',
-        category: 'Alias' // Save in category 'Alias' for dynamic identification!
+        category: 'Alias', // Save in category 'Alias' for dynamic identification!
+        aliasStatus: 'active',
+        aliasBaseEmail: selectedBase
       });
 
       setStatusMessage({ type: 'success', text: 'Alias saved successfully to your vault!' });
@@ -408,7 +414,19 @@ export default function EmailAliases() {
                         : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
                     }`}
                   >
-                    Plus (+) Suffix
+                    Plus (+)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedBase.startsWith('@')}
+                    onClick={() => setAliasFormat('salted')}
+                    className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold transition-all disabled:opacity-30 ${
+                      aliasFormat === 'salted'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                        : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Salted (+rand)
                   </button>
                   <button
                     type="button"
@@ -420,7 +438,7 @@ export default function EmailAliases() {
                         : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
                     }`}
                   >
-                    Dot (.) Suffix
+                    Dot (.)
                   </button>
                 </div>
               </div>
@@ -649,45 +667,78 @@ export default function EmailAliases() {
                 <tr>
                   <th className="py-2.5 px-3">Service Name</th>
                   <th className="py-2.5 px-3">Email Alias</th>
+                  <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3">Password</th>
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-mono">
-                {activeAliases.map((alias) => (
-                  <tr key={alias.id} className="hover:bg-white/5 transition-colors">
-                    <td className="py-3 px-3 font-semibold text-white">
-                      <div className="flex items-center gap-1.5">
-                        <Globe className="w-3.5 h-3.5 text-gray-500" />
-                        {alias.title}
-                      </div>
-                    </td>
-                    <td className="py-3 px-3 text-emerald-400 truncate max-w-[200px]" title={alias.username}>
-                      {alias.username}
-                    </td>
-                    <td className="py-3 px-3 text-gray-500 select-all truncate max-w-[150px]">
-                      ••••••••••••••••••
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                {activeAliases.map((alias) => {
+                  const status = alias.aliasStatus || 'active';
+                  return (
+                    <tr key={alias.id} className="hover:bg-white/5 transition-colors">
+                      <td className="py-3 px-3 font-semibold text-white">
+                        <div className="flex items-center gap-1.5">
+                          <Globe className="w-3.5 h-3.5 text-gray-500" />
+                          {alias.title}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-emerald-400 truncate max-w-[200px]" title={alias.username}>
+                        {alias.username}
+                      </td>
+                      <td className="py-3 px-3">
                         <button
-                          onClick={() => copyToClipboard(alias.username, `alias-list-${alias.id}`)}
-                          className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                          title="Copy Email Alias"
+                          type="button"
+                          onClick={async () => {
+                            let next: 'active' | 'paused' | 'blocked' = 'paused';
+                            if (status === 'active') next = 'paused';
+                            else if (status === 'paused') next = 'blocked';
+                            else next = 'active';
+                            await updateCredential(alias.id, { aliasStatus: next });
+                          }}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase transition-all ${
+                            status === 'active'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                              : status === 'paused'
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20'
+                          }`}
+                          title="Click to cycle status (Active -> Paused -> Blocked)"
                         >
-                          {copiedField === `alias-list-${alias.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {status === 'active' ? '🟢 Active' : status === 'paused' ? '🟡 Paused' : '🔴 Blocked'}
                         </button>
-                        <button
-                          onClick={() => copyToClipboard(alias.password, `pass-list-${alias.id}`)}
-                          className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                          title="Copy Password"
-                        >
-                          {copiedField === `pass-list-${alias.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Key className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3 px-3 text-gray-500 select-all truncate max-w-[150px]">
+                        ••••••••••••••••••
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => copyToClipboard(`from:(${alias.username}) -> Action: Delete it / Skip Inbox`, `filter-${alias.id}`)}
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-amber-400 transition-colors"
+                            title="Copy Gmail/Outlook Spam Filter Rule"
+                          >
+                            {copiedField === `filter-${alias.id}` ? <Check className="w-3.5 h-3.5 text-amber-400" /> : <Filter className="w-3.5 h-3.5" />}
+                          </button>
+                          <button
+                            onClick={() => copyToClipboard(alias.username, `alias-list-${alias.id}`)}
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                            title="Copy Email Alias"
+                          >
+                            {copiedField === `alias-list-${alias.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                          <button
+                            onClick={() => copyToClipboard(alias.password, `pass-list-${alias.id}`)}
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                            title="Copy Password"
+                          >
+                            {copiedField === `pass-list-${alias.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Key className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

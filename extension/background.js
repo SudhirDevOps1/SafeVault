@@ -233,7 +233,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     switch (request.action) {
       // 1. Session Synchronization from Popup/React App
       case 'SYNC_VAULT_DATA': {
-        const { credentials, isUnlocked, sessionKeyBase64, autoLockMinutes } = request;
+        const { credentials, isUnlocked, sessionKeyBase64, autoLockMinutes, baseEmails } = request;
         await chrome.storage.session.set({
           isUnlocked: !!isUnlocked,
           sessionKeyBase64: sessionKeyBase64 || null,
@@ -241,6 +241,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           autoLockMinutes: autoLockMinutes || 15,
           lastSynced: Date.now()
         });
+        if (baseEmails && Array.isArray(baseEmails)) {
+          await chrome.storage.local.set({ safevault_base_emails: JSON.stringify(baseEmails) });
+        }
 
         // Broadcast to all active tabs so in-field dropdowns immediately refresh
         broadcastVaultState(!!isUnlocked);
@@ -399,6 +402,64 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
           sendResponse({ success: true, queued: true });
         }
+        break;
+      }
+
+      // 8. Generate and Save Unlimited Email Alias directly from In-Field Pill
+      case 'GENERATE_AND_SAVE_ALIAS': {
+        const { hostname, url } = request;
+        const service = extractDomain(hostname || url || 'service').split('.')[0] || 'service';
+
+        // Retrieve user's configured base email or default
+        const localData = await chrome.storage.local.get(['safevault_base_emails']);
+        let baseEmail = 'admin@gmail.com';
+        if (localData?.safevault_base_emails) {
+          try {
+            const list = JSON.parse(localData.safevault_base_emails);
+            if (Array.isArray(list) && list[0]) baseEmail = list[0];
+          } catch {}
+        }
+
+        let alias = '';
+        if (baseEmail.startsWith('@')) {
+          alias = `${service}${baseEmail}`;
+        } else if (baseEmail.includes('@')) {
+          const [u, d] = baseEmail.split('@');
+          alias = `${u}+${service}@${d}`;
+        } else {
+          alias = `${service}@safevault.local`;
+        }
+
+        const generatedPassword = generateSecurePassword(24);
+
+        const session = await chrome.storage.session.get(['isUnlocked', 'credentialsJson']);
+        if (session.isUnlocked && session.credentialsJson) {
+          try {
+            const credentials = JSON.parse(session.credentialsJson);
+            credentials.push({
+              id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()),
+              title: `${cleanHost.charAt(0).toUpperCase() + cleanHost.slice(1)} Alias`,
+              url: url || `https://${hostname}`,
+              username: alias,
+              password: generatedPassword,
+              notes: `Auto-generated email alias from ${baseEmail}`,
+              totpSecret: '',
+              category: 'Alias',
+              aliasStatus: 'active',
+              aliasBaseEmail: baseEmail,
+              favorite: false,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            });
+
+            await chrome.storage.session.set({
+              credentialsJson: JSON.stringify(credentials),
+              pendingSync: true
+            });
+          } catch {}
+        }
+
+        sendResponse({ success: true, alias, password: generatedPassword, baseEmail });
         break;
       }
 

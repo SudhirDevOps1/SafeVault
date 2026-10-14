@@ -2,13 +2,16 @@ import { useState } from 'react';
 import {
   Settings as SettingsIcon, Clock, Download, Upload, Shield,
   AlertTriangle, Lock, Eye, EyeOff, FileText, Key, Moon, Sun,
-  Database, Save, ShieldAlert, Activity, CheckCircle, XCircle
+  Database, Save, ShieldAlert, Activity, CheckCircle, XCircle,
+  Printer, ShieldOff
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import { evaluatePasswordStrength } from '@/utils/crypto';
 import { validateMasterPassword } from '@/utils/policy';
 import { logger } from '@/utils/logger';
 import LocalSync from './LocalSync';
+import EmergencyKitModal from './EmergencyKitModal';
+import { APP_VERSION } from '@/version';
 
 export default function Settings() {
   const {
@@ -23,7 +26,8 @@ export default function Settings() {
     strictOfflineMode, setStrictOfflineMode,
     disableRemoteFavicons, setDisableRemoteFavicons,
     auditLog, exportAuditLog,
-    isPinUnlockEnabled, setupPinUnlock, disablePinUnlock
+    isPinUnlockEnabled, setupPinUnlock, disablePinUnlock,
+    isDuressPinEnabled, setupDuressPin, disableDuressPin
   } = useVaultStore();
 
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -40,6 +44,15 @@ export default function Settings() {
   const [pinValue, setPinValue] = useState('');
   const [confirmPinValue, setConfirmPinValue] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
+
+  // Duress / Decoy PIN State
+  const [showDuressPinSetup, setShowDuressPinSetup] = useState(false);
+  const [duressPinValue, setDuressPinValue] = useState('');
+  const [confirmDuressPinValue, setConfirmDuressPinValue] = useState('');
+  const [duressPinError, setDuressPinError] = useState<string | null>(null);
+
+  // Emergency Kit Modal State
+  const [showEmergencyKitModal, setShowEmergencyKitModal] = useState(false);
 
   const strength = evaluatePasswordStrength(newPassword);
   const policy = validateMasterPassword(newPassword);
@@ -143,6 +156,30 @@ export default function Settings() {
       setConfirmPinValue('');
     } catch (err: any) {
       setPinError(err.message || 'PIN configuration failed.');
+    }
+  };
+
+  const handleSetupDuressPin = async () => {
+    if (duressPinValue.length < 4 || duressPinValue.length > 8) {
+      setDuressPinError('Duress PIN must be between 4 and 8 digits.');
+      return;
+    }
+    if (duressPinValue === pinValue) {
+      setDuressPinError('Duress PIN must be different from your regular PIN.');
+      return;
+    }
+    if (duressPinValue !== confirmDuressPinValue) {
+      setDuressPinError('PIN inputs do not match.');
+      return;
+    }
+    setDuressPinError(null);
+    try {
+      await setupDuressPin(duressPinValue);
+      setShowDuressPinSetup(false);
+      setDuressPinValue('');
+      setConfirmDuressPinValue('');
+    } catch (err: any) {
+      setDuressPinError(err.message || 'Duress PIN configuration failed.');
     }
   };
 
@@ -638,12 +675,108 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* Duress / Decoy PIN Card */}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+            <ShieldOff className="w-4 h-4 text-amber-400" aria-hidden="true" /> Duress / Decoy PIN (Anti-Coercion)
+          </h3>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold text-white block">Decoy Vault Mode</span>
+                <p className="text-[10px] text-gray-400 max-w-md">
+                  If forced to unlock your vault under threat, entering this alternate PIN opens a convincing Decoy Vault with fake entries. Your real credentials remain completely hidden and encrypted.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isDuressPinEnabled) {
+                    disableDuressPin();
+                  } else {
+                    setShowDuressPinSetup(!showDuressPinSetup);
+                    setDuressPinValue('');
+                    setConfirmDuressPinValue('');
+                    setDuressPinError(null);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                  isDuressPinEnabled
+                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
+                }`}
+              >
+                {isDuressPinEnabled ? 'Disable Duress PIN' : 'Configure Duress PIN'}
+              </button>
+            </div>
+
+            {showDuressPinSetup && !isDuressPinEnabled && (
+              <div className="space-y-3 p-3 bg-white/5 border border-white/5 rounded-xl animate-fade-in">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-gray-400 font-bold block">Enter Alternate Duress PIN (4-8 digits)</label>
+                  <input
+                    type="password"
+                    maxLength={8}
+                    placeholder="••••"
+                    value={duressPinValue}
+                    onChange={e => setDuressPinValue(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/30 text-center tracking-widest font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-gray-400 font-bold block">Confirm Duress PIN</label>
+                  <input
+                    type="password"
+                    maxLength={8}
+                    placeholder="••••"
+                    value={confirmDuressPinValue}
+                    onChange={e => setConfirmDuressPinValue(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/30 text-center tracking-widest font-bold"
+                  />
+                </div>
+
+                {duressPinError && (
+                  <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg text-[11px] text-rose-400 leading-normal">
+                    {duressPinError}
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setShowDuressPinSetup(false); setDuressPinValue(''); setConfirmDuressPinValue(''); setDuressPinError(null); }}
+                    className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSetupDuressPin}
+                    className="flex-1 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow"
+                  >
+                    Save Duress PIN
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Export / Backup */}
         <div className="bg-white/5 border border-white/10 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
             <Download className="w-4 h-4" aria-hidden="true" /> Export & Backup
           </h3>
           <div className="space-y-3">
+            <button
+              onClick={() => setShowEmergencyKitModal(true)}
+              className="w-full py-2.5 px-4 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded-xl transition-colors text-sm flex items-center gap-2"
+              aria-label="Print emergency recovery kit"
+            >
+              <Printer className="w-4 h-4" aria-hidden="true" />
+              Print Emergency Kit (Paper Backup)
+            </button>
             <button
               onClick={handleExportEncrypted}
               disabled={backupInProgress}
@@ -861,10 +994,16 @@ export default function Settings() {
 
         {/* App Info */}
         <div className="text-center py-4 text-xs text-gray-600 space-y-1" role="contentinfo">
-          <p>SafeVault v3.0.0 — Zero-Knowledge Credential Manager</p>
+          <p>SafeVault v{APP_VERSION} — Zero-Knowledge Credential Manager</p>
           <p>All data encrypted locally · No telemetry · No tracking</p>
           <p className="text-gray-700 font-mono">AES-GCM 256-bit · Argon2id WASM · SHA-256</p>
         </div>
+
+        {/* Emergency Kit Modal */}
+        <EmergencyKitModal
+          isOpen={showEmergencyKitModal}
+          onClose={() => setShowEmergencyKitModal(false)}
+        />
       </div>
     </div>
   );

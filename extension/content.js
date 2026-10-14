@@ -251,10 +251,14 @@
 
     // In-Field Email Alias Creation Pill (Proton Pass Style)
     if (isEmailField) {
+      const hostPart = window.location.hostname.replace(/^www\./i, '').split('.')[0] || 'site';
       contentHtml += `
-        <div id="safevault-alias-btn" style="display: flex; align-items: center; gap: 6px; padding: 8px; margin-top: 4px; border-radius: 8px; cursor: pointer; background: #1e1b4b; color: #c7d2fe; font-size: 12px; font-weight: 500; border: 1px solid #4338ca;">
-          <span>📧</span>
-          <span>Create Email Alias (Hide My Email)</span>
+        <div id="safevault-alias-btn" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; margin-top: 4px; border-radius: 8px; cursor: pointer; background: #1e1b4b; color: #c7d2fe; font-size: 12px; font-weight: 500; border: 1px solid #4338ca;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span>📧</span>
+            <span>Create Alias (+${escapeHtml(hostPart)})</span>
+          </div>
+          <span style="font-size: 10px; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc; font-weight: 600;">SafeVault</span>
         </div>
       `;
     }
@@ -310,12 +314,26 @@
     if (aliasBtn) {
       aliasBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const randStr = Math.random().toString(36).substring(2, 8);
-        const hostClean = window.location.hostname.replace(/[^a-z0-9]/gi, '').toLowerCase();
-        const generatedAlias = `${hostClean}.${randStr}@safevault.me`;
-        setNativeValue(anchorInput, generatedAlias);
-        copyToClipboardAutoClear(generatedAlias);
-        showToast(`Email alias ${generatedAlias} generated & filled!`);
+        chrome.runtime.sendMessage({
+          action: 'GENERATE_AND_SAVE_ALIAS',
+          hostname: window.location.hostname,
+          url: window.location.href
+        }, (res) => {
+          if (res?.alias) {
+            setNativeValue(anchorInput, res.alias);
+            copyToClipboardAutoClear(res.alias);
+            showToast(`✨ Generated & saved: ${res.alias}`);
+
+            // Fill password field if present on registration form
+            const fields = scanFormFields();
+            if (fields.passwordInput && res.password) {
+              setNativeValue(fields.passwordInput, res.password);
+              if (fields.confirmPasswordInput) {
+                setNativeValue(fields.confirmPasswordInput, res.password);
+              }
+            }
+          }
+        });
         closeDropdown();
       });
     }

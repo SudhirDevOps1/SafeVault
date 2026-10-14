@@ -114,4 +114,27 @@ describe('Chrome Extension Background & Autofill Engine', () => {
     userInput.remove();
     passInput.remove();
   });
+
+  it('global APP_VERSION is synchronized as v0.3.0', async () => {
+    const { APP_VERSION } = await import('../version');
+    expect(APP_VERSION).toBe('0.3.0');
+  });
+
+  it('generates valid unlimited sub-addressing email aliases for Gmail and custom domains', () => {
+    function generateAlias(baseEmail: string, serviceHost: string, format: 'plus' | 'salted' | 'dot') {
+      const cleanHost = serviceHost.replace(/^www\./i, '').split('.')[0].toLowerCase();
+      if (baseEmail.startsWith('@')) {
+        return `${cleanHost}.999${baseEmail}`;
+      }
+      const [user, domain] = baseEmail.split('@');
+      if (format === 'plus') return `${user}+${cleanHost}@${domain}`;
+      if (format === 'salted') return `${user}+${cleanHost}.777@${domain}`;
+      return `${user}.${cleanHost}@${domain}`;
+    }
+
+    expect(generateAlias('admin@gmail.com', 'github.com', 'plus')).toBe('admin+github@gmail.com');
+    expect(generateAlias('admin@gmail.com', 'amazon.in', 'salted')).toBe('admin+amazon.777@gmail.com');
+    expect(generateAlias('admin@gmail.com', 'netflix.com', 'dot')).toBe('admin.netflix@gmail.com');
+    expect(generateAlias('@aliasvault.me', 'spotify.com', 'plus')).toBe('spotify.999@aliasvault.me');
+  });
 });

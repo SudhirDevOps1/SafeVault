@@ -127,9 +127,13 @@ interface VaultStore {
   setupPinUnlock: (pin: string) => Promise<void>;
   disablePinUnlock: () => void;
   unlockWithPin: (pin: string) => Promise<boolean>;
+  isDecoyVault: boolean;
+  isDuressPinEnabled: boolean;
+  setupDuressPin: (pin: string) => Promise<void>;
+  disableDuressPin: () => void;
 }
 
-async function syncToExtension(credentials: Credential[], key: CryptoKey | null, isUnlocked: boolean) {
+async function syncToExtension(credentials: Credential[], key: CryptoKey | null, isUnlocked: boolean, baseEmails?: string[]) {
   if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id) {
     try {
       let sessionKeyBase64 = null;
@@ -139,11 +143,18 @@ async function syncToExtension(credentials: Credential[], key: CryptoKey | null,
           sessionKeyBase64 = bufferToBase64(raw);
         } catch { /* proceed */ }
       }
+      let emails = baseEmails;
+      if (!emails && typeof localStorage !== 'undefined') {
+        try {
+          emails = JSON.parse(localStorage.getItem('safevault_base_emails') || '[]');
+        } catch {}
+      }
       (window as any).chrome.runtime.sendMessage({
         action: 'SYNC_VAULT_DATA',
         credentials: isUnlocked ? credentials : [],
         isUnlocked,
         sessionKeyBase64,
+        baseEmails: emails || []
       });
     } catch { /* proceed */ }
   }
@@ -182,6 +193,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   lastSyncedAt: localStorage.getItem('safevault_last_synced') ? Number(localStorage.getItem('safevault_last_synced')) : null,
   isPinUnlockEnabled: !!localStorage.getItem('safevault_wrapped_key'),
   pinAttemptsLeft: Number(localStorage.getItem('safevault_pin_attempts') || '3'),
+  isDecoyVault: false,
+  isDuressPinEnabled: !!localStorage.getItem('safevault_duress_pin'),
 
   initializeVault: async () => {
     const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
@@ -419,6 +432,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       selectedCredentialId: null,
       searchQuery: '',
       error: null,
+      isDecoyVault: false,
     });
     try {
       navigator.clipboard.writeText('');
@@ -979,7 +993,92 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     get().addAuditLog('PIN_UNLOCK_DISABLED', 'Quick PIN Unlock disabled');
   },
 
+  setupDuressPin: async (pin: string) => {
+    localStorage.setItem('safevault_duress_pin', pin);
+    set({ isDuressPinEnabled: true });
+    get().addAuditLog('DURESS_PIN_CONFIGURED', 'Duress Decoy PIN configured');
+  },
+
+  disableDuressPin: () => {
+    localStorage.removeItem('safevault_duress_pin');
+    set({ isDuressPinEnabled: false });
+    get().addAuditLog('DURESS_PIN_DISABLED', 'Duress Decoy PIN disabled');
+  },
+
   unlockWithPin: async (pin) => {
+    // Check if Duress PIN is triggered
+    const duressPin = localStorage.getItem('safevault_duress_pin');
+    if (duressPin && pin === duressPin) {
+      const decoyCredentials: Credential[] = [
+        {
+          id: 'decoy-1',
+          title: 'Google (Personal)',
+          username: 'personal.user99@gmail.com',
+          password: 'Password123!',
+          url: 'https://accounts.google.com',
+          category: 'Logins',
+          notes: 'Backup personal email',
+          totpSecret: '',
+          favorite: true,
+          createdAt: Date.now() - 86400000 * 45,
+          updatedAt: Date.now() - 86400000 * 5,
+        },
+        {
+          id: 'decoy-2',
+          title: 'Netflix',
+          username: 'family.streamer@outlook.com',
+          password: 'MovieStream2025!',
+          url: 'https://netflix.com',
+          category: 'Logins',
+          notes: 'Family basic subscription',
+          totpSecret: '',
+          favorite: false,
+          createdAt: Date.now() - 86400000 * 60,
+          updatedAt: Date.now() - 86400000 * 10,
+        },
+        {
+          id: 'decoy-3',
+          title: 'Amazon',
+          username: 'personal.user99@gmail.com',
+          password: 'ShopSafeOnline99#',
+          url: 'https://amazon.com',
+          category: 'Logins',
+          notes: '',
+          totpSecret: '',
+          favorite: false,
+          createdAt: Date.now() - 86400000 * 45,
+          updatedAt: Date.now() - 86400000 * 15,
+        },
+        {
+          id: 'decoy-4',
+          title: 'Spotify',
+          username: 'musiclover99',
+          password: 'MusicVibes2024!',
+          url: 'https://spotify.com',
+          category: 'Logins',
+          notes: 'Student plan',
+          totpSecret: '',
+          favorite: false,
+          createdAt: Date.now() - 86400000 * 90,
+          updatedAt: Date.now() - 86400000 * 20,
+        }
+      ];
+
+      set({
+        encryptionKey: null,
+        credentials: decoyCredentials,
+        vaultState: 'unlocked',
+        isDecoyVault: true,
+        pinAttemptsLeft: 3,
+        loading: false,
+        lastActivity: Date.now(),
+        autoLockMinutes: 5,
+      });
+
+      get().addAuditLog('VAULT_UNLOCKED_DURESS', 'Vault unlocked under Duress PIN (Decoy Mode activated)');
+      return true;
+    }
+
     const wrappedStr = localStorage.getItem('safevault_wrapped_key');
     if (!wrappedStr) {
       throw new Error('PIN unlock is not enabled.');

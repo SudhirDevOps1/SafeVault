@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ShieldCheck, Eye, EyeOff, Lock, AlertTriangle, Check, X, Clipboard, ArrowRight, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Eye, EyeOff, Lock, AlertTriangle, Check, X, Clipboard, ArrowRight, ArrowLeft, Printer } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import { evaluatePasswordStrength } from '@/utils/crypto';
 import { validateMasterPassword } from '@/utils/policy';
 import { generateMnemonic } from '@/utils/bip39';
 import { logger } from '@/utils/logger';
 import WebShowcase from './WebShowcase';
+import EmergencyKitModal from './EmergencyKitModal';
 
 export default function VaultSetup() {
   const { createVault, loading, error, setError } = useVaultStore();
@@ -18,6 +19,7 @@ export default function VaultSetup() {
   const [recoveryPhrase, setRecoveryPhrase] = useState('');
   const [typedRecoveryPhrase, setTypedRecoveryPhrase] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showEmergencyKitModal, setShowEmergencyKitModal] = useState(false);
 
   const strength = evaluatePasswordStrength(password);
   const policy = validateMasterPassword(password);
@@ -219,11 +221,20 @@ export default function VaultSetup() {
 
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={handleCopyRecovery}
               className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 font-medium rounded-xl border border-white/10 transition-colors flex items-center justify-center gap-2 text-xs"
             >
               <Clipboard className="w-4 h-4" />
               <span>{copied ? 'Copied!' : 'Copy to Clipboard'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEmergencyKitModal(true)}
+              className="flex-1 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold rounded-xl border border-emerald-500/30 transition-colors flex items-center justify-center gap-2 text-xs"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print Emergency Kit</span>
             </button>
           </div>
 
@@ -333,6 +344,12 @@ export default function VaultSetup() {
         <div className="w-full md:w-[45%] flex items-center justify-center p-6 md:p-12 overflow-y-auto max-h-screen bg-gray-950">
           {formContent}
         </div>
+
+        <EmergencyKitModal
+          isOpen={showEmergencyKitModal}
+          onClose={() => setShowEmergencyKitModal(false)}
+          recoveryPhrase={recoveryPhrase}
+        />
       </div>
     );
   }
@@ -340,6 +357,11 @@ export default function VaultSetup() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-4">
       {formContent}
+      <EmergencyKitModal
+        isOpen={showEmergencyKitModal}
+        onClose={() => setShowEmergencyKitModal(false)}
+        recoveryPhrase={recoveryPhrase}
+      />
     </div>
   );
 }

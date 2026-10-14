@@ -44,4 +44,29 @@ describe('Quick PIN Unlock Key Wrapping', () => {
     const restoredHex = new TextDecoder().decode(unwrapped);
     expect(restoredHex).toBe(rawMasterKeyHex);
   });
+
+  it('should activate Decoy Vault Mode when duress PIN is used', async () => {
+    const { useVaultStore } = await import('../stores/vaultStore');
+    const store = useVaultStore.getState();
+
+    // Setup duress PIN
+    await store.setupDuressPin('9999');
+    expect(useVaultStore.getState().isDuressPinEnabled).toBe(true);
+
+    // Unlock using duress PIN
+    const unlocked = await useVaultStore.getState().unlockWithPin('9999');
+    expect(unlocked).toBe(true);
+
+    const state = useVaultStore.getState();
+    expect(state.vaultState).toBe('unlocked');
+    expect(state.isDecoyVault).toBe(true);
+    expect(state.credentials.length).toBeGreaterThan(0);
+    expect(state.credentials[0].title).toBe('Google (Personal)');
+    expect(state.encryptionKey).toBeNull(); // Master key is NOT decrypted
+
+    // Locking vault resets decoy status
+    store.lockVault();
+    expect(useVaultStore.getState().vaultState).toBe('locked');
+    expect(useVaultStore.getState().isDecoyVault).toBe(false);
+  });
 });

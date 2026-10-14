@@ -1,7 +1,7 @@
 {
   "name": "safevault-desktop",
   "productName": "SafeVault",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "SafeVault - Zero-Knowledge, Offline-First Credential Manager",
   "author": "Sudhir Singh",
   "main": "electron/main.cjs",
@@ -22,7 +22,8 @@
     "electron:dev": "electron .",
     "mobile:sync": "npm run build && npx cap sync",
     "mobile:add-android": "npx cap add android",
-    "mobile:open-android": "npm run mobile:sync && npx cap open android"
+    "mobile:open-android": "npm run mobile:sync && npx cap open android",
+    "prepare": "husky || true"
   },
   "dependencies": {
     "@capacitor/core": "^8.4.2",
@@ -53,6 +54,7 @@
     "electron": "^43.2.0",
     "electron-builder": "^26.15.3",
     "fake-indexeddb": "^6.2.5",
+    "husky": "^9.1.7",
     "sharp": "^0.35.3",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",

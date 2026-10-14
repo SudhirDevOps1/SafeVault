@@ -30,6 +30,9 @@ export interface Credential {
   totpPeriod?: number;
   isSteamTotp?: boolean;
   backupCodes?: string[];
+  // Email Alias tracking (Proton Pass / SimpleLogin / AliasVault grade)
+  aliasStatus?: 'active' | 'paused' | 'blocked';
+  aliasBaseEmail?: string;
 }
 
 export interface VaultMetadata {

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   Copy, Check, Eye, EyeOff, Edit, Trash2, Globe, User,
-  Lock, FileText, Star, ExternalLink, ArrowLeft, Key
+  Lock, FileText, Star, ExternalLink, ArrowLeft, Key,
+  CreditCard, Wifi
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import { useClipboard } from '@/hooks/useClipboard';
@@ -18,6 +19,8 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
   const { copiedField, copyToClipboard } = useClipboard();
   const [showPassword, setShowPassword] = useState(false);
   const [showTotpSecret, setShowTotpSecret] = useState(false);
+  const [showCardNumber, setShowCardNumber] = useState(false);
+  const [showCardCVV, setShowCardCVV] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -101,9 +104,29 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-bold text-white">{credential.title}</h2>
                   {credential.category === 'Alias' && (
-                    <span className="text-[10px] font-bold bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                      Email Alias
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        Email Alias
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const status = credential.aliasStatus || 'active';
+                          const next = status === 'active' ? 'paused' : status === 'paused' ? 'blocked' : 'active';
+                          await updateCredential(credential.id, { aliasStatus: next });
+                        }}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border transition-all cursor-pointer ${
+                          (credential.aliasStatus || 'active') === 'active'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                            : (credential.aliasStatus === 'paused')
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20'
+                        }`}
+                        title="Click to cycle status (Active -> Paused -> Blocked)"
+                      >
+                        {credential.aliasStatus === 'paused' ? '🟡 Paused' : credential.aliasStatus === 'blocked' ? '🔴 Blocked' : '🟢 Active'}
+                      </button>
+                    </div>
                   )}
                   {isHoneypot && (
                     <span className="text-[10px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400 px-2 py-0.5 rounded-full uppercase tracking-wider" title="This credential is marked as a honeypot/decoy">
@@ -193,6 +216,150 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
               </div>
             </div>
           )}
+
+          {/* Visual Payment Card (if Cards category or cardNumber exists) */}
+          {(credential.category === 'Cards' || credential.cardNumber) && (
+            <div className="space-y-4">
+              <div className="w-full max-w-sm mx-auto aspect-[1.586/1] rounded-2xl p-5 bg-gradient-to-tr from-slate-900 via-zinc-900 to-neutral-800 border border-white/20 shadow-2xl relative flex flex-col justify-between overflow-hidden">
+                {/* Glossy overlay effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40 pointer-events-none" />
+
+                {/* Card Top: Chip, Contactless & Brand Badge */}
+                <div className="flex items-center justify-between relative z-10">
+                  <div className="flex items-center gap-2.5">
+                    {/* Metallic EMV Chip */}
+                    <div className="w-9 h-7 rounded bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 border border-amber-300/60 shadow flex flex-col justify-around p-1">
+                      <div className="w-full h-0.5 bg-amber-800/40 rounded-full" />
+                      <div className="w-full h-0.5 bg-amber-800/40 rounded-full" />
+                    </div>
+                    {/* Contactless Wave */}
+                    <Wifi className="w-4 h-4 text-gray-300 rotate-90 opacity-75" />
+                  </div>
+
+                  {/* Brand Badge */}
+                  <span className="font-black text-xs tracking-widest uppercase px-2.5 py-0.5 bg-white/10 rounded-md text-white border border-white/20 backdrop-blur-sm">
+                    {credential.cardType?.toUpperCase() || 'CARD'}
+                  </span>
+                </div>
+
+                {/* Card Middle: Card Number */}
+                <div className="my-auto relative z-10 flex items-center justify-between">
+                  <span className="font-mono text-lg sm:text-xl font-bold tracking-[0.2em] text-white drop-shadow">
+                    {showCardNumber
+                      ? (credential.cardNumber ? credential.cardNumber.replace(/(\d{4})/g, '$1 ').trim() : '•••• •••• •••• ••••')
+                      : (credential.cardNumber
+                          ? `•••• •••• •••• ${credential.cardNumber.replace(/\D/g, '').slice(-4) || '••••'}`
+                          : '•••• •••• •••• ••••')}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowCardNumber(!showCardNumber)}
+                      className="p-1 hover:bg-white/10 rounded-md text-gray-400 hover:text-white transition-colors"
+                      title={showCardNumber ? 'Hide card number' : 'Reveal card number'}
+                    >
+                      {showCardNumber ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                    {credential.cardNumber && (
+                      <CopyButton text={credential.cardNumber.replace(/\D/g, '')} field="cardNumber" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Bottom: Holder, Expiry & CVV */}
+                <div className="flex items-end justify-between relative z-10 text-xs">
+                  <div>
+                    <span className="text-[8px] uppercase tracking-wider text-gray-400 block font-semibold">Cardholder</span>
+                    <span className="font-mono font-bold tracking-wider text-white uppercase text-xs truncate max-w-[130px] block">
+                      {credential.cardHolder || credential.username || 'VALUED CARDHOLDER'}
+                    </span>
+                  </div>
+
+                  <div className="text-center">
+                    <span className="text-[8px] uppercase tracking-wider text-gray-400 block font-semibold">Expires</span>
+                    <span className="font-mono font-bold tracking-widest text-white text-xs block">
+                      {credential.cardExpiry || 'MM/YY'}
+                    </span>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-[8px] uppercase tracking-wider text-gray-400 block font-semibold">CVV</span>
+                    <div className="flex items-center gap-1 justify-end">
+                      <span className="font-mono font-bold tracking-widest text-white text-xs">
+                        {showCardCVV ? (credential.cardCVV || '•••') : '•••'}
+                      </span>
+                      {credential.cardCVV && (
+                        <button
+                          type="button"
+                          onClick={() => setShowCardCVV(!showCardCVV)}
+                          className="p-0.5 text-gray-400 hover:text-white transition-colors"
+                        >
+                          {showCardCVV ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Detail Fields Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {credential.cardNumber && (
+                  <div className="bg-white/5 border border-white/5 rounded-xl p-3 col-span-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CreditCard className="w-3.5 h-3.5 text-gray-500" />
+                      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Card Number</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-white font-mono text-sm">
+                        {showCardNumber ? credential.cardNumber : `•••• •••• •••• ${credential.cardNumber.replace(/\D/g, '').slice(-4) || '••••'}`}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowCardNumber(!showCardNumber)}
+                          className="p-1 hover:bg-white/10 rounded text-gray-500 hover:text-gray-300"
+                        >
+                          {showCardNumber ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                        <CopyButton text={credential.cardNumber.replace(/\D/g, '')} field="cardNumberField" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {credential.cardExpiry && (
+                  <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                    <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide block mb-1">Expiry Date</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-white font-mono text-sm">{credential.cardExpiry}</span>
+                      <CopyButton text={credential.cardExpiry} field="cardExpiry" />
+                    </div>
+                  </div>
+                )}
+
+                {credential.cardCVV && (
+                  <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                    <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide block mb-1">Security Code (CVV)</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-white font-mono text-sm">{showCardCVV ? credential.cardCVV : '•••'}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowCardCVV(!showCardCVV)}
+                          className="p-1 hover:bg-white/10 rounded text-gray-500 hover:text-gray-300"
+                        >
+                          {showCardCVV ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                        <CopyButton text={credential.cardCVV} field="cardCVV" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Username */}
           {credential.username && (
             <div className="bg-white/5 border border-white/5 rounded-xl p-4">

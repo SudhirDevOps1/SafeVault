@@ -2,7 +2,8 @@
  * SafeVault TOTP (Time-based One-Time Password) Implementation
  * 
  * Implements RFC 6238 TOTP using Web Crypto API.
- * Supports SHA-1, SHA-256, SHA-512, Steam Guard, and URI parsing.
+ * Supports SHA-1, SHA-256, SHA-512, Steam Guard, URI parsing,
+ * next-code preview, and Google Authenticator migration payload decoding.
  */
 
 export type TOTPAlgorithm = 'SHA-1' | 'SHA-256' | 'SHA-512';
@@ -24,16 +25,48 @@ export interface ParsedOtpAuth {
   period: number;
 }
 
+export interface GoogleAuthAccount {
+  secret: string; // Base32 encoded string
+  name: string;
+  issuer?: string;
+  algorithm: TOTPAlgorithm;
+  digits: 6 | 8;
+  type: 'totp' | 'hotp';
+}
+
 const STEAM_CHARS = '23456789BCDFGHJKMNPQRTVWXY';
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+/** Encode Uint8Array to Base32 string */
+export function base32Encode(buffer: Uint8Array): string {
+  let bits = 0;
+  let value = 0;
+  let output = '';
+
+  for (let i = 0; i < buffer.length; i++) {
+    value = (value << 8) | buffer[i];
+    bits += 8;
+
+    while (bits >= 5) {
+      output += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+
+  if (bits > 0) {
+    output += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+  }
+
+  return output;
+}
 
 /** Decode Base32 string to Uint8Array */
 export function base32Decode(base32: string): Uint8Array<ArrayBuffer> {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   const cleaned = base32.replace(/[\s=-]/g, '').toUpperCase();
   
   let bits = '';
   for (const char of cleaned) {
-    const val = alphabet.indexOf(char);
+    const val = BASE32_ALPHABET.indexOf(char);
     if (val === -1) continue;
     bits += val.toString(2).padStart(5, '0');
   }
@@ -107,8 +140,8 @@ function steamTruncation(hmacResult: ArrayBuffer): string {
   return steamCode;
 }
 
-/** Generate a TOTP code from a Base32 secret with options */
-export async function generateTOTP(secret: string, options: TOTPOptions = {}): Promise<string> {
+/** Generate a TOTP code at a specific timestamp */
+export async function generateTOTPAtTime(secret: string, timestamp: number, options: TOTPOptions = {}): Promise<string> {
   if (!secret || secret.trim().length === 0) return '';
   
   const algorithm = options.algorithm || 'SHA-1';
@@ -118,7 +151,7 @@ export async function generateTOTP(secret: string, options: TOTPOptions = {}): P
 
   try {
     const key = base32Decode(secret);
-    const counter = Math.floor(Date.now() / 1000 / period);
+    const counter = Math.floor(timestamp / 1000 / period);
     const counterBytes = intToBytes(counter);
     const hmacResult = await hmac(key, counterBytes, algorithm);
 
@@ -131,6 +164,17 @@ export async function generateTOTP(secret: string, options: TOTPOptions = {}): P
   } catch {
     return 'ERROR';
   }
+}
+
+/** Generate current TOTP code from a Base32 secret with options */
+export async function generateTOTP(secret: string, options: TOTPOptions = {}): Promise<string> {
+  return generateTOTPAtTime(secret, Date.now(), options);
+}
+
+/** Generate the upcoming next TOTP code (preview when current is about to expire) */
+export async function generateNextTOTP(secret: string, options: TOTPOptions = {}): Promise<string> {
+  const period = options.period || 30;
+  return generateTOTPAtTime(secret, Date.now() + period * 1000, options);
 }
 
 /** Get seconds remaining in current TOTP period */
@@ -184,4 +228,128 @@ export function parseOtpAuthUri(uri: string): ParsedOtpAuth | null {
   } catch {
     return null;
   }
+}
+
+/** Lightweight protobuf reader for Google Authenticator migration payload */
+function decodeVarint(bytes: Uint8Array, offset: number): { value: number; newOffset: number } {
+  let result = 0;
+  let shift = 0;
+  let pos = offset;
+  while (pos < bytes.length) {
+    const b = bytes[pos++];
+    result |= (b & 0x7f) << shift;
+    if ((b & 0x80) === 0) break;
+    shift += 7;
+  }
+  return { value: result, newOffset: pos };
+}
+
+/** Parse Google Authenticator Migration URI (otpauth-migration://offline?data=...) */
+export function parseGoogleAuthMigration(uriOrData: string): GoogleAuthAccount[] {
+  let base64Data = uriOrData.trim();
+  if (base64Data.startsWith('otpauth-migration://')) {
+    try {
+      const url = new URL(base64Data);
+      base64Data = url.searchParams.get('data') || '';
+    } catch {
+      return [];
+    }
+  }
+
+  if (!base64Data) return [];
+
+  // Decode Base64 to Uint8Array
+  let rawBytes: Uint8Array;
+  try {
+    const decodedStr = atob(decodeURIComponent(base64Data));
+    rawBytes = new Uint8Array(decodedStr.length);
+    for (let i = 0; i < decodedStr.length; i++) {
+      rawBytes[i] = decodedStr.charCodeAt(i);
+    }
+  } catch {
+    return [];
+  }
+
+  const accounts: GoogleAuthAccount[] = [];
+  let pos = 0;
+
+  try {
+    while (pos < rawBytes.length) {
+      const { value: tagAndType, newOffset } = decodeVarint(rawBytes, pos);
+      pos = newOffset;
+      const fieldNumber = tagAndType >>> 3;
+      const wireType = tagAndType & 0x07;
+
+      if (fieldNumber === 1 && wireType === 2) {
+        // OtpParameters message (length-delimited)
+        const { value: len, newOffset: posAfterLen } = decodeVarint(rawBytes, pos);
+        pos = posAfterLen;
+        const paramEnd = pos + len;
+
+        let secretBytes: Uint8Array | null = null;
+        let name = '';
+        let issuer = '';
+        let algorithmCode = 1;
+        let digitsCode = 1;
+        let typeCode = 2; // default TOTP
+
+        let subPos = pos;
+        while (subPos < paramEnd) {
+          const { value: subTag, newOffset: subAfterTag } = decodeVarint(rawBytes, subPos);
+          subPos = subAfterTag;
+          const subField = subTag >>> 3;
+          const subWire = subTag & 0x07;
+
+          if (subWire === 2) {
+            const { value: subLen, newOffset: afterSubLen } = decodeVarint(rawBytes, subPos);
+            subPos = afterSubLen;
+            const slice = rawBytes.subarray(subPos, subPos + subLen);
+            subPos += subLen;
+
+            if (subField === 1) secretBytes = slice;
+            if (subField === 2) name = new TextDecoder().decode(slice);
+            if (subField === 3) issuer = new TextDecoder().decode(slice);
+          } else if (subWire === 0) {
+            const { value: varVal, newOffset: afterVar } = decodeVarint(rawBytes, subPos);
+            subPos = afterVar;
+            if (subField === 4) algorithmCode = varVal;
+            if (subField === 5) digitsCode = varVal;
+            if (subField === 6) typeCode = varVal;
+          } else {
+            subPos++;
+          }
+        }
+
+        pos = paramEnd;
+
+        if (secretBytes && secretBytes.length > 0) {
+          const secretBase32 = base32Encode(secretBytes);
+          let algorithm: TOTPAlgorithm = 'SHA-1';
+          if (algorithmCode === 2) algorithm = 'SHA-256';
+          if (algorithmCode === 3) algorithm = 'SHA-512';
+
+          accounts.push({
+            secret: secretBase32,
+            name: name || issuer || 'Imported Account',
+            issuer: issuer || undefined,
+            algorithm,
+            digits: digitsCode === 2 ? 8 : 6,
+            type: typeCode === 1 ? 'hotp' : 'totp'
+          });
+        }
+      } else if (wireType === 0) {
+        const { newOffset: afterVar } = decodeVarint(rawBytes, pos);
+        pos = afterVar;
+      } else if (wireType === 2) {
+        const { value: len, newOffset: afterLen } = decodeVarint(rawBytes, pos);
+        pos = afterLen + len;
+      } else {
+        pos++;
+      }
+    }
+  } catch {
+    // Return whatever accounts were parsed up to the error
+  }
+
+  return accounts;
 }

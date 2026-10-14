@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import type { SidebarView } from '@/types';
+import { APP_VERSION } from '@/version';
 
 interface SidebarProps {
   onAddCredential: () => void;
@@ -110,7 +111,6 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
 
       {/* Desktop App Download Options (Web Only) */}
       {!(typeof window !== 'undefined' && 'electron' in window) && (() => {
-        const APP_VERSION = '2.0.1';
         const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
         const isMobile = /android|iphone|ipad|ipod/i.test(userAgent);
         
