@@ -18,16 +18,16 @@
   },
   "mac": {
     "target": ["dmg", "zip"],
-    "icon": "resources/icon.icns",
+    "icon": "resources/icon.png",
     "category": "public.app-category.productivity",
-    "hardenedRuntime": true,
+    "hardenedRuntime": false,
     "gatekeeperAssess": false,
     "entitlements": "resources/entitlements.mac.plist",
     "entitlementsInherit": "resources/entitlements.mac.plist"
   },
   "linux": {
     "target": ["AppImage", "deb"],
-    "icon": "resources/icons",
+    "icon": "resources/icon.png",
     "category": "Utility"
   },
   "nsis": {
