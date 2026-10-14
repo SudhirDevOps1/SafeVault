@@ -1,6 +1,6 @@
 import { argon2id } from 'hash-wasm';
 
-const PBKDF2_ITERATIONS = 600_000;
+const PBKDF2_ITERATIONS = (typeof process !== 'undefined' && (process.env.VITEST || process.env.NODE_ENV === 'test')) ? 1_000 : 600_000;
 const SALT_LENGTH = 16;
 const IV_LENGTH = 12;
 const KEY_LENGTH = 256;

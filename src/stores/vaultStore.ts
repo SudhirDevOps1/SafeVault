@@ -129,6 +129,26 @@ interface VaultStore {
   unlockWithPin: (pin: string) => Promise<boolean>;
 }
 
+async function syncToExtension(credentials: Credential[], key: CryptoKey | null, isUnlocked: boolean) {
+  if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id) {
+    try {
+      let sessionKeyBase64 = null;
+      if (key && isUnlocked) {
+        try {
+          const raw = await crypto.subtle.exportKey('raw', key);
+          sessionKeyBase64 = bufferToBase64(raw);
+        } catch { /* proceed */ }
+      }
+      (window as any).chrome.runtime.sendMessage({
+        action: 'SYNC_VAULT_DATA',
+        credentials: isUnlocked ? credentials : [],
+        isUnlocked,
+        sessionKeyBase64,
+      });
+    } catch { /* proceed */ }
+  }
+}
+
 export const useVaultStore = create<VaultStore>((set, get) => ({
   vaultState: 'loading',
   credentials: [],
@@ -167,6 +187,37 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     const theme = (localStorage.getItem(THEME_KEY) as Theme) || 'dark';
     document.documentElement.classList.toggle('dark', theme === 'dark');
     try {
+      // Seamlessly restore active session in Chrome Extension
+      if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id && (window as any).chrome?.storage?.session) {
+        try {
+          const session = await (window as any).chrome.storage.session.get(['isUnlocked', 'sessionKeyBase64', 'credentialsJson']);
+          if (session?.isUnlocked && session?.sessionKeyBase64 && session?.credentialsJson) {
+            const rawKey = base64ToBuffer(session.sessionKeyBase64);
+            const restoredKey = await crypto.subtle.importKey(
+              'raw',
+              rawKey,
+              { name: 'AES-GCM' },
+              true,
+              ['encrypt', 'decrypt']
+            );
+            const credentials = JSON.parse(session.credentialsJson);
+            const vaultRecord = await db.vault.get('main');
+            set({
+              vaultState: 'unlocked',
+              encryptionKey: restoredKey,
+              credentials,
+              autoLockMinutes: vaultRecord?.autoLockMinutes || 5,
+              lastActivity: Date.now(),
+              loading: false,
+            });
+            logger.info('Vault restored from active extension session');
+            return;
+          }
+        } catch (sessErr) {
+          logger.warn('Could not restore session from chrome.storage.session', sessErr);
+        }
+      }
+
       const vaultRecord = await db.vault.get('main');
       if (vaultRecord) {
         logger.info('Existing vault found');
@@ -234,6 +285,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         lastActivity: Date.now(),
         loading: false,
       });
+      syncToExtension([], key, true);
       logger.info('Vault created successfully using PBKDF2 and Key Wrap');
     } catch (err) {
       logger.error('Failed to create vault', err);
@@ -295,6 +347,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         lastActivity: Date.now(),
         loading: false,
       });
+      syncToExtension(credentials, key, true);
       logger.info(`Vault unlocked, ${credentials.length} credentials loaded`);
       get().addAuditLog('VAULT_UNLOCKED', `Vault unlocked — ${credentials.length} credentials loaded`);
     } catch (err) {
@@ -347,6 +400,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         lastActivity: Date.now(),
         loading: false,
       });
+      syncToExtension(credentials, unwrappedMasterKey, true);
       logger.info(`Vault successfully unlocked using recovery key unwrap, ${credentials.length} credentials loaded`);
       return true;
     } catch (err) {
@@ -369,6 +423,12 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     try {
       navigator.clipboard.writeText('');
     } catch { /* ignore */ }
+    if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id) {
+      try {
+        (window as any).chrome.storage?.session?.clear?.();
+        (window as any).chrome.runtime?.sendMessage?.({ action: 'LOCK_SESSION' });
+      } catch {}
+    }
   },
 
   changeMasterPassword: async (oldPassword: string, newPassword: string) => {
@@ -439,9 +499,11 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     };
     
     const { credentials } = get();
-    set({ credentials: [...credentials, newCred] });
+    const updated = [...credentials, newCred];
+    set({ credentials: updated });
     await get().saveVault();
     await get().performAutoBackup();
+    syncToExtension(updated, get().encryptionKey, true);
     logger.info('Credential added');
     get().addAuditLog('CREDENTIAL_ADDED', `Added: "${newCred.title}" (${newCred.category})`);
   },
@@ -454,6 +516,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     set({ credentials: updated });
     await get().saveVault();
     await get().performAutoBackup();
+    syncToExtension(updated, get().encryptionKey, true);
     logger.info('Credential updated');
     const cred = get().credentials.find(c => c.id === id);
     get().addAuditLog('CREDENTIAL_UPDATED', `Updated: "${cred?.title ?? id}"`);
@@ -465,13 +528,15 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     // Add to tombstone list so future syncs do not resurrect this credential
     const updatedDeletedIds = Array.from(new Set([...deletedCredentialIds, id]));
     localStorage.setItem('safevault_deleted_ids', JSON.stringify(updatedDeletedIds));
+    const updated = credentials.filter(c => c.id !== id);
     set({
-      credentials: credentials.filter(c => c.id !== id),
+      credentials: updated,
       selectedCredentialId: selectedCredentialId === id ? null : selectedCredentialId,
       deletedCredentialIds: updatedDeletedIds,
     });
     await get().saveVault();
     await get().performAutoBackup();
+    syncToExtension(updated, get().encryptionKey, true);
     logger.info('Credential deleted');
     get().addAuditLog('CREDENTIAL_DELETED', `Deleted: "${deletedCred?.title ?? id}"`);
   },
@@ -505,6 +570,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     set({ credentials: merged, deletedCredentialIds: allDeletedIds, lastSyncedAt: now });
     await get().saveVault();
     await get().performAutoBackup();
+    syncToExtension(merged, get().encryptionKey, true);
     logger.info('Vault credentials synchronized and merged');
     return merged;
   },
@@ -969,6 +1035,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         lastActivity: Date.now(),
         autoLockMinutes: vaultRecord.autoLockMinutes,
       });
+      syncToExtension(credentials, masterKey, true);
       
       get().addAuditLog('VAULT_UNLOCKED_PIN', 'Vault unlocked using Quick PIN');
       return true;

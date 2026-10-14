@@ -1,27 +1,28 @@
 import '@testing-library/jest-dom';
+import 'fake-indexeddb/auto';
 import { vi } from 'vitest';
+import { webcrypto } from 'node:crypto';
 
-// Mock crypto.subtle for tests
-const subtleMock = {
-  importKey: vi.fn().mockResolvedValue({}),
-  deriveKey: vi.fn().mockResolvedValue({}),
-  deriveBits: vi.fn().mockResolvedValue(new ArrayBuffer(32)),
-  encrypt: vi.fn().mockResolvedValue(new ArrayBuffer(16)),
-  decrypt: vi.fn().mockResolvedValue(new TextEncoder().encode('test')),
-  sign: vi.fn().mockResolvedValue(new ArrayBuffer(20)),
+// Delegate subtle crypto methods to Node.js native webcrypto
+const subtle = {
+  importKey: vi.fn((...args: any[]) => (webcrypto.subtle as any).importKey(...args)),
+  deriveKey: vi.fn((...args: any[]) => (webcrypto.subtle as any).deriveKey(...args)),
+  deriveBits: vi.fn((...args: any[]) => (webcrypto.subtle as any).deriveBits(...args)),
+  encrypt: vi.fn((...args: any[]) => (webcrypto.subtle as any).encrypt(...args)),
+  decrypt: vi.fn((...args: any[]) => (webcrypto.subtle as any).decrypt(...args)),
+  sign: vi.fn((...args: any[]) => (webcrypto.subtle as any).sign(...args)),
+  digest: vi.fn((...args: any[]) => (webcrypto.subtle as any).digest(...args)),
+  exportKey: vi.fn((...args: any[]) => (webcrypto.subtle as any).exportKey(...args)),
 };
 
 Object.defineProperty(globalThis, 'crypto', {
   value: {
-    getRandomValues: <T extends ArrayBufferView>(arr: T): T => {
-      const bytes = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
-      for (let i = 0; i < bytes.length; i++) {
-        bytes[i] = Math.floor(Math.random() * 256);
-      }
-      return arr;
-    },
-    subtle: subtleMock,
+    getRandomValues: <T extends ArrayBufferView>(arr: T): T => webcrypto.getRandomValues(arr as any) as T,
+    subtle,
+    randomUUID: () => webcrypto.randomUUID(),
   },
+  writable: true,
+  configurable: true,
 });
 
 // Mock localStorage

@@ -1,27 +1,35 @@
 {
   "manifest_version": 3,
-  "name": "SafeVault Authenticator & Manager",
+  "name": "SafeVault Authenticator & Password Manager",
   "version": "3.0.0",
-  "description": "Zero-Knowledge, Offline-First Credential Manager and Authenticator",
+  "description": "Zero-Knowledge, Offline-First Credential Manager, TOTP Authenticator and Seamless Auto-fill",
   "permissions": [
     "activeTab",
+    "tabs",
     "storage",
     "clipboardWrite",
-    "contextMenus"
+    "contextMenus",
+    "scripting",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
   ],
   "icons": {
-    "16": "icon.png",
-    "32": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   },
   "action": {
     "default_popup": "index.html",
+    "default_title": "SafeVault - Auto-fill & Authenticator",
     "default_icon": {
-      "16": "icon.png",
-      "32": "icon.png",
-      "48": "icon.png",
-      "128": "icon.png"
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
     }
   },
   "background": {
@@ -30,9 +38,37 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["http://*/*", "https://*/*"],
       "js": ["content.js"],
-      "run_at": "document_end"
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "autofill_credential": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Auto-fill credentials for this page"
+    },
+    "generate_password": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+9",
+        "mac": "Command+Shift+9"
+      },
+      "description": "Generate and copy secure password"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/icon-16.png",
+        "icons/icon-32.png",
+        "icons/icon-48.png",
+        "icons/icon-128.png",
+        "images/safevault-logo.png"
+      ],
+      "matches": ["<all_urls>"]
     }
   ],
   "content_security_policy": {

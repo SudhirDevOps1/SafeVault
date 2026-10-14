@@ -14,7 +14,7 @@ import UpdateModal from './UpdateModal';
 import { useAutoLock } from '@/hooks/useAutoLock';
 import { useSystemSleepLock } from '@/hooks/useSystemSleepLock';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { Shield, Plus, Menu, X, Keyboard } from 'lucide-react';
+import { Shield, Plus, Menu, X, Keyboard, Key, Sparkles, Settings as SettingsIcon, Lock } from 'lucide-react';
 import { SHORTCUT_DESCRIPTIONS } from '@/hooks/useKeyboardShortcuts';
 
 export default function Dashboard() {
@@ -258,10 +258,50 @@ export default function Dashboard() {
             </button>
           </div>
         )}
-        <div className="flex-1 overflow-hidden">
+        <div className={`flex-1 overflow-hidden ${typeof window !== 'undefined' && (window as any).chrome?.runtime?.id ? 'pb-14' : ''}`}>
           {renderContent()}
         </div>
       </div>
+
+      {/* Extension Bottom Navigation Bar */}
+      {typeof window !== 'undefined' && (window as any).chrome?.runtime?.id && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur-md border-t border-white/10 px-2 py-1.5 flex items-center justify-around">
+          <button
+            onClick={() => { setSidebarView('all'); setSelectedCredential(null); }}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+              sidebarView === 'all' || sidebarView === 'favorites' ? 'text-emerald-400 font-semibold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Key className="w-4 h-4" />
+            <span>Logins</span>
+          </button>
+          <button
+            onClick={() => { setSidebarView('generator'); setSelectedCredential(null); }}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+              sidebarView === 'generator' ? 'text-emerald-400 font-semibold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Generator</span>
+          </button>
+          <button
+            onClick={() => { setSidebarView('settings'); setSelectedCredential(null); }}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+              sidebarView === 'settings' ? 'text-emerald-400 font-semibold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <SettingsIcon className="w-4 h-4" />
+            <span>Settings</span>
+          </button>
+          <button
+            onClick={handleLock}
+            className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-[10px] font-medium text-red-400/80 hover:text-red-400 transition-colors"
+          >
+            <Lock className="w-4 h-4" />
+            <span>Lock</span>
+          </button>
+        </div>
+      )}
 
       {/* Add/Edit Credential Modal */}
       {showAddForm && (

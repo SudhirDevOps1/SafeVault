@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+.pnpm/
 
 # Build & Output Directories
 dist/
@@ -40,6 +41,7 @@ release/
 coverage/
 .nyc_output/
 *.lcov
+.vitest/
 
 # Logs
 logs/
@@ -95,4 +97,3 @@ android/app/src/main/assets/public/
 *.apk
 *.aar
 *.ap_
-
