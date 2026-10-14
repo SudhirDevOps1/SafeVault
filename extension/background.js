@@ -3,10 +3,19 @@
 
 // Cryptographically secure password generator
 function generateSecurePassword(length = 20) {
-  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+  const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+  const chars = letters + digits + symbols;
   const array = new Uint32Array(length);
   crypto.getRandomValues(array);
-  return Array.from(array, x => chars[x % chars.length]).join('');
+  const result = Array.from(array, x => chars[x % chars.length]);
+  if (length >= 3) {
+    result[0] = letters[array[0] % letters.length];
+    result[1] = digits[array[1] % digits.length];
+    result[2] = symbols[array[2] % symbols.length];
+  }
+  return result.join('');
 }
 
 // Extract base domain for matching (e.g., login.example.com -> example.com)
