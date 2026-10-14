@@ -1,7 +1,55 @@
 // SafeVault Extension Background Service Worker (Manifest V3)
 // Zero-Knowledge Architecture with Bitwarden/Proton Pass style autofill & context menu integration
 
-// Cryptographically secure password generator
+// Decode Base32 string to Uint8Array for TOTP
+function base32Decode(base32) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const cleaned = (base32 || '').replace(/[\s=-]/g, '').toUpperCase();
+  let bits = '';
+  for (const char of cleaned) {
+    const val = alphabet.indexOf(char);
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, '0');
+  }
+  const bytes = new Uint8Array(Math.floor(bits.length / 8));
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(bits.substring(i * 8, i * 8 + 8), 2);
+  }
+  return bytes;
+}
+
+// Calculate RFC 6238 TOTP Code
+async function calculateTOTP(secret, digits = 6, period = 30) {
+  if (!secret) return '';
+  try {
+    const key = base32Decode(secret);
+    const counter = Math.floor(Date.now() / 1000 / period);
+    const buffer = new ArrayBuffer(8);
+    const view = new DataView(buffer);
+    view.setUint32(0, Math.floor(counter / 0x100000000));
+    view.setUint32(4, counter & 0xffffffff);
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      key,
+      { name: 'HMAC', hash: 'SHA-1' },
+      false,
+      ['sign']
+    );
+    const hmac = await crypto.subtle.sign('HMAC', cryptoKey, buffer);
+    const bytes = new Uint8Array(hmac);
+    const offset = bytes[bytes.length - 1] & 0x0f;
+    const code =
+      ((bytes[offset] & 0x7f) << 24) |
+      ((bytes[offset + 1] & 0xff) << 16) |
+      ((bytes[offset + 2] & 0xff) << 8) |
+      (bytes[offset + 3] & 0xff);
+    return (code % Math.pow(10, digits)).toString().padStart(digits, '0');
+  } catch {
+    return '';
+  }
+}
+
+// Cryptographically secure password generator with guaranteed diversity
 function generateSecurePassword(length = 20) {
   const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
   const digits = '23456789';
@@ -27,7 +75,6 @@ function extractDomain(urlOrHost) {
       hostname = new URL(urlOrHost).hostname;
     }
     hostname = hostname.toLowerCase().trim();
-    // Remove port if present
     hostname = hostname.split(':')[0];
     const parts = hostname.split('.');
     if (parts.length >= 2) {
@@ -37,6 +84,18 @@ function extractDomain(urlOrHost) {
   } catch {
     return urlOrHost.toLowerCase().trim();
   }
+}
+
+// Broadcast Vault State Change to all browser tabs
+function broadcastVaultState(isUnlocked) {
+  chrome.tabs.query({}, (tabs) => {
+    if (!tabs || !Array.isArray(tabs)) return;
+    tabs.forEach(tab => {
+      if (tab?.id) {
+        chrome.tabs.sendMessage(tab.id, { action: 'VAULT_STATE_UPDATED', isUnlocked: !!isUnlocked }).catch(() => {});
+      }
+    });
+  });
 }
 
 // Setup Context Menus on Installation / Update
@@ -79,7 +138,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     chrome.tabs.sendMessage(tab.id, { action: 'TRIGGER_AUTOFILL' }).catch(() => {});
   } else if (info.menuItemId === 'safevault-generate') {
     const password = generateSecurePassword(20);
-    // Send generated password directly to active input in tab
     chrome.tabs.sendMessage(tab.id, { action: 'FILL_GENERATED_PASSWORD', password }).catch(() => {});
   } else if (info.menuItemId === 'safevault-open') {
     chrome.action.openPopup?.().catch(() => {});
@@ -145,19 +203,47 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   }
 });
 
+// Background Auto-Lock Alarms & Idle Detection
+chrome.alarms?.create('safevault-auto-lock-check', { periodInMinutes: 1 });
+chrome.alarms?.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'safevault-auto-lock-check') {
+    const session = await chrome.storage.session.get(['isUnlocked', 'lastSynced', 'autoLockMinutes']);
+    const timeoutMs = (session.autoLockMinutes || 15) * 60 * 1000;
+    if (session.isUnlocked && session.lastSynced && Date.now() - session.lastSynced > timeoutMs) {
+      await chrome.storage.session.clear();
+      broadcastVaultState(false);
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        await chrome.action.setBadgeText({ tabId: tab.id, text: '' });
+      }
+    }
+  }
+});
+
+chrome.idle?.onStateChanged?.addListener(async (state) => {
+  if (state === 'locked') {
+    await chrome.storage.session.clear();
+    broadcastVaultState(false);
+  }
+});
+
 // Main Message Router
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   (async () => {
     switch (request.action) {
       // 1. Session Synchronization from Popup/React App
       case 'SYNC_VAULT_DATA': {
-        const { credentials, isUnlocked, sessionKeyBase64 } = request;
+        const { credentials, isUnlocked, sessionKeyBase64, autoLockMinutes } = request;
         await chrome.storage.session.set({
           isUnlocked: !!isUnlocked,
           sessionKeyBase64: sessionKeyBase64 || null,
           credentialsJson: JSON.stringify(credentials || []),
+          autoLockMinutes: autoLockMinutes || 15,
           lastSynced: Date.now()
         });
+
+        // Broadcast to all active tabs so in-field dropdowns immediately refresh
+        broadcastVaultState(!!isUnlocked);
 
         // Update active tab badge
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -172,6 +258,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       case 'LOCK_SESSION':
       case 'lockSession': {
         await chrome.storage.session.clear();
+        broadcastVaultState(false);
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id) {
           await chrome.action.setBadgeText({ tabId: tab.id, text: '' });
@@ -190,7 +277,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         break;
       }
 
-      // 4. Retrieve Matching Credentials for Content Script / Page
+      // 4. Retrieve Matching Credentials with Live 2FA Codes
       case 'GET_MATCHING_CREDENTIALS': {
         const session = await chrome.storage.session.get(['isUnlocked', 'credentialsJson']);
         if (!session.isUnlocked || !session.credentialsJson) {
@@ -210,16 +297,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return (cDomain && targetDomain && (cDomain === targetDomain || cDomain.includes(targetDomain) || targetDomain.includes(cDomain))) || titleMatch;
           });
 
+          // Compute live TOTP codes for all matching credentials
+          const resolvedMatches = await Promise.all(matches.map(async c => ({
+            id: c.id,
+            title: c.title,
+            username: c.username,
+            password: c.password,
+            url: c.url,
+            totpSecret: c.totpSecret || '',
+            totpCode: c.totpSecret ? await calculateTOTP(c.totpSecret, c.totpDigits || 6, c.totpPeriod || 30) : ''
+          })));
+
           sendResponse({
             isUnlocked: true,
-            credentials: matches.map(c => ({
-              id: c.id,
-              title: c.title,
-              username: c.username,
-              password: c.password,
-              url: c.url,
-              totpSecret: c.totpSecret || ''
-            }))
+            credentials: resolvedMatches
           });
         } catch (err) {
           sendResponse({ isUnlocked: true, credentials: [], error: err.message });
@@ -234,14 +325,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         break;
       }
 
-      // 6. Autofill Specific Tab
+      // 6. Autofill Specific Tab with 2FA Code
       case 'AUTOFILL_TAB': {
         const tabId = request.tabId || sender.tab?.id;
         if (tabId) {
+          let totpCode = request.totpCode || '';
+          if (!totpCode && request.totpSecret) {
+            totpCode = await calculateTOTP(request.totpSecret);
+          }
+
           chrome.tabs.sendMessage(tabId, {
             action: 'autofillCredentials',
             username: request.username,
-            password: request.password
+            password: request.password,
+            totpCode
           }).then(() => sendResponse({ success: true }))
             .catch(err => sendResponse({ success: false, error: err.message }));
         } else {
@@ -262,7 +359,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (session.isUnlocked && session.credentialsJson) {
           try {
             const credentials = JSON.parse(session.credentialsJson);
-            // Check if existing credential with same username & domain exists
             const domain = extractDomain(url);
             const existingIndex = credentials.findIndex(c => {
               const cDomain = extractDomain(c.url);
@@ -298,7 +394,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({ success: false, error: e.message });
           }
         } else {
-          // If locked, store in pending session queue
           await chrome.storage.session.set({
             pendingSaveCredential: { username, password, url, title, timestamp: Date.now() }
           });

@@ -24,6 +24,12 @@ export interface Credential {
   passkeyUsername?: string;
   passkeyPublicKey?: string; // Base64 public key
   passkeyPrivateKey?: string; // Private key (optional mockup storage)
+  // 2FA / Authenticator advanced options (Proton Authenticator integration)
+  totpAlgorithm?: 'SHA-1' | 'SHA-256' | 'SHA-512';
+  totpDigits?: 6 | 8;
+  totpPeriod?: number;
+  isSteamTotp?: boolean;
+  backupCodes?: string[];
 }
 
 export interface VaultMetadata {
@@ -63,7 +69,7 @@ export interface PasswordGeneratorOptions {
 }
 
 export type VaultState = 'loading' | 'setup' | 'locked' | 'unlocked';
-export type SidebarView = 'all' | 'favorites' | 'trash' | 'generator' | 'settings' | 'aliases' | 'cards' | 'health' | 'share';
+export type SidebarView = 'all' | 'favorites' | 'authenticator' | 'trash' | 'generator' | 'settings' | 'aliases' | 'cards' | 'health' | 'share';
 
 export interface WrappedKeyData {
   ciphertext: string;

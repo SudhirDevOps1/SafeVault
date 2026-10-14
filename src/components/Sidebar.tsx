@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import {
-  Shield, Key, Star, Wand2, Settings, Lock, Plus, Search, Keyboard, Download, Mail, CreditCard, ShieldAlert, Share2
+  Shield, Key, Star, Wand2, Settings, Lock, Plus, Search, Keyboard, Download, Mail, CreditCard, ShieldAlert, Share2, ShieldCheck
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import type { SidebarView } from '@/types';
@@ -29,6 +29,7 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
   const navItems: { view: SidebarView; icon: React.ReactNode; label: string; count?: number; ariaLabel: string }[] = [
     { view: 'all', icon: <Key className="w-4 h-4" aria-hidden="true" />, label: 'All Items', count: credentials.length, ariaLabel: 'Show all credentials' },
     { view: 'favorites', icon: <Star className="w-4 h-4" aria-hidden="true" />, label: 'Favorites', count: credentials.filter(c => c.favorite).length, ariaLabel: 'Show favorite credentials' },
+    { view: 'authenticator', icon: <ShieldCheck className="w-4 h-4" aria-hidden="true" />, label: 'Authenticator (2FA)', count: credentials.filter(c => !!c.totpSecret).length, ariaLabel: 'Open 2FA authenticator hub' },
     { view: 'cards', icon: <CreditCard className="w-4 h-4" aria-hidden="true" />, label: 'Cards', count: credentials.filter(c => c.category === 'Payment Card').length, ariaLabel: 'Show payment cards' },
     { view: 'share', icon: <Share2 className="w-4 h-4" aria-hidden="true" />, label: 'Safe Share', ariaLabel: 'Open secure sharing panel' },
     { view: 'health', icon: <ShieldAlert className="w-4 h-4" aria-hidden="true" />, label: 'Health', ariaLabel: 'Open password health dashboard' },

@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Globe, Star, Key, User, Zap, Check } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import type { Credential } from '@/types';
+import { generateTOTP } from '@/utils/totp';
+import { useClipboard } from '@/hooks/useClipboard';
 import TOTPDisplay from './TOTPDisplay';
 
 export default function CredentialList() {
@@ -52,15 +54,31 @@ export default function CredentialList() {
     });
   }, [credentials, currentTabDomain]);
 
-  const handleQuickAutofill = (cred: Credential, e: React.MouseEvent) => {
+  const { copyToClipboard } = useClipboard();
+
+  const handleQuickAutofill = async (cred: Credential, e: React.MouseEvent) => {
     e.stopPropagation();
     if (isExtension && (window as any).chrome?.tabs?.query) {
+      let totpCode = '';
+      if (cred.totpSecret) {
+        try {
+          totpCode = await generateTOTP(cred.totpSecret, {
+            algorithm: cred.totpAlgorithm,
+            digits: cred.totpDigits,
+            period: cred.totpPeriod,
+            isSteam: cred.isSteamTotp
+          });
+          if (totpCode) copyToClipboard(totpCode, 'totp');
+        } catch {}
+      }
+
       (window as any).chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
         if (tabs?.[0]?.id) {
           (window as any).chrome.tabs.sendMessage(tabs[0].id, {
             action: 'autofillCredentials',
             username: cred.username,
-            password: cred.password
+            password: cred.password,
+            totpCode
           });
           setAutofillSuccessId(cred.id);
           setTimeout(() => setAutofillSuccessId(null), 2500);
@@ -77,6 +95,8 @@ export default function CredentialList() {
       filtered = filtered.filter(c => c.favorite);
     } else if (sidebarView === 'cards') {
       filtered = filtered.filter(c => c.category === 'Payment Card');
+    } else if (sidebarView === 'authenticator') {
+      filtered = filtered.filter(c => !!c.totpSecret);
     }
 
     // Filter by search

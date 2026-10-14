@@ -10,7 +10,9 @@
     "clipboardWrite",
     "contextMenus",
     "scripting",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "alarms",
+    "idle"
   ],
   "host_permissions": [
     "http://*/*",

@@ -10,6 +10,7 @@ import PrivacyPolicy from './PrivacyPolicy';
 import EmailAliases from './EmailAliases';
 import PasswordHealth from './PasswordHealth';
 import SecureShare from './SecureShare';
+import AuthenticatorHub from './AuthenticatorHub';
 import UpdateModal from './UpdateModal';
 import { useAutoLock } from '@/hooks/useAutoLock';
 import { useSystemSleepLock } from '@/hooks/useSystemSleepLock';
@@ -133,6 +134,14 @@ export default function Dashboard() {
       return (
         <div className="h-full overflow-y-auto" role="main" aria-label="Password Health">
           <PasswordHealth />
+        </div>
+      );
+    }
+
+    if (sidebarView === 'authenticator') {
+      return (
+        <div className="h-full overflow-hidden" role="main" aria-label="Authenticator Hub">
+          <AuthenticatorHub />
         </div>
       );
     }

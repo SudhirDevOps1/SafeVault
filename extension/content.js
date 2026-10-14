@@ -1,5 +1,5 @@
 // SafeVault Extension Content Script (Manifest V3)
-// Proton Pass & Bitwarden style In-Field Auto-fill, Password Generator & Form Interceptor
+// Proton Pass & Bitwarden style In-Field Auto-fill, TOTP 2FA Auto-copy & Smart Form Scanner
 
 (function () {
   'use strict';
@@ -16,7 +16,19 @@
   `;
 
   let activeDropdown = null;
+  let activeAnchorInput = null;
   let savePromptEl = null;
+  let clipboardClearTimer = null;
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
   // Set input value compatibly with React, Angular, Vue & native inputs
   function setNativeValue(element, value) {
@@ -37,55 +49,118 @@
     element.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
   }
 
-  // Find login credentials fields on page
-  function detectFormFields() {
-    const passwordInputs = Array.from(document.querySelectorAll('input[type="password"]')).filter(el => {
-      const style = window.getComputedStyle(el);
-      return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
-    });
+  // Copy text to clipboard and auto-clear after 30 seconds
+  function copyToClipboardAutoClear(text) {
+    if (!text) return;
+    try {
+      navigator.clipboard.writeText(text).catch(() => {});
+    } catch {
+      // Fallback textarea
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      } catch {}
+    }
 
-    return passwordInputs.map(passInput => {
-      let usernameInput = null;
-      const form = passInput.closest('form') || document;
-      const allInputs = Array.from(form.querySelectorAll('input')).filter(el => {
+    if (clipboardClearTimer) clearTimeout(clipboardClearTimer);
+    clipboardClearTimer = setTimeout(() => {
+      try {
+        navigator.clipboard.writeText('').catch(() => {});
+      } catch {}
+    }, 30000);
+  }
+
+  // Smart Form Scanner: identifies email, username, name, password & 2FA fields
+  function scanFormFields(root = document) {
+    const inputs = Array.from(root.querySelectorAll('input'))
+      .filter(el => {
+        const type = (el.getAttribute('type') || 'text').toLowerCase();
+        if (['hidden', 'submit', 'button', 'checkbox', 'radio', 'file', 'image'].includes(type)) return false;
         const style = window.getComputedStyle(el);
         return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0;
       });
 
-      const passIdx = allInputs.indexOf(passInput);
+    let passwordInput = null;
+    let confirmPasswordInput = null;
+    let emailInput = null;
+    let usernameInput = null;
+    let nameInput = null;
+    let totpInput = null;
 
-      // Search backward from password field for username/email
-      for (let i = passIdx - 1; i >= 0; i--) {
-        const inp = allInputs[i];
-        const type = (inp.getAttribute('type') || 'text').toLowerCase();
-        const name = (inp.getAttribute('name') || '').toLowerCase();
-        const autocomplete = (inp.getAttribute('autocomplete') || '').toLowerCase();
+    for (const input of inputs) {
+      const type = (input.getAttribute('type') || 'text').toLowerCase();
+      const name = (input.getAttribute('name') || '').toLowerCase();
+      const id = (input.getAttribute('id') || '').toLowerCase();
+      const autocomplete = (input.getAttribute('autocomplete') || '').toLowerCase();
+      const placeholder = (input.getAttribute('placeholder') || '').toLowerCase();
 
-        if (
-          type === 'text' ||
-          type === 'email' ||
-          autocomplete.includes('username') ||
-          autocomplete.includes('email') ||
-          name.includes('user') ||
-          name.includes('login') ||
-          name.includes('email')
-        ) {
-          usernameInput = inp;
-          break;
+      // 1. 2FA / TOTP input detection
+      if (
+        autocomplete === 'one-time-code' ||
+        name.includes('totp') || name.includes('otp') || name.includes('2fa') || name.includes('code') ||
+        id.includes('totp') || id.includes('otp') || id.includes('2fa') ||
+        placeholder.includes('code') || placeholder.includes('otp')
+      ) {
+        if (!totpInput) totpInput = input;
+        continue;
+      }
+
+      // 2. Password input detection
+      if (type === 'password') {
+        if (!passwordInput) {
+          passwordInput = input;
+        } else if (!confirmPasswordInput) {
+          confirmPasswordInput = input;
         }
+        continue;
       }
 
-      // If no form wrapper and not found, check any visible email/username input
-      if (!usernameInput) {
-        usernameInput = document.querySelector('input[autocomplete="username"], input[type="email"], input[name*="user" i]');
+      // 3. Email input detection (e.g. type=email, name=email, placeholder=name@company.com)
+      if (
+        type === 'email' ||
+        name.includes('email') ||
+        id.includes('email') ||
+        autocomplete.includes('email') ||
+        placeholder.includes('@') ||
+        placeholder.includes('email')
+      ) {
+        if (!emailInput) emailInput = input;
+        continue;
       }
 
-      const isNewPassword = passInput.getAttribute('autocomplete') === 'new-password' ||
-        passInput.name.toLowerCase().includes('confirm') ||
-        passInput.name.toLowerCase().includes('new');
+      // 4. Full Name detection (e.g. name=fullName)
+      if (name.includes('name') && !name.includes('user') && !name.includes('email')) {
+        if (!nameInput) nameInput = input;
+        continue;
+      }
 
-      return { passInput, usernameInput, isNewPassword };
-    });
+      // 5. Username detection
+      if (
+        autocomplete.includes('username') ||
+        name.includes('user') || name.includes('login') ||
+        id.includes('user') || id.includes('login') ||
+        placeholder.includes('user')
+      ) {
+        if (!usernameInput) usernameInput = input;
+        continue;
+      }
+    }
+
+    return {
+      passwordInput,
+      confirmPasswordInput,
+      emailInput: emailInput || (usernameInput?.type === 'email' ? usernameInput : null),
+      usernameInput: usernameInput || emailInput,
+      nameInput,
+      totpInput,
+      allInteractiveInputs: inputs
+    };
   }
 
   // Remove any open SafeVault dropdown
@@ -93,12 +168,19 @@
     if (activeDropdown && activeDropdown.parentNode) {
       activeDropdown.parentNode.removeChild(activeDropdown);
       activeDropdown = null;
+      activeAnchorInput = null;
     }
   }
 
   // Show inline floating credential selector
-  function showDropdown(anchorInput, credsData, isNewPass = false) {
+  function showDropdown(anchorInput, credsData) {
+    if (activeDropdown && activeAnchorInput === anchorInput) {
+      closeDropdown();
+      return;
+    }
+
     closeDropdown();
+    activeAnchorInput = anchorInput;
 
     const rect = anchorInput.getBoundingClientRect();
     const dropdown = document.createElement('div');
@@ -110,7 +192,7 @@
       top: `${window.scrollY + rect.bottom + 6}px`,
       left: `${window.scrollX + rect.left}px`,
       width: `${Math.max(rect.width, 280)}px`,
-      maxWidth: '360px',
+      maxWidth: '380px',
       backgroundColor: '#0f172a',
       color: '#f8fafc',
       borderRadius: '12px',
@@ -125,6 +207,8 @@
 
     const isUnlocked = credsData.isUnlocked;
     const creds = credsData.credentials || [];
+    const isEmailField = (anchorInput.getAttribute('type') || '').toLowerCase() === 'email' ||
+      (anchorInput.getAttribute('name') || '').toLowerCase().includes('email');
 
     let contentHtml = `
       <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 8px; border-bottom: 1px solid #1e293b; margin-bottom: 6px;">
@@ -132,18 +216,18 @@
           ${SHIELD_ICON_SVG}
           <span>SafeVault</span>
         </div>
-        <span style="font-size: 11px; color: #64748b;">${window.location.hostname}</span>
+        <span style="font-size: 11px; color: #64748b;">${escapeHtml(window.location.hostname)}</span>
       </div>
     `;
 
     if (!isUnlocked) {
       contentHtml += `
         <div style="padding: 12px 8px; text-align: center; color: #94a3b8;">
-          <p style="margin: 0 0 8px 0; font-size: 12px;">Vault is locked</p>
-          <div style="font-size: 11px; color: #10b981;">Click SafeVault icon in extension bar to unlock</div>
+          <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 500;">Vault is locked</p>
+          <div style="font-size: 11px; color: #10b981; cursor: pointer;" id="safevault-open-popup-btn">Click SafeVault icon in extension bar to unlock</div>
         </div>
       `;
-    } else if (creds.length === 0 && !isNewPass) {
+    } else if (creds.length === 0) {
       contentHtml += `
         <div style="padding: 10px 8px; text-align: center; color: #94a3b8; font-size: 12px;">
           No matching logins found for this site.
@@ -154,8 +238,8 @@
         contentHtml += `
           <div class="safevault-cred-item" data-index="${index}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 8px; cursor: pointer; transition: background 0.15s; margin-bottom: 4px; background: #1e293b;">
             <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px;">
-              <div style="font-weight: 600; color: #ffffff;">${c.title || c.username}</div>
-              <div style="font-size: 11px; color: #94a3b8;">${c.username || 'No username'}</div>
+              <div style="font-weight: 600; color: #ffffff;">${escapeHtml(c.title || c.username)}</div>
+              <div style="font-size: 11px; color: #94a3b8;">${escapeHtml(c.username || 'No username')}</div>
             </div>
             <button class="safevault-fill-btn" style="background: #10b981; color: #022c22; font-weight: 600; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer;">
               Fill
@@ -165,9 +249,19 @@
       });
     }
 
+    // In-Field Email Alias Creation Pill (Proton Pass Style)
+    if (isEmailField) {
+      contentHtml += `
+        <div id="safevault-alias-btn" style="display: flex; align-items: center; gap: 6px; padding: 8px; margin-top: 4px; border-radius: 8px; cursor: pointer; background: #1e1b4b; color: #c7d2fe; font-size: 12px; font-weight: 500; border: 1px solid #4338ca;">
+          <span>📧</span>
+          <span>Create Email Alias (Hide My Email)</span>
+        </div>
+      `;
+    }
+
     // Add Password Generator Action
     contentHtml += `
-      <div id="safevault-generate-btn" style="display: flex; align-items: center; gap: 6px; padding: 8px; margin-top: 4px; border-radius: 8px; cursor: pointer; background: #064e3b; color: #a7f3d0; font-size: 12px; font-weight: 500;">
+      <div id="safevault-generate-btn" style="display: flex; align-items: center; gap: 6px; padding: 8px; margin-top: 4px; border-radius: 8px; cursor: pointer; background: #064e3b; color: #a7f3d0; font-size: 12px; font-weight: 500; border: 1px solid #059669;">
         <span>✨</span>
         <span>Generate Strong Password</span>
       </div>
@@ -176,7 +270,7 @@
     dropdown.innerHTML = contentHtml;
     document.body.appendChild(dropdown);
 
-    // Attach Event Listeners to Items
+    // Event Listeners for Credential Items
     dropdown.querySelectorAll('.safevault-cred-item').forEach(itemEl => {
       itemEl.addEventListener('mouseenter', () => { itemEl.style.background = '#334155'; });
       itemEl.addEventListener('mouseleave', () => { itemEl.style.background = '#1e293b'; });
@@ -186,12 +280,12 @@
         const cred = creds[index];
         if (cred) {
           autofillSingle(cred);
-          showToast('Credentials auto-filled!');
         }
         closeDropdown();
       });
     });
 
+    // Password Generator button
     const genBtn = dropdown.querySelector('#safevault-generate-btn');
     if (genBtn) {
       genBtn.addEventListener('click', (e) => {
@@ -199,42 +293,84 @@
         chrome.runtime.sendMessage({ action: 'GENERATE_PASSWORD' }, (res) => {
           if (res?.password) {
             setNativeValue(anchorInput, res.password);
-            // If there is a confirmation password field, fill it too
-            const confirmPass = document.querySelector('input[type="password"]:not([id="' + anchorInput.id + '"])');
-            if (confirmPass) setNativeValue(confirmPass, res.password);
-            try {
-              navigator.clipboard.writeText(res.password);
-            } catch {}
+            const fields = scanFormFields();
+            if (fields.confirmPasswordInput) {
+              setNativeValue(fields.confirmPasswordInput, res.password);
+            }
+            copyToClipboardAutoClear(res.password);
             showToast('Password generated, filled & copied to clipboard!');
           }
         });
         closeDropdown();
       });
     }
-  }
 
-  // Autofill specific credential
-  function autofillSingle(cred) {
-    const pairs = detectFormFields();
-    if (pairs.length > 0) {
-      const primary = pairs[0];
-      if (primary.usernameInput && cred.username) {
-        setNativeValue(primary.usernameInput, cred.username);
-      }
-      if (primary.passInput && cred.password) {
-        setNativeValue(primary.passInput, cred.password);
-      }
-    } else {
-      const anyPass = document.querySelector('input[type="password"]');
-      if (anyPass && cred.password) setNativeValue(anyPass, cred.password);
-      const anyUser = document.querySelector('input[type="email"], input[autocomplete="username"], input[name*="user" i]');
-      if (anyUser && cred.username) setNativeValue(anyUser, cred.username);
+    // Email Alias button
+    const aliasBtn = dropdown.querySelector('#safevault-alias-btn');
+    if (aliasBtn) {
+      aliasBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const randStr = Math.random().toString(36).substring(2, 8);
+        const hostClean = window.location.hostname.replace(/[^a-z0-9]/gi, '').toLowerCase();
+        const generatedAlias = `${hostClean}.${randStr}@safevault.me`;
+        setNativeValue(anchorInput, generatedAlias);
+        copyToClipboardAutoClear(generatedAlias);
+        showToast(`Email alias ${generatedAlias} generated & filled!`);
+        closeDropdown();
+      });
     }
   }
 
-  // Toast feedback
+  // Autofill specific credential into detected form fields
+  function autofillSingle(cred) {
+    const fields = scanFormFields();
+    let filledSomething = false;
+
+    // 1. Fill Email / Username field
+    if (cred.username) {
+      const isEmail = cred.username.includes('@');
+      if (isEmail && fields.emailInput) {
+        setNativeValue(fields.emailInput, cred.username);
+        filledSomething = true;
+      } else if (fields.usernameInput) {
+        setNativeValue(fields.usernameInput, cred.username);
+        filledSomething = true;
+      } else if (fields.emailInput) {
+        setNativeValue(fields.emailInput, cred.username);
+        filledSomething = true;
+      }
+    }
+
+    // 2. Fill Password field
+    if (cred.password && fields.passwordInput) {
+      setNativeValue(fields.passwordInput, cred.password);
+      filledSomething = true;
+      if (fields.confirmPasswordInput) {
+        setNativeValue(fields.confirmPasswordInput, cred.password);
+      }
+    }
+
+    // 3. Auto-fill 2FA TOTP input if present on page
+    if (cred.totpCode && fields.totpInput) {
+      setNativeValue(fields.totpInput, cred.totpCode);
+    }
+
+    // 4. Auto-copy 2FA TOTP code to clipboard (Proton Pass & Bitwarden standard)
+    if (cred.totpCode) {
+      copyToClipboardAutoClear(cred.totpCode);
+      showToast(`Credentials filled! 2FA Code (${cred.totpCode}) copied to clipboard`);
+    } else if (filledSomething) {
+      showToast('Credentials auto-filled!');
+    }
+  }
+
+  // Toast feedback element
   function showToast(message) {
+    const existing = document.querySelector('.safevault-toast');
+    if (existing) existing.remove();
+
     const toast = document.createElement('div');
+    toast.className = 'safevault-toast';
     Object.assign(toast.style, {
       position: 'fixed',
       bottom: '24px',
@@ -253,74 +389,73 @@
       fontFamily: 'system-ui, sans-serif',
       transition: 'all 0.2s ease'
     });
-    toast.innerHTML = `${SHIELD_ICON_SVG}<span>${message}</span>`;
+    toast.innerHTML = `${SHIELD_ICON_SVG}<span>${escapeHtml(message)}</span>`;
     document.body.appendChild(toast);
     setTimeout(() => {
       toast.style.opacity = '0';
       setTimeout(() => toast.remove(), 200);
-    }, 2800);
+    }, 3200);
   }
 
   // Attach Proton Pass / Bitwarden style in-field shield icon
   function attachFieldBadges() {
-    const fields = detectFormFields();
+    const fields = scanFormFields();
+    const targetInputs = [fields.passwordInput, fields.emailInput, fields.usernameInput].filter(Boolean);
 
-    fields.forEach(({ passInput, usernameInput, isNewPassword }) => {
-      const targetInputs = [passInput, usernameInput].filter(Boolean);
+    targetInputs.forEach(input => {
+      if (input.dataset.safevaultAttached) return;
+      input.dataset.safevaultAttached = 'true';
 
-      targetInputs.forEach(input => {
-        if (input.dataset.safevaultAttached) return;
-        input.dataset.safevaultAttached = 'true';
+      const badge = document.createElement('div');
+      badge.className = 'safevault-infield-badge';
+      badge.innerHTML = SHIELD_ICON_SVG;
+      badge.title = 'SafeVault Auto-fill';
 
-        // Create Badge Button
-        const badge = document.createElement('div');
-        badge.className = 'safevault-infield-badge';
-        badge.innerHTML = SHIELD_ICON_SVG;
-        badge.title = 'SafeVault Auto-fill';
+      Object.assign(badge.style, {
+        position: 'absolute',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '24px',
+        height: '24px',
+        cursor: 'pointer',
+        zIndex: '1000',
+        opacity: '0.7',
+        transition: 'all 0.15s ease',
+        transform: 'translateY(-50%)',
+        userSelect: 'none'
+      });
 
-        Object.assign(badge.style, {
-          position: 'absolute',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '24px',
-          height: '24px',
-          cursor: 'pointer',
-          zIndex: '1000',
-          opacity: '0.7',
-          transition: 'all 0.15s ease',
-          transform: 'translateY(-50%)',
-          userSelect: 'none'
-        });
+      badge.addEventListener('mouseenter', () => {
+        badge.style.opacity = '1';
+        badge.style.transform = 'translateY(-50%) scale(1.15)';
+      });
+      badge.addEventListener('mouseleave', () => {
+        badge.style.opacity = '0.7';
+        badge.style.transform = 'translateY(-50%) scale(1)';
+      });
 
-        badge.addEventListener('mouseenter', () => {
-          badge.style.opacity = '1';
-          badge.style.transform = 'translateY(-50%) scale(1.15)';
-        });
-        badge.addEventListener('mouseleave', () => {
-          badge.style.opacity = '0.7';
-          badge.style.transform = 'translateY(-50%) scale(1)';
-        });
+      function positionBadge() {
+        const rect = input.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        badge.style.top = `${window.scrollY + rect.top + rect.height / 2}px`;
+        badge.style.left = `${window.scrollX + rect.right - 28}px`;
+      }
 
-        function positionBadge() {
-          const rect = input.getBoundingClientRect();
-          if (rect.width === 0 || rect.height === 0) return;
-          badge.style.top = `${window.scrollY + rect.top + rect.height / 2}px`;
-          badge.style.left = `${window.scrollX + rect.right - 30}px`;
+      positionBadge();
+      document.body.appendChild(badge);
+
+      window.addEventListener('resize', positionBadge, { passive: true });
+      window.addEventListener('scroll', positionBadge, { passive: true });
+
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (activeDropdown && activeAnchorInput === input) {
+          closeDropdown();
+          return;
         }
-
-        positionBadge();
-        document.body.appendChild(badge);
-
-        // Reposition on window resize / scroll
-        window.addEventListener('resize', positionBadge, { passive: true });
-        window.addEventListener('scroll', positionBadge, { passive: true });
-
-        badge.addEventListener('click', (e) => {
-          e.stopPropagation();
-          chrome.runtime.sendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
-            showDropdown(input, response || { isUnlocked: false, credentials: [] }, isNewPassword);
-          });
+        chrome.runtime.sendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
+          showDropdown(input, response || { isUnlocked: false, credentials: [] });
         });
       });
     });
@@ -330,27 +465,16 @@
   function interceptFormSubmissions() {
     document.addEventListener('submit', (e) => {
       const form = e.target;
-      const passInput = form.querySelector('input[type="password"]');
-      if (!passInput || !passInput.value) return;
+      const fields = scanFormFields(form);
+      if (!fields.passwordInput || !fields.passwordInput.value) return;
 
-      const userInput = form.querySelector('input[type="email"], input[type="text"], input[autocomplete="username"], input[name*="user" i]');
-      const username = userInput ? userInput.value : '';
-      const password = passInput.value;
+      const username = fields.emailInput?.value || fields.usernameInput?.value || '';
+      const password = fields.passwordInput.value;
 
       if (password) {
         showSavePrompt(username, password);
       }
     }, true);
-  }
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
   }
 
   // Prompt user to save credential
@@ -363,54 +487,47 @@
       position: 'fixed',
       top: '20px',
       right: '20px',
-      width: '320px',
       backgroundColor: '#0f172a',
       color: '#f8fafc',
       borderRadius: '12px',
-      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 0 0 1px #10b981',
+      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px #10b981',
+      padding: '16px',
       zIndex: '2147483647',
-      fontFamily: 'system-ui, sans-serif',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: '13px',
-      padding: '14px',
-      boxSizing: 'border-box'
+      maxWidth: '340px',
+      animation: 'safevault-fade-in 0.2s ease-out'
     });
 
-    const safeHost = escapeHtml(window.location.hostname);
-    const safeUser = escapeHtml(username);
+    const pageTitle = document.title ? document.title.split(/[-|:]/)[0].trim() : window.location.hostname;
 
     banner.innerHTML = `
-      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px;">
-        <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #10b981;">
-          ${SHIELD_ICON_SVG}
-          <span>Save Password to SafeVault?</span>
-        </div>
-        <button id="safevault-close-prompt" style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 16px; line-height: 1;">✕</button>
+      <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #10b981; margin-bottom: 8px;">
+        ${SHIELD_ICON_SVG}
+        <span>Save to SafeVault?</span>
       </div>
-      <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">
-        <div><strong>Site:</strong> ${safeHost}</div>
-        ${safeUser ? `<div><strong>User:</strong> ${safeUser}</div>` : ''}
-      </div>
-      <div style="display: flex; justify-content: flex-end; gap: 8px;">
-        <button id="safevault-dismiss-save" style="background: #1e293b; color: #94a3b8; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer;">
-          Never for this site
-        </button>
-        <button id="safevault-confirm-save" style="background: #10b981; color: #022c22; font-weight: 600; border: none; border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer;">
-          Save
-        </button>
+      <p style="margin: 0 0 12px 0; color: #94a3b8; font-size: 12px;">
+        Save login for <strong style="color: #fff;">${escapeHtml(pageTitle)}</strong> (${escapeHtml(username || 'Account')})?
+      </p>
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button id="safevault-cancel-save" style="background: transparent; color: #94a3b8; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">Never</button>
+        <button id="safevault-confirm-save" style="background: #10b981; color: #022c22; font-weight: 600; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px;">Save</button>
       </div>
     `;
 
     document.body.appendChild(banner);
 
-    banner.querySelector('#safevault-close-prompt').addEventListener('click', () => banner.remove());
-    banner.querySelector('#safevault-dismiss-save').addEventListener('click', () => banner.remove());
+    banner.querySelector('#safevault-cancel-save').addEventListener('click', () => {
+      banner.remove();
+    });
+
     banner.querySelector('#safevault-confirm-save').addEventListener('click', () => {
       chrome.runtime.sendMessage({
         action: 'SAVE_SUBMITTED_CREDENTIAL',
         username,
         password,
         url: window.location.href,
-        title: document.title || window.location.hostname
+        title: pageTitle
       }, () => {
         banner.remove();
         showToast('Password saved to SafeVault!');
@@ -428,17 +545,27 @@
   // Handle messages from Extension Popup / Background
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'autofillCredentials') {
-      autofillSingle({ username: message.username, password: message.password });
-      showToast('Credentials auto-filled!');
+      autofillSingle({
+        username: message.username,
+        password: message.password,
+        totpCode: message.totpCode
+      });
+      sendResponse({ success: true });
+    } else if (message.action === 'VAULT_STATE_UPDATED') {
+      // Re-query credentials if dropdown is currently visible to eliminate stale locked state
+      if (activeDropdown && activeAnchorInput) {
+        chrome.runtime.sendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
+          showDropdown(activeAnchorInput, response || { isUnlocked: false, credentials: [] });
+        });
+      }
       sendResponse({ success: true });
     } else if (message.action === 'TRIGGER_AUTOFILL') {
       chrome.runtime.sendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
         if (response?.credentials?.length === 1) {
           autofillSingle(response.credentials[0]);
-          showToast('Credentials auto-filled!');
         } else if (response?.credentials?.length > 1) {
-          const fields = detectFormFields();
-          const target = fields[0]?.passInput || fields[0]?.usernameInput || document.querySelector('input');
+          const fields = scanFormFields();
+          const target = fields.passwordInput || fields.emailInput || fields.usernameInput;
           if (target) showDropdown(target, response);
         } else {
           showToast('No matching logins for this site.');
