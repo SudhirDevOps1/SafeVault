@@ -175,8 +175,80 @@ function broadcastVaultState(isUnlocked) {
   });
 }
 
-// Setup Context Menus on Installation / Update
-chrome.runtime.onInstalled.addListener(() => {
+// Check for extension updates against GitHub releases
+async function checkExtensionUpdates() {
+  try {
+    const manifest = chrome.runtime.getManifest();
+    const currentVersion = manifest.version || '0.3.0';
+    
+    // Check if network is permitted
+    const local = await chrome.storage.local.get(['strictOfflineMode', 'checkForUpdates']);
+    if (local.strictOfflineMode) return { hasUpdate: false, latestVersion: null };
+    if (local.checkForUpdates === false) return { hasUpdate: false, latestVersion: null };
+
+    const res = await fetch('https://api.github.com/repos/SudhirDevOps1/SafeVault/releases/latest');
+    if (!res.ok) return { hasUpdate: false, latestVersion: null };
+    const release = await res.json();
+    const latestVersion = (release.tag_name || '').replace(/^v/, '');
+
+    const parseSemver = (v) => v.split('.').map(n => parseInt(n, 10) || 0);
+    const l = parseSemver(latestVersion);
+    const c = parseSemver(currentVersion);
+    let isNewer = false;
+    for (let i = 0; i < Math.max(l.length, c.length); i++) {
+      if ((l[i] || 0) > (c[i] || 0)) { isNewer = true; break; }
+      if ((l[i] || 0) < (c[i] || 0)) { isNewer = false; break; }
+    }
+
+    if (isNewer) {
+      // Set toolbar action badge
+      chrome.action.setBadgeText({ text: 'NEW' });
+      chrome.action.setBadgeBackgroundColor({ color: '#10b981' }); // SafeVault Emerald Green
+      chrome.action.setTitle({ title: `SafeVault update v${latestVersion} available! Click to update.` });
+      await chrome.storage.local.set({
+        safevault_update_available: latestVersion,
+        safevault_update_release_notes: release.body || '',
+        safevault_update_url: release.html_url,
+      });
+      return { hasUpdate: true, latestVersion };
+    } else {
+      chrome.action.setBadgeText({ text: '' });
+      await chrome.storage.local.remove(['safevault_update_available']);
+      return { hasUpdate: false, latestVersion: null };
+    }
+  } catch {
+    return { hasUpdate: false, latestVersion: null };
+  }
+}
+
+// Periodic update checks via Alarms API (every 4 hours)
+try {
+  chrome.alarms.create('check_safevault_updates', { periodInMinutes: 240 });
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'check_safevault_updates') {
+      checkExtensionUpdates();
+    }
+  });
+} catch {}
+
+// Setup Context Menus and Handle Non-Destructive Update Migration
+chrome.runtime.onInstalled.addListener(async (details) => {
+  if (details?.reason === 'update') {
+    // Non-destructive migration safety snapshot: Backup storage before touching anything
+    try {
+      const allLocal = await chrome.storage.local.get(null);
+      await chrome.storage.local.set({
+        safevault_update_migration_backup: {
+          timestamp: Date.now(),
+          previousVersion: details.previousVersion,
+          currentVersion: chrome.runtime.getManifest().version,
+          data: allLocal
+        }
+      });
+    } catch {}
+  }
+
+  // Setup Context Menus
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'safevault-root',
@@ -205,6 +277,13 @@ chrome.runtime.onInstalled.addListener(() => {
       contexts: ['all']
     });
   });
+
+  // Check for new updates
+  checkExtensionUpdates();
+});
+
+chrome.runtime.onStartup?.addListener(() => {
+  checkExtensionUpdates();
 });
 
 // Handle Context Menu Actions
@@ -616,6 +695,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
 
         sendResponse({ success: true, alias, password: generatedPassword, baseEmail, service });
+        break;
+      }
+
+      // 9. Omni-Platform Update Notification & Trigger
+      case 'SAFEVAULT_UPDATE_DETECTED': {
+        const { version } = request;
+        if (version) {
+          chrome.action.setBadgeText({ text: 'NEW' });
+          chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
+          chrome.action.setTitle({ title: `SafeVault update ${version} available! Click to update.` });
+          await chrome.storage.local.set({ safevault_update_available: version });
+        }
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'CHECK_FOR_UPDATES_NOW': {
+        const result = await checkExtensionUpdates();
+        sendResponse({ success: true, ...result });
+        break;
+      }
+
+      case 'CLEAR_UPDATE_BADGE': {
+        chrome.action.setBadgeText({ text: '' });
+        await chrome.storage.local.remove(['safevault_update_available']);
+        sendResponse({ success: true });
         break;
       }
 

@@ -31,6 +31,8 @@ import {
 } from '@/utils/crypto';
 import { validateMnemonic } from '@/utils/bip39';
 import { logger } from '@/utils/logger';
+import { APP_VERSION } from '@/version';
+import { runAutoDataMigration, createSafetySnapshot } from '@/utils/migration';
 
 const AUTO_BACKUP_KEY = 'safevault_auto_backup';
 const THEME_KEY = 'safevault_theme';
@@ -104,7 +106,7 @@ interface VaultStore {
   setCheckForUpdates: (enabled: boolean) => Promise<void>;
   setStrictOfflineMode: (enabled: boolean) => void;
   setDisableRemoteFavicons: (enabled: boolean) => void;
-  checkLatestRelease: () => Promise<void>;
+  checkLatestRelease: () => Promise<{ hasUpdate: boolean; latestVersion: string | null }>;
   approveNetworkThisSession: () => void;
   
   addBaseEmail: (email: string) => void;
@@ -279,6 +281,9 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
           logger.warn('Could not restore session from chrome.storage.session', sessErr);
         }
       }
+
+      // Execute automated non-destructive data migration and snapshot safety check
+      await runAutoDataMigration();
 
       const vaultRecord = await db.vault.get('main');
       if (vaultRecord) {
@@ -868,32 +873,41 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   },
 
   checkLatestRelease: async () => {
-    if (get().strictOfflineMode) return; // Strict Offline mode blocks all network checks
-    if (!get().checkForUpdates) return;
+    if (get().strictOfflineMode) return { hasUpdate: false, latestVersion: null };
+    if (!get().checkForUpdates) return { hasUpdate: false, latestVersion: null };
     try {
       const response = await fetch('https://api.github.com/repos/SudhirDevOps1/SafeVault/releases/latest');
-      if (!response.ok) return;
+      if (!response.ok) return { hasUpdate: false, latestVersion: null };
       const data = await response.json();
-      const latestVersion = data.tag_name;
-      const currentVersion = 'v2.0.1'; // Current client version
+      const latestVersion: string = data.tag_name || '';
+      const currentVersion = APP_VERSION;
       
+      const parseSemver = (v: string) => v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
       const isNewerVersion = (latest: string, current: string): boolean => {
-        const l = latest.split('.').map(Number);
-        const c = current.split('.').map(Number);
+        const l = parseSemver(latest);
+        const c = parseSemver(current);
         for (let i = 0; i < Math.max(l.length, c.length); i++) {
-          const lVal = l[i] || 0;
-          const cVal = c[i] || 0;
+          const lVal = l[i] ?? 0;
+          const cVal = c[i] ?? 0;
           if (lVal > cVal) return true;
           if (lVal < cVal) return false;
         }
         return false;
       };
 
-      if (isNewerVersion(latestVersion.replace(/^v/, ''), currentVersion.replace(/^v/, ''))) {
+      if (isNewerVersion(latestVersion, currentVersion)) {
         const assets = (data.assets || []).map((asset: any) => ({
           name: asset.name,
           browser_download_url: asset.browser_download_url,
+          size: asset.size,
         }));
+
+        // Non-destructive safety snapshot immediately when update is found
+        try {
+          await createSafetySnapshot(`pre-update-${latestVersion}`);
+        } catch (e) {
+          logger.warn('Failed to take pre-update snapshot', e);
+        }
         
         set({
           updateAvailable: latestVersion,
@@ -901,7 +915,19 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
           updateDownloadUrl: data.html_url,
           updateAssets: assets,
         });
-        logger.info(`Update available: ${latestVersion}`);
+        logger.info(`Update available: ${latestVersion} (current: v${currentVersion})`);
+
+        if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id) {
+          try {
+            (window as any).chrome.runtime.sendMessage({
+              action: 'SAFEVAULT_UPDATE_DETECTED',
+              version: latestVersion,
+              assets,
+            });
+          } catch {}
+        }
+
+        return { hasUpdate: true, latestVersion };
       } else {
         set({
           updateAvailable: null,
@@ -909,9 +935,11 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
           updateDownloadUrl: null,
           updateAssets: [],
         });
+        return { hasUpdate: false, latestVersion: null };
       }
     } catch (err) {
       logger.error('Failed to check latest release', err);
+      return { hasUpdate: false, latestVersion: null };
     }
   },
 

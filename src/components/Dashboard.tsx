@@ -264,6 +264,17 @@ export default function Dashboard() {
               </>
             )}
           </button>
+
+          {/* Update Available Pill */}
+          {updateAvailable && (
+            <button
+              onClick={() => setShowUpdateModal(true)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse hover:bg-emerald-500/30 transition-all cursor-pointer"
+              title={`SafeVault Update ${updateAvailable} Available`}
+            >
+              <span>🚀 Update</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
@@ -328,13 +339,13 @@ export default function Dashboard() {
           </div>
         )}
         {updateAvailable && (
-          <div className="bg-emerald-600/20 border-b border-emerald-500/30 px-6 py-2.5 flex items-center justify-between text-xs text-emerald-300">
-            <span>A new update <strong>({updateAvailable})</strong> is available with new features and fixes!</span>
+          <div className="bg-emerald-600/20 border-b border-emerald-500/30 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-300">
+            <span className="truncate">🚀 A new update <strong>({updateAvailable})</strong> is available with zero-data-loss protection!</span>
             <button 
               onClick={() => setShowUpdateModal(true)}
-              className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-3 py-1 rounded transition-colors"
+              className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-3 py-1 rounded-lg transition-colors whitespace-nowrap shadow-sm text-xs"
             >
-              View Release Notes
+              Update Now
             </button>
           </div>
         )}

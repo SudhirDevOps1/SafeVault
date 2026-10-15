@@ -3,7 +3,8 @@ import {
   Settings as SettingsIcon, Clock, Download, Upload, Shield,
   AlertTriangle, Lock, Eye, EyeOff, FileText, Key, Moon, Sun,
   Database, Save, ShieldAlert, Activity, CheckCircle, XCircle,
-  Printer, ShieldOff, Zap, ChevronDown, ChevronUp, Plus, Trash2
+  Printer, ShieldOff, Zap, ChevronDown, ChevronUp, Plus, Trash2,
+  RefreshCw
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import { evaluatePasswordStrength } from '@/utils/crypto';
@@ -11,6 +12,7 @@ import { validateMasterPassword } from '@/utils/policy';
 import { logger } from '@/utils/logger';
 import LocalSync from './LocalSync';
 import EmergencyKitModal from './EmergencyKitModal';
+import UpdateModal from './UpdateModal';
 import { APP_VERSION } from '@/version';
 
 export default function Settings() {
@@ -33,7 +35,8 @@ export default function Settings() {
     autoCopy2faToClipboard, setAutoCopy2faToClipboard,
     saveLoginPromptEnabled, setSaveLoginPromptEnabled,
     blockedSites, addBlockedSite, removeBlockedSite,
-    autofillMatchingMode, setAutofillMatchingMode
+    autofillMatchingMode, setAutofillMatchingMode,
+    checkLatestRelease, updateAvailable
   } = useVaultStore();
 
   const [showBlockedSites, setShowBlockedSites] = useState(false);
@@ -62,6 +65,33 @@ export default function Settings() {
 
   // Emergency Kit Modal State
   const [showEmergencyKitModal, setShowEmergencyKitModal] = useState(false);
+
+  // Update Check State
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [manualUpdateStatus, setManualUpdateStatus] = useState<string | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+
+  const handleManualCheckUpdate = async () => {
+    if (strictOfflineMode) {
+      setManualUpdateStatus('Strict Offline Mode is active. Turn it off to check for updates.');
+      return;
+    }
+    setCheckingUpdate(true);
+    setManualUpdateStatus(null);
+    try {
+      const res = await checkLatestRelease();
+      if (res.hasUpdate) {
+        setManualUpdateStatus(`🚀 Update ${res.latestVersion} found! Click to install.`);
+        setShowUpdateModal(true);
+      } else {
+        setManualUpdateStatus(`SafeVault v${APP_VERSION} is the latest version.`);
+      }
+    } catch {
+      setManualUpdateStatus('Failed to connect to update server.');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   const strength = evaluatePasswordStrength(newPassword);
   const policy = validateMasterPassword(newPassword);
@@ -1161,24 +1191,51 @@ export default function Settings() {
             </label>
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-            <div className="flex-1 pr-4">
-              <p className="text-sm font-medium text-gray-200">Check for Updates (Optional)</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Query GitHub API on startup to detect newer releases. (Unavailable in Strict Offline Mode).
-              </p>
+          <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-4">
+                <p className="text-sm font-medium text-gray-200">Check for Updates (Optional)</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Query GitHub releases to detect newer versions with zero data loss migration. (Disabled in Strict Offline Mode).
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  disabled={strictOfflineMode}
+                  checked={checkForUpdates}
+                  onChange={(e) => setCheckForUpdates(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white peer-checked:after:border-white disabled:opacity-30 disabled:cursor-not-allowed"></div>
+              </label>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                disabled={strictOfflineMode}
-                checked={checkForUpdates}
-                onChange={(e) => setCheckForUpdates(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white peer-checked:after:border-white disabled:opacity-30 disabled:cursor-not-allowed"></div>
-            </label>
+
+            <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleManualCheckUpdate}
+                disabled={checkingUpdate || strictOfflineMode}
+                className="py-1.5 px-3 bg-white/5 hover:bg-white/10 disabled:opacity-50 text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border border-white/10"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin text-emerald-400' : ''}`} />
+                {checkingUpdate ? 'Checking GitHub...' : 'Check for Updates Now'}
+              </button>
+
+              {updateAvailable ? (
+                <button
+                  type="button"
+                  onClick={() => setShowUpdateModal(true)}
+                  className="py-1.5 px-3 bg-emerald-500 hover:bg-emerald-400 text-black rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-sm"
+                >
+                  🚀 Update {updateAvailable} Ready
+                </button>
+              ) : manualUpdateStatus ? (
+                <span className="text-[11px] text-gray-400 font-mono">{manualUpdateStatus}</span>
+              ) : null}
+            </div>
           </div>
+
           <button
             onClick={() => setShowPrivacyPolicy(true)}
             className="w-full py-2.5 px-4 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors text-sm text-left"
@@ -1200,6 +1257,11 @@ export default function Settings() {
           isOpen={showEmergencyKitModal}
           onClose={() => setShowEmergencyKitModal(false)}
         />
+
+        {/* Update Modal */}
+        {showUpdateModal && updateAvailable && (
+          <UpdateModal onClose={() => setShowUpdateModal(false)} />
+        )}
       </div>
     </div>
   );

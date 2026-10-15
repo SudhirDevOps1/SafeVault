@@ -27,8 +27,17 @@ interface VaultRecord {
   recoveryIv?: string;
 }
 
+export interface SafetySnapshotRecord {
+  id: string;
+  timestamp: number;
+  version: string;
+  reason: string;
+  data: string;
+}
+
 const db = new Dexie('SafeVaultDB') as Dexie & {
   vault: EntityTable<VaultRecord, 'id'>;
+  snapshots: EntityTable<SafetySnapshotRecord, 'id'>;
 };
 
 // Version 1: Initial schema
@@ -36,17 +45,11 @@ db.version(1).stores({
   vault: 'id',
 });
 
-// Version 2: Reserved for future migrations
-// Example:
-// db.version(2).stores({
-//   vault: 'id, category, favorite',
-//   credentials: 'id, title, category, favorite',  // if we split to individual records
-// }).upgrade(tx => {
-//   // Migration logic here
-//   return tx.table('vault').toCollection().modify(record => {
-//     record.newField = 'default';
-//   });
-// });
+// Version 2: Schema upgrade adding snapshots table for automated rollback and migration safety
+db.version(2).stores({
+  vault: 'id',
+  snapshots: 'id, timestamp, version',
+});
 
 // Listen for database errors
 db.on('blocked', () => {
