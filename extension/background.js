@@ -285,6 +285,21 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     });
   });
 
+  // Seamlessly re-inject content scripts into all open web tabs to eliminate 'Extension context invalidated'
+  try {
+    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+    if (Array.isArray(tabs)) {
+      for (const tab of tabs) {
+        if (tab?.id && !tab.url?.startsWith('chrome://') && !tab.url?.startsWith('chrome-extension://')) {
+          chrome.scripting?.executeScript?.({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          }).catch(() => {});
+        }
+      }
+    }
+  } catch {}
+
   // Check for new updates
   checkExtensionUpdates();
 });
@@ -403,21 +418,47 @@ chrome.idle?.onStateChanged?.addListener(async (state) => {
   }
 });
 
+// In-Memory Session Cache for instant zero-latency retrieval
+let inMemorySession = {
+  isUnlocked: false,
+  credentialsJson: '[]',
+  sessionKeyBase64: null,
+  lastSynced: 0
+};
+
 // Main Message Router
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   (async () => {
     try {
       switch (request.action) {
+      // 0. Trigger popup opening from in-field badge/dropdown
+      case 'OPEN_POPUP': {
+        if (chrome.action?.openPopup) {
+          chrome.action.openPopup().catch(() => {});
+        }
+        sendResponse({ success: true });
+        break;
+      }
+
       // 1. Session Synchronization from Popup/React App
       case 'SYNC_VAULT_DATA': {
         const { credentials, isUnlocked, sessionKeyBase64, autoLockMinutes, baseEmails, autofillSettings } = request;
-        await chrome.storage.session.set({
+        const credsStr = JSON.stringify(credentials || []);
+        inMemorySession = {
           isUnlocked: !!isUnlocked,
           sessionKeyBase64: sessionKeyBase64 || null,
-          credentialsJson: JSON.stringify(credentials || []),
-          autoLockMinutes: autoLockMinutes || 15,
+          credentialsJson: credsStr,
           lastSynced: Date.now()
-        });
+        };
+        try {
+          await chrome.storage.session.set({
+            isUnlocked: !!isUnlocked,
+            sessionKeyBase64: sessionKeyBase64 || null,
+            credentialsJson: credsStr,
+            autoLockMinutes: autoLockMinutes || 15,
+            lastSynced: Date.now()
+          });
+        } catch {}
         if (baseEmails && Array.isArray(baseEmails)) {
           await chrome.storage.local.set({ safevault_base_emails: JSON.stringify(baseEmails) });
         }
@@ -487,7 +528,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // 2. Lock Session
       case 'LOCK_SESSION':
       case 'lockSession': {
-        await chrome.storage.session.clear();
+        inMemorySession = {
+          isUnlocked: false,
+          sessionKeyBase64: null,
+          credentialsJson: '[]',
+          lastSynced: 0
+        };
+        try {
+          await chrome.storage.session.clear();
+        } catch {}
         broadcastVaultState(false);
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id) {
@@ -499,18 +548,44 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       // 3. Check Session Status
       case 'IS_VAULT_UNLOCKED': {
-        const session = await chrome.storage.session.get(['isUnlocked', 'sessionKeyBase64']);
+        let isUnlocked = inMemorySession.isUnlocked;
+        let hasKey = !!inMemorySession.sessionKeyBase64;
+        if (!isUnlocked) {
+          try {
+            const session = await chrome.storage.session.get(['isUnlocked', 'sessionKeyBase64']);
+            isUnlocked = !!session?.isUnlocked;
+            hasKey = !!session?.sessionKeyBase64;
+            if (isUnlocked) {
+              inMemorySession.isUnlocked = true;
+              inMemorySession.sessionKeyBase64 = session.sessionKeyBase64;
+            }
+          } catch {}
+        }
         sendResponse({
-          isUnlocked: !!session.isUnlocked,
-          hasKey: !!session.sessionKeyBase64
+          isUnlocked: !!isUnlocked,
+          hasKey: !!hasKey
         });
         break;
       }
 
       // 4. Retrieve Matching Credentials with Live 2FA Codes
       case 'GET_MATCHING_CREDENTIALS': {
-        const session = await chrome.storage.session.get(['isUnlocked', 'credentialsJson']);
-        if (!session.isUnlocked || !session.credentialsJson) {
+        let isUnlocked = inMemorySession.isUnlocked;
+        let credentialsJson = inMemorySession.credentialsJson;
+
+        if (!isUnlocked || !credentialsJson || credentialsJson === '[]') {
+          try {
+            const session = await chrome.storage.session.get(['isUnlocked', 'credentialsJson']);
+            if (session?.isUnlocked && session?.credentialsJson) {
+              isUnlocked = true;
+              credentialsJson = session.credentialsJson;
+              inMemorySession.isUnlocked = true;
+              inMemorySession.credentialsJson = credentialsJson;
+            }
+          } catch {}
+        }
+
+        if (!isUnlocked || !credentialsJson || credentialsJson === '[]') {
           sendResponse({ isUnlocked: false, credentials: [] });
           return;
         }
@@ -534,7 +609,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return;
           }
 
-          const credentials = JSON.parse(session.credentialsJson);
+          const credentials = JSON.parse(credentialsJson);
           const matches = credentials.filter(c => isCredentialMatch(c, targetUrl, settings.autofillMatchingMode || 'wildcard'));
 
           // Compute live TOTP codes for all matching credentials

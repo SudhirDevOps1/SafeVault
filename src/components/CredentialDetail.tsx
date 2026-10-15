@@ -9,6 +9,7 @@ import { useClipboard } from '@/hooks/useClipboard';
 import TOTPDisplay from './TOTPDisplay';
 import CredentialForm from './CredentialForm';
 import type { Credential } from '@/types';
+import { autofillActiveTab } from '@/utils/extensionAutofill';
 
 interface CredentialDetailProps {
   credential: Credential;
@@ -152,25 +153,14 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
             <div className="flex items-center gap-1">
               {typeof window !== 'undefined' && 'chrome' in window && (window as any).chrome?.tabs && (
                 <button
-                  onClick={() => {
-                    const chrome = (window as any).chrome;
-                    if (!chrome?.tabs?.query) return;
-                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
-                      if (chrome.runtime?.lastError || !tabs?.[0]?.id) return;
-                      try {
-                        const p = chrome.tabs.sendMessage(tabs[0].id, {
-                          action: "autofillCredentials",
-                          username: credential.username || '',
-                          password: credential.password || ''
-                        }, () => {
-                          if (chrome.runtime?.lastError) return;
-                          addAuditLog('AUTOFILL_TRIGGERED', `⚡ Autofilled credentials for "${credential.title}"`);
-                        });
-                        if (p && typeof p.catch === 'function') {
-                          p.catch(() => {});
-                        }
-                      } catch {}
+                  onClick={async () => {
+                    const success = await autofillActiveTab({
+                      username: credential.username || '',
+                      password: credential.password || ''
                     });
+                    if (success) {
+                      addAuditLog('AUTOFILL_TRIGGERED', `⚡ Autofilled credentials for "${credential.title}"`);
+                    }
                   }}
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition-all mr-1"
                   title="Autofill this site"

@@ -19,6 +19,56 @@
   let activeAnchorInput = null;
   let savePromptEl = null;
   let clipboardClearTimer = null;
+  let pageMutationObserver = null;
+
+  // Verify extension runtime validity to prevent 'Extension context invalidated' errors
+  function isContextValid() {
+    try {
+      return Boolean(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
+    } catch {
+      return false;
+    }
+  }
+
+  // Gracefully clean up orphaned UI and observers if extension is reloaded/invalidated
+  function cleanupOrphanedExtension() {
+    try {
+      if (pageMutationObserver) {
+        pageMutationObserver.disconnect();
+        pageMutationObserver = null;
+      }
+      document.querySelectorAll('.safevault-infield-badge').forEach(b => b.remove());
+      closeDropdown();
+      if (savePromptEl) {
+        savePromptEl.remove();
+        savePromptEl = null;
+      }
+    } catch {}
+  }
+
+  // Safe wrapper for chrome.runtime.sendMessage with context invalidation protection
+  function safeSendMessage(message, callback) {
+    if (!isContextValid()) {
+      cleanupOrphanedExtension();
+      return;
+    }
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime?.lastError) {
+          const errMsg = chrome.runtime.lastError.message || '';
+          if (errMsg.includes('context invalidated') || errMsg.includes('disconnected')) {
+            cleanupOrphanedExtension();
+          }
+          return;
+        }
+        if (typeof callback === 'function') {
+          callback(response);
+        }
+      });
+    } catch (err) {
+      cleanupOrphanedExtension();
+    }
+  }
 
   // Autofill configuration (synced from SafeVault settings)
   let autofillSettings = {
@@ -96,7 +146,10 @@
 
   // Set input value compatibly with React, Angular, Vue & native inputs
   function setNativeValue(element, value) {
-    if (!element) return;
+    if (!element || value == null) return;
+    try {
+      element.focus();
+    } catch {}
     const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
     const prototype = Object.getPrototypeOf(element);
     const prototypeValueSetter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
@@ -111,6 +164,8 @@
 
     element.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     element.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+    element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter' }));
   }
 
   // Copy text to clipboard and auto-clear after 30 seconds
@@ -214,6 +269,19 @@
         if (!usernameInput) usernameInput = input;
         continue;
       }
+    }
+
+    // Direct platform selector fallbacks (e.g. GitHub, Amazon, Google, Microsoft)
+    if (!usernameInput && !emailInput) {
+      usernameInput = root.querySelector(
+        'input#login_field, input#user_login, input[name="login"], input[name="username"], input[name="user"], input[autocomplete="username"]'
+      ) || null;
+    }
+    if (!passwordInput) {
+      passwordInput = root.querySelector('input[type="password"], input#password, input[name="password"], input[name="passwd"]') || null;
+    }
+    if (!totpInput) {
+      totpInput = root.querySelector('input[autocomplete="one-time-code"], input#otp, input#totp, input[name="otp"], input[name="totp"]') || null;
     }
 
     return {
@@ -349,6 +417,17 @@
     dropdown.innerHTML = contentHtml;
     document.body.appendChild(dropdown);
 
+    // Unlock Vault button
+    const openPopupBtn = dropdown.querySelector('#safevault-open-popup-btn');
+    if (openPopupBtn) {
+      openPopupBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        safeSendMessage({ action: 'OPEN_POPUP' });
+        showToast('Please open SafeVault from extension toolbar to unlock.');
+        closeDropdown();
+      });
+    }
+
     // Event Listeners for Credential Items
     dropdown.querySelectorAll('.safevault-cred-item').forEach(itemEl => {
       itemEl.addEventListener('mouseenter', () => { itemEl.style.background = '#334155'; });
@@ -369,7 +448,7 @@
     if (genBtn) {
       genBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        chrome.runtime.sendMessage({ action: 'GENERATE_PASSWORD' }, (res) => {
+        safeSendMessage({ action: 'GENERATE_PASSWORD' }, (res) => {
           if (res?.password) {
             setNativeValue(anchorInput, res.password);
             const fields = scanFormFields();
@@ -389,7 +468,7 @@
     if (aliasBtn) {
       aliasBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        chrome.runtime.sendMessage({
+        safeSendMessage({
           action: 'GENERATE_AND_SAVE_ALIAS',
           hostname: window.location.hostname,
           url: window.location.href
@@ -419,27 +498,55 @@
     const fields = scanFormFields();
     let filledSomething = false;
 
-    // 1. Fill Email / Username field
-    if (cred.username) {
-      const isEmail = cred.username.includes('@');
-      if (isEmail && fields.emailInput) {
-        setNativeValue(fields.emailInput, cred.username);
-        filledSomething = true;
-      } else if (fields.usernameInput) {
-        setNativeValue(fields.usernameInput, cred.username);
-        filledSomething = true;
-      } else if (fields.emailInput) {
-        setNativeValue(fields.emailInput, cred.username);
-        filledSomething = true;
+    // Direct priority filling for activeAnchorInput if user clicked its badge
+    if (activeAnchorInput && activeAnchorInput.isConnected) {
+      const anchorType = (activeAnchorInput.getAttribute('type') || '').toLowerCase();
+      if (anchorType === 'password') {
+        if (cred.password) {
+          setNativeValue(activeAnchorInput, cred.password);
+          filledSomething = true;
+        }
+        const userTarget = fields.usernameInput || fields.emailInput;
+        if (cred.username && userTarget && userTarget !== activeAnchorInput) {
+          setNativeValue(userTarget, cred.username);
+          filledSomething = true;
+        }
+      } else {
+        if (cred.username) {
+          setNativeValue(activeAnchorInput, cred.username);
+          filledSomething = true;
+        }
+        if (cred.password && fields.passwordInput) {
+          setNativeValue(fields.passwordInput, cred.password);
+          filledSomething = true;
+          if (fields.confirmPasswordInput) {
+            setNativeValue(fields.confirmPasswordInput, cred.password);
+          }
+        }
       }
-    }
+    } else {
+      // 1. Fill Email / Username field
+      if (cred.username) {
+        const isEmail = cred.username.includes('@');
+        if (isEmail && fields.emailInput) {
+          setNativeValue(fields.emailInput, cred.username);
+          filledSomething = true;
+        } else if (fields.usernameInput) {
+          setNativeValue(fields.usernameInput, cred.username);
+          filledSomething = true;
+        } else if (fields.emailInput) {
+          setNativeValue(fields.emailInput, cred.username);
+          filledSomething = true;
+        }
+      }
 
-    // 2. Fill Password field
-    if (cred.password && fields.passwordInput) {
-      setNativeValue(fields.passwordInput, cred.password);
-      filledSomething = true;
-      if (fields.confirmPasswordInput) {
-        setNativeValue(fields.confirmPasswordInput, cred.password);
+      // 2. Fill Password field
+      if (cred.password && fields.passwordInput) {
+        setNativeValue(fields.passwordInput, cred.password);
+        filledSomething = true;
+        if (fields.confirmPasswordInput) {
+          setNativeValue(fields.confirmPasswordInput, cred.password);
+        }
       }
     }
 
@@ -560,7 +667,7 @@
           closeDropdown();
           return;
         }
-        chrome.runtime.sendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
+        safeSendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
           showDropdown(input, response || { isUnlocked: false, credentials: [] });
         });
       });
@@ -630,7 +737,7 @@
     });
 
     banner.querySelector('#safevault-block-save')?.addEventListener('click', () => {
-      chrome.runtime.sendMessage({
+      safeSendMessage({
         action: 'BLOCK_SITE',
         domain: window.location.hostname
       }, () => {
@@ -643,7 +750,7 @@
     });
 
     banner.querySelector('#safevault-confirm-save')?.addEventListener('click', () => {
-      chrome.runtime.sendMessage({
+      safeSendMessage({
         action: 'SAVE_SUBMITTED_CREDENTIAL',
         username,
         password,
@@ -664,62 +771,74 @@
   });
 
   // Handle messages from Extension Popup / Background
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'autofillCredentials') {
-      autofillSingle({
-        username: message.username,
-        password: message.password,
-        totpCode: message.totpCode
-      });
-      sendResponse({ success: true });
-    } else if (message.action === 'AUTOFILL_SETTINGS_UPDATED') {
-      autofillSettings = { ...autofillSettings, ...(message.settings || {}) };
-      if (isSiteBlocked() || (autofillSettings.credentialAutofillEnabled === false && autofillSettings.twoFactorAutofillEnabled === false)) {
-        document.querySelectorAll('.safevault-infield-badge').forEach(b => b.remove());
-      } else {
-        attachFieldBadges();
-      }
-      sendResponse({ success: true });
-    } else if (message.action === 'VAULT_STATE_UPDATED') {
-      // Re-query credentials if dropdown is currently visible to eliminate stale locked state
-      if (activeDropdown && activeAnchorInput) {
-        chrome.runtime.sendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
-          showDropdown(activeAnchorInput, response || { isUnlocked: false, credentials: [] });
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === 'autofillCredentials' || message.action === 'AUTOFILL_CREDENTIALS') {
+        autofillSingle({
+          username: message.username,
+          password: message.password,
+          totpCode: message.totpCode
         });
-      }
-      sendResponse({ success: true });
-    } else if (message.action === 'TRIGGER_AUTOFILL') {
-      chrome.runtime.sendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
-        if (response?.credentials?.length === 1) {
-          autofillSingle(response.credentials[0]);
-        } else if (response?.credentials?.length > 1) {
-          const fields = scanFormFields();
-          const target = fields.passwordInput || fields.emailInput || fields.usernameInput || fields.totpInput;
-          if (target) showDropdown(target, response);
+        sendResponse({ success: true });
+      } else if (message.action === 'AUTOFILL_SETTINGS_UPDATED') {
+        autofillSettings = { ...autofillSettings, ...(message.settings || {}) };
+        if (isSiteBlocked() || (autofillSettings.credentialAutofillEnabled === false && autofillSettings.twoFactorAutofillEnabled === false)) {
+          document.querySelectorAll('.safevault-infield-badge').forEach(b => b.remove());
         } else {
-          showToast('No matching logins for this site.');
+          attachFieldBadges();
         }
-      });
-      sendResponse({ success: true });
-    } else if (message.action === 'FILL_GENERATED_PASSWORD') {
-      const activeEl = document.activeElement;
-      if (activeEl && activeEl.tagName === 'INPUT') {
-        setNativeValue(activeEl, message.password);
-        showToast('Generated password filled!');
+        sendResponse({ success: true });
+      } else if (message.action === 'VAULT_STATE_UPDATED') {
+        // Re-query credentials if dropdown is currently visible to eliminate stale locked state
+        if (activeDropdown && activeAnchorInput) {
+          safeSendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
+            if (activeAnchorInput) {
+              showDropdown(activeAnchorInput, response || { isUnlocked: false, credentials: [] });
+            }
+          });
+        }
+        sendResponse({ success: true });
+      } else if (message.action === 'TRIGGER_AUTOFILL') {
+        safeSendMessage({ action: 'GET_MATCHING_CREDENTIALS', url: window.location.href }, (response) => {
+          if (response?.credentials?.length === 1) {
+            autofillSingle(response.credentials[0]);
+          } else if (response?.credentials?.length > 1) {
+            const fields = scanFormFields();
+            const target = fields.passwordInput || fields.emailInput || fields.usernameInput || fields.totpInput;
+            if (target) showDropdown(target, response);
+          } else {
+            showToast('No matching logins for this site.');
+          }
+        });
+        sendResponse({ success: true });
+      } else if (message.action === 'FILL_GENERATED_PASSWORD') {
+        const activeEl = document.activeElement;
+        if (activeEl && activeEl.tagName === 'INPUT') {
+          setNativeValue(activeEl, message.password);
+          showToast('Generated password filled!');
+        }
+        sendResponse({ success: true });
       }
-      sendResponse({ success: true });
-    }
-    return true;
-  });
+      return true;
+    });
+  }
 
-  // Initialize Observers
+  // Initialize Observers safely
   attachFieldBadges();
   interceptFormSubmissions();
 
   // Watch for dynamic Single Page App (SPA) form additions
-  const observer = new MutationObserver(() => {
+  pageMutationObserver = new MutationObserver(() => {
     attachFieldBadges();
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  if (document.body) {
+    pageMutationObserver.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (document.body && pageMutationObserver) {
+        pageMutationObserver.observe(document.body, { childList: true, subtree: true });
+      }
+    });
+  }
 
 })();

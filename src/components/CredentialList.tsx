@@ -6,6 +6,8 @@ import { generateTOTP } from '@/utils/totp';
 import { useClipboard } from '@/hooks/useClipboard';
 import TOTPDisplay from './TOTPDisplay';
 
+import { autofillActiveTab } from '@/utils/extensionAutofill';
+
 export default function CredentialList() {
   const credentials = useVaultStore(state => state.credentials);
   const selectedCredentialId = useVaultStore(state => state.selectedCredentialId);
@@ -38,6 +40,7 @@ export default function CredentialList() {
     if (!currentTabDomain) return [];
     const domainParts = currentTabDomain.split('.');
     const baseDomain = domainParts.length >= 2 ? domainParts.slice(-2).join('.') : currentTabDomain;
+    const cleanService = domainParts.length >= 2 ? domainParts[domainParts.length - 2].toLowerCase() : domainParts[0].toLowerCase();
 
     return credentials.filter(c => {
       if (!c.url && !c.title) return false;
@@ -47,9 +50,10 @@ export default function CredentialList() {
       } catch {
         cHost = c.url;
       }
+      const titleLower = (c.title || '').toLowerCase();
       return (
-        (cHost && (cHost.includes(baseDomain) || baseDomain.includes(cHost))) ||
-        (c.title && c.title.toLowerCase().includes(baseDomain))
+        (cHost && (cHost.includes(baseDomain) || baseDomain.includes(cHost) || cHost.includes(cleanService))) ||
+        (titleLower && (baseDomain.includes(titleLower) || titleLower.includes(baseDomain) || titleLower.includes(cleanService) || cleanService.includes(titleLower)))
       );
     });
   }, [credentials, currentTabDomain]);
@@ -58,7 +62,7 @@ export default function CredentialList() {
 
   const handleQuickAutofill = async (cred: Credential, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isExtension && (window as any).chrome?.tabs?.query) {
+    if (isExtension) {
       let totpCode = '';
       if (cred.totpSecret) {
         try {
@@ -72,24 +76,16 @@ export default function CredentialList() {
         } catch {}
       }
 
-      (window as any).chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
-        if ((window as any).chrome?.runtime?.lastError || !tabs?.[0]?.id) return;
-        try {
-          const p = (window as any).chrome.tabs.sendMessage(tabs[0].id, {
-            action: 'autofillCredentials',
-            username: cred.username,
-            password: cred.password,
-            totpCode
-          }, () => {
-            if ((window as any).chrome?.runtime?.lastError) return;
-          });
-          if (p && typeof p.catch === 'function') {
-            p.catch(() => {});
-          }
-          setAutofillSuccessId(cred.id);
-          setTimeout(() => setAutofillSuccessId(null), 2500);
-        } catch {}
+      const success = await autofillActiveTab({
+        username: cred.username,
+        password: cred.password,
+        totpCode
       });
+
+      if (success) {
+        setAutofillSuccessId(cred.id);
+        setTimeout(() => setAutofillSuccessId(null), 2500);
+      }
     }
   };
 

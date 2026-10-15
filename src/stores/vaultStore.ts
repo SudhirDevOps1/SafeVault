@@ -280,6 +280,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
               lastActivity: Date.now(),
               loading: false,
             });
+            syncToExtension(credentials, restoredKey, true);
             logger.info('Vault restored from active extension session');
             return;
           }
