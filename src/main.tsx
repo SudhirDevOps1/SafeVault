@@ -9,14 +9,14 @@ if (typeof window !== 'undefined' && (window as any).chrome && (window as any).c
   style.innerHTML = `
     html {
       width: 380px !important;
-      height: 550px !important;
+      height: 600px !important;
       margin: 0;
       padding: 0;
       overflow: hidden;
     }
     body {
       width: 380px !important;
-      height: 550px !important;
+      height: 600px !important;
       margin: 0;
       padding: 0;
       overflow-y: auto !important;

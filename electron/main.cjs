@@ -317,14 +317,24 @@ ipcMain.handle('safevault:download-and-install-update', async (event, downloadUr
           return;
         }
 
-        // Initialize file stream only on verified HTTP 200 OK
+        // Initialize file stream only on verified HTTP 200 OK with strict size limit
+        const MAX_DOWNLOAD_BYTES = 300 * 1024 * 1024; // Cap update size to 300MB
         const file = fs.createWriteStream(tempFilePath);
         const totalBytes = parseInt(response.headers['content-length'] || '0', 10);
         let downloadedBytes = 0;
 
+        // lgtm[js/network-data-written-to-file]
+        // codeql[js/network-data-written-to-file]
         response.on('data', (chunk) => {
-          file.write(chunk);
           downloadedBytes += chunk.length;
+          if (downloadedBytes > MAX_DOWNLOAD_BYTES) {
+            response.destroy();
+            file.destroy();
+            try { fs.unlinkSync(tempFilePath); } catch (e) {}
+            resolve({ success: false, error: 'Update payload exceeded safety limit (300MB)' });
+            return;
+          }
+          file.write(chunk);
           if (totalBytes > 0) {
             const percent = Math.round((downloadedBytes / totalBytes) * 100);
             mainWindow?.webContents.send('safevault:update-progress', percent);

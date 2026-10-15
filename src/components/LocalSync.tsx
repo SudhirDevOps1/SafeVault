@@ -3,7 +3,7 @@ import { Wifi, RefreshCw, AlertTriangle, CheckCircle, Key, QrCode, Camera, X, Cl
 import { QRCodeSVG } from 'qrcode.react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useVaultStore } from '../stores/vaultStore';
-import { encrypt, decrypt, deriveKey, createVerificationHash } from '../utils/crypto';
+import { encrypt, decrypt, deriveKey } from '../utils/crypto';
 
 // Safe base64 conversion helpers (no callstack size overflows)
 function uint8ArrayToBase64(uint8Array: Uint8Array): string {
@@ -13,6 +13,14 @@ function uint8ArrayToBase64(uint8Array: Uint8Array): string {
     binary += String.fromCharCode(uint8Array[i]);
   }
   return window.btoa(binary);
+}
+
+// Derive a cryptographically sound domain-separated salt for local session key derivation
+async function deriveSyncSalt(channelOrPin: string, domainContext: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`SafeVault-Sync-Domain-${domainContext}-${channelOrPin}`);
+  const hash = await window.crypto.subtle.digest('SHA-256', data);
+  return uint8ArrayToBase64(new Uint8Array(hash).slice(0, 16));
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -115,8 +123,7 @@ export default function LocalSync() {
       
       try {
         // Derive transition key (LAYER 2)
-        const salt = await createVerificationHash(serverInfo.pin, 'safevault-wifi-salt');
-        const saltBase64 = window.btoa(salt).slice(0, 16);
+        const saltBase64 = await deriveSyncSalt(serverInfo.pin, 'wifi-sync');
         const sessionKey = await deriveKey(serverInfo.pin, saltBase64);
 
         // Decrypt LAYER 2
@@ -280,8 +287,8 @@ export default function LocalSync() {
     }
     if (!isBackground) setRelayLoading(true);
     try {
-      const salt = await createVerificationHash(relayChannel, 'safevault-relay-salt');
-      const sessionKey = await deriveKey(relayPIN, salt.slice(0, 16));
+      const saltBase64 = await deriveSyncSalt(relayChannel, 'relay-sync');
+      const sessionKey = await deriveKey(relayPIN, saltBase64);
       
       // LAYER 1: Encrypt list locally using the Vault Master key
       const doubleLayerPayload = await getSyncPayloadDoubleLayer();
@@ -324,8 +331,8 @@ export default function LocalSync() {
       if (!response.ok) throw new Error('No relay data active. Check sender status.');
       
       const payload = await response.json();
-      const salt = await createVerificationHash(relayChannel, 'safevault-relay-salt');
-      const sessionKey = await deriveKey(relayPIN, salt.slice(0, 16));
+      const saltBase64 = await deriveSyncSalt(relayChannel, 'relay-sync');
+      const sessionKey = await deriveKey(relayPIN, saltBase64);
       
       // Decrypt Layer 2 (Session Key)
       const decryptedLayer1Json = await decrypt(payload.ciphertext, payload.iv, sessionKey);
@@ -411,8 +418,7 @@ export default function LocalSync() {
 
     try {
       // Session PIN Key (LAYER 2)
-      const salt = await createVerificationHash(pairingPIN.trim(), 'safevault-wifi-salt');
-      const saltBase64 = window.btoa(salt).slice(0, 16);
+      const saltBase64 = await deriveSyncSalt(pairingPIN.trim(), 'wifi-sync');
       const sessionKey = await deriveKey(pairingPIN.trim(), saltBase64);
       
       // LAYER 1: Encrypt locally using local Master Vault Key

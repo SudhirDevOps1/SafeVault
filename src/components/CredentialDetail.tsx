@@ -82,7 +82,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
     <>
       <div className="h-full flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-white/5">
+        <div className="p-4 sm:p-6 border-b border-white/5">
           <button
             onClick={() => setSelectedCredential(null)}
             className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 mb-4 md:hidden transition-colors"
@@ -205,7 +205,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {/* Honeypot Alert Banner */}
           {honeypotAlert && (
             <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-3 animate-pulse">

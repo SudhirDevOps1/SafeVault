@@ -40,7 +40,7 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
   ];
 
   return (
-    <div className="w-64 h-full bg-gray-950/50 border-r border-white/5 flex flex-col shrink-0" role="navigation" aria-label="Main navigation">
+    <div className="w-64 h-full bg-gray-950/50 border-r border-white/5 flex flex-col shrink-0 overflow-y-auto" role="navigation" aria-label="Main navigation">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-white/5">
         <div className="flex items-center gap-3">
@@ -63,10 +63,18 @@ export default function Sidebar({ onAddCredential }: SidebarProps) {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search vault... (Ctrl+K)"
+            placeholder="Search vault..."
             aria-label="Search credentials"
-            className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/5 rounded-xl text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/30 transition-all"
+            className="w-full pl-9 pr-14 py-2 bg-white/5 border border-white/5 rounded-xl text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/30 transition-all"
           />
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('safevault:open-palette'))}
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-[10px] text-gray-400 font-mono transition-colors cursor-pointer"
+            title="Open Smart Command Palette (Ctrl+K)"
+          >
+            Ctrl+K
+          </button>
         </div>
       </div>
 

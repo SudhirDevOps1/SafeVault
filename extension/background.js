@@ -135,7 +135,7 @@ function extractFullHostname(urlOrHost) {
     }
     return hostname.toLowerCase().split(':')[0].replace(/^www\./, '');
   } catch {
-    return (urlOrHost || '').toLowerCase().trim();
+    return urlOrHost.toLowerCase().trim();
   }
 }
 

@@ -101,7 +101,7 @@ export default function VaultUnlock() {
 
   const isElectron = typeof window !== 'undefined' && 'electron' in window;
   const isExtension = typeof window !== 'undefined' && (window as any).chrome && (window as any).chrome.runtime && (window as any).chrome.runtime.id;
-  const isMobile = typeof window !== 'undefined' && /android|iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  const isMobile = typeof window !== 'undefined' && (/android|iphone|ipad|ipod/i.test(window.navigator.userAgent) || window.innerWidth < 1024);
   const showShowcase = !isElectron && !isExtension && !isMobile;
 
   const renderUnlockView = () => {
@@ -471,14 +471,14 @@ export default function VaultUnlock() {
 
   if (showShowcase) {
     return (
-      <div className="min-h-screen flex flex-col md:flex-row bg-gray-950 text-white">
+      <div className="min-h-screen flex flex-col lg:flex-row bg-gray-950 text-white">
         {/* Left Side: Showcase */}
-        <div className="w-full md:w-[55%] flex flex-col justify-between p-8 md:p-12 lg:p-16 bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 border-b md:border-b-0 md:border-r border-white/5 overflow-y-auto max-h-screen">
+        <div className="hidden lg:flex w-full lg:w-[55%] flex-col justify-between p-8 md:p-12 lg:p-16 bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 border-b lg:border-b-0 lg:border-r border-white/5 overflow-y-auto max-h-screen">
           <WebShowcase />
         </div>
 
         {/* Right Side: Form */}
-        <div className="w-full md:w-[45%] flex items-center justify-center p-6 md:p-12 overflow-y-auto max-h-screen bg-gray-950">
+        <div className="w-full lg:w-[45%] flex items-center justify-center p-4 sm:p-6 md:p-12 overflow-y-auto max-h-screen bg-gray-950">
           {formContent}
         </div>
       </div>

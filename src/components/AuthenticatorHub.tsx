@@ -253,9 +253,9 @@ export default function AuthenticatorHub() {
   return (
     <div className="flex-1 flex flex-col h-full bg-gray-950 text-white overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-white/5 bg-gray-900/30 flex items-center justify-between">
+      <div className="p-4 sm:p-6 border-b border-white/5 bg-gray-900/30 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -271,10 +271,10 @@ export default function AuthenticatorHub() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowGoogleModal(true)}
-            className="flex items-center gap-2 px-3.5 py-2 bg-white/5 hover:bg-white/10 text-white font-medium text-sm rounded-xl border border-white/10 transition-all active:scale-95"
+            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 bg-white/5 hover:bg-white/10 text-white font-medium text-xs sm:text-sm rounded-xl border border-white/10 transition-all active:scale-95"
             title="Import all accounts from Google Authenticator QR/Export URI"
           >
             <QrCode className="w-4 h-4 text-emerald-400" />
@@ -283,7 +283,7 @@ export default function AuthenticatorHub() {
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-gray-950 font-semibold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-gray-950 font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Add 2FA Code</span>
@@ -292,7 +292,7 @@ export default function AuthenticatorHub() {
       </div>
 
       {/* Global Countdown & Search Bar */}
-      <div className="px-6 py-4 border-b border-white/5 bg-gray-950/60 flex items-center gap-4">
+      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-white/5 bg-gray-950/60 flex items-center gap-3 sm:gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
@@ -328,7 +328,7 @@ export default function AuthenticatorHub() {
       </div>
 
       {/* 2FA Accounts Grid */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {filteredAccounts.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto">
             <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
