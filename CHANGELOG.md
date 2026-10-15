@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0](https://github.com/SudhirDevOps1/SafeVault/compare/v0.2.1...v0.3.0) (2026-10-15)
+
+
+### Features
+
+* complete autofill settings panel, clean website alias matching, and 2FA in-field support ([8c8a2b4](https://github.com/SudhirDevOps1/SafeVault/commit/8c8a2b4a73aea8ccf79139d50f602fe3964198ed))
+* integrate Proton Authenticator hub, smart multi-field autofill, live 2FA auto-copy, and tab state sync ([e4e7625](https://github.com/SudhirDevOps1/SafeVault/commit/e4e7625cdd90cf4954b4cd061b2d9feab6f9fd32))
+* smart command palette, universal mobile bottom nav, responsive layout polish, and resolve GitHub CodeQL alerts ([48cdf97](https://github.com/SudhirDevOps1/SafeVault/commit/48cdf978516f57c63e35ad1cc33627fc082db99a))
+* unlimited clean website email aliases, emergency kit, decoy pin, and unified v0.3.0 ([8457620](https://github.com/SudhirDevOps1/SafeVault/commit/84576207ee43ec80126d528a364d3e0afd7d9b24))
+
 ## [0.2.1](https://github.com/SudhirDevOps1/SafeVault/compare/v0.2.0...v0.2.1) (2026-10-14)
 
 
