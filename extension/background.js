@@ -1,6 +1,13 @@
 // SafeVault Extension Background Service Worker (Manifest V3)
 // Zero-Knowledge Architecture with Bitwarden/Proton Pass style autofill & context menu integration
 
+// Allow storage.session to be accessed by popup and extension pages in MV3
+try {
+  if (typeof chrome !== 'undefined' && chrome.storage?.session?.setAccessLevel) {
+    chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS' }).catch(() => {});
+  }
+} catch {}
+
 // Decode Base32 string to Uint8Array for TOTP
 function base32Decode(base32) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -399,7 +406,8 @@ chrome.idle?.onStateChanged?.addListener(async (state) => {
 // Main Message Router
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   (async () => {
-    switch (request.action) {
+    try {
+      switch (request.action) {
       // 1. Session Synchronization from Popup/React App
       case 'SYNC_VAULT_DATA': {
         const { credentials, isUnlocked, sessionKeyBase64, autoLockMinutes, baseEmails, autofillSettings } = request;
@@ -726,6 +734,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       default:
         sendResponse({ unhandled: true });
+    }
+    } catch (err) {
+      sendResponse({ error: err?.message || 'Error processing request' });
     }
   })();
   return true; // Keep message channel open for async response

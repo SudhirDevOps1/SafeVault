@@ -110,7 +110,8 @@ export const logger = {
     } else {
       safeErr = redact(err);
     }
-    console.error(formatMessage('error', msg), safeErr);
+    const errText = safeErr ? (typeof safeErr === 'string' ? safeErr : (safeErr as any).message || (typeof (safeErr as any).toString === 'function' && (safeErr as any).toString() !== '[object Object]' ? (safeErr as any).toString() : JSON.stringify(safeErr))) : '';
+    console.error(`${formatMessage('error', msg)}${errText ? ' — ' + errText : ''}`);
   },
   /**
    * Capture an error for potential future error tracking.
@@ -126,9 +127,28 @@ export const logger = {
 // Global unhandled rejection handler (secure)
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
-    logger.capture('Unhandled promise rejection', e.reason);
+    // Suppress benign Chrome extension disconnection / port errors or document focus issues
+    const reason = e.reason;
+    const reasonStr = reason ? (reason.message || (typeof reason === 'string' ? reason : '')) : '';
+    if (
+      reasonStr.includes('Could not establish connection') ||
+      reasonStr.includes('Receiving end does not exist') ||
+      reasonStr.includes('message port closed') ||
+      reasonStr.includes('Document is not focused') ||
+      reasonStr.includes('ResizeObserver') ||
+      (!reasonStr && typeof reason === 'object' && Object.keys(reason || {}).length === 0)
+    ) {
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    logger.capture('Unhandled promise rejection', reason);
   });
   window.addEventListener('error', (e) => {
+    if (e.message && (e.message.includes('ResizeObserver') || e.message.includes('Script error'))) {
+      e.preventDefault();
+      return;
+    }
     logger.capture('Global error', { message: e.message, filename: e.filename });
   });
 }

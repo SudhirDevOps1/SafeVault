@@ -44,7 +44,7 @@ export default function VaultSetup() {
   };
 
   const handleCopyRecovery = () => {
-    navigator.clipboard.writeText(recoveryPhrase);
+    navigator.clipboard.writeText(recoveryPhrase).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     logger.info('Recovery phrase copied to clipboard');

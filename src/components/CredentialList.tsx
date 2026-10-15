@@ -73,16 +73,22 @@ export default function CredentialList() {
       }
 
       (window as any).chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
-        if (tabs?.[0]?.id) {
-          (window as any).chrome.tabs.sendMessage(tabs[0].id, {
+        if ((window as any).chrome?.runtime?.lastError || !tabs?.[0]?.id) return;
+        try {
+          const p = (window as any).chrome.tabs.sendMessage(tabs[0].id, {
             action: 'autofillCredentials',
             username: cred.username,
             password: cred.password,
             totpCode
+          }, () => {
+            if ((window as any).chrome?.runtime?.lastError) return;
           });
+          if (p && typeof p.catch === 'function') {
+            p.catch(() => {});
+          }
           setAutofillSuccessId(cred.id);
           setTimeout(() => setAutofillSuccessId(null), 2500);
-        }
+        } catch {}
       });
     }
   };

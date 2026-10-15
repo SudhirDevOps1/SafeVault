@@ -152,10 +152,13 @@ interface VaultStore {
 function broadcastAutofillSettingsToExtension(settings: AutofillSettings) {
   if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id) {
     try {
-      (window as any).chrome.runtime.sendMessage({
+      const p = (window as any).chrome.runtime.sendMessage({
         action: 'SYNC_AUTOFILL_SETTINGS',
         settings
       });
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {});
+      }
     } catch {}
   }
 }
@@ -192,7 +195,7 @@ async function syncToExtension(credentials: Credential[], key: CryptoKey | null,
         blockedSites: blocked,
         autofillMatchingMode: matchMode
       };
-      (window as any).chrome.runtime.sendMessage({
+      const p = (window as any).chrome.runtime.sendMessage({
         action: 'SYNC_VAULT_DATA',
         credentials: isUnlocked ? credentials : [],
         isUnlocked,
@@ -200,6 +203,9 @@ async function syncToExtension(credentials: Credential[], key: CryptoKey | null,
         baseEmails: emails || [],
         autofillSettings
       });
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {});
+      }
     } catch { /* proceed */ }
   }
 }
@@ -254,7 +260,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       // Seamlessly restore active session in Chrome Extension
       if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id && (window as any).chrome?.storage?.session) {
         try {
-          const session = await (window as any).chrome.storage.session.get(['isUnlocked', 'sessionKeyBase64', 'credentialsJson']);
+          const session = await (window as any).chrome.storage.session.get(['isUnlocked', 'sessionKeyBase64', 'credentialsJson']).catch(() => null);
           if (session?.isUnlocked && session?.sessionKeyBase64 && session?.credentialsJson) {
             const rawKey = base64ToBuffer(session.sessionKeyBase64);
             const restoredKey = await crypto.subtle.importKey(
@@ -489,12 +495,15 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       isDecoyVault: false,
     });
     try {
-      navigator.clipboard.writeText('');
+      navigator.clipboard.writeText('').catch(() => {});
     } catch { /* ignore */ }
     if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id) {
       try {
-        (window as any).chrome.storage?.session?.clear?.();
-        (window as any).chrome.runtime?.sendMessage?.({ action: 'LOCK_SESSION' });
+        (window as any).chrome.storage?.session?.clear?.()?.catch?.(() => {});
+        const p = (window as any).chrome.runtime?.sendMessage?.({ action: 'LOCK_SESSION' });
+        if (p && typeof p.catch === 'function') {
+          p.catch(() => {});
+        }
       } catch {}
     }
   },
@@ -919,11 +928,14 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
 
         if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.id) {
           try {
-            (window as any).chrome.runtime.sendMessage({
+            const p = (window as any).chrome.runtime.sendMessage({
               action: 'SAFEVAULT_UPDATE_DETECTED',
               version: latestVersion,
               assets,
             });
+            if (p && typeof p.catch === 'function') {
+              p.catch(() => {});
+            }
           } catch {}
         }
 

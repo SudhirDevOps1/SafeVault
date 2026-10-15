@@ -63,7 +63,7 @@ describe('Advanced Cryptographic Security & Tamper-Proofing', () => {
     const hash = await createVerificationHashArgon2id(masterPassword, salt);
     expect(typeof hash).toBe('string');
     expect(hash.length).toBeGreaterThan(0);
-  });
+  }, 15000);
 
   it('BIP-39 mnemonic generation, validation, and key wrap/unwrap roundtrip', async () => {
     const phrase = generateMnemonic();

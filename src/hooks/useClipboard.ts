@@ -10,7 +10,7 @@ export function useClipboard(clearAfterMs = 30000) {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         try {
-          navigator.clipboard.writeText('');
+          navigator.clipboard.writeText('').catch(() => {});
         } catch {
           // Fallback text area clear for unmount context
           try {
@@ -38,7 +38,7 @@ export function useClipboard(clearAfterMs = 30000) {
       timeoutRef.current = setTimeout(async () => {
         // Clear clipboard after timeout for security
         try {
-          await navigator.clipboard.writeText('');
+          await navigator.clipboard.writeText('').catch(() => {});
         } catch { /* ignore */ }
         setCopiedField(null);
       }, clearAfterMs);

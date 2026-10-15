@@ -154,16 +154,22 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
                 <button
                   onClick={() => {
                     const chrome = (window as any).chrome;
+                    if (!chrome?.tabs?.query) return;
                     chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
-                      if (tabs[0]?.id) {
-                        chrome.tabs.sendMessage(tabs[0].id, {
+                      if (chrome.runtime?.lastError || !tabs?.[0]?.id) return;
+                      try {
+                        const p = chrome.tabs.sendMessage(tabs[0].id, {
                           action: "autofillCredentials",
                           username: credential.username || '',
                           password: credential.password || ''
                         }, () => {
+                          if (chrome.runtime?.lastError) return;
                           addAuditLog('AUTOFILL_TRIGGERED', `⚡ Autofilled credentials for "${credential.title}"`);
                         });
-                      }
+                        if (p && typeof p.catch === 'function') {
+                          p.catch(() => {});
+                        }
+                      } catch {}
                     });
                   }}
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition-all mr-1"
