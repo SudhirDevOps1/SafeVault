@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/SudhirDevOps1/SafeVault/compare/v0.3.0...v0.4.0) (2026-10-15)
+
+
+### Features
+
+* omni-platform update detection, 1-click installer, and zero-data-loss migration ([fa9b4f7](https://github.com/SudhirDevOps1/SafeVault/commit/fa9b4f7df4303d844a7b1f4f808569632b4fbdf4))
+* **ui:** redesign credential detail with Proton Pass style UI, prominent Edit button, real logos and custom icon/color picker ([c9dfc28](https://github.com/SudhirDevOps1/SafeVault/commit/c9dfc2848d16ddfa2c7f331edcfc963b72e7f3fb))
+
+
+### Bug Fixes
+
+* **extension:** resolve extension context invalidated error and reinforce autofill synchronization ([2ebb810](https://github.com/SudhirDevOps1/SafeVault/commit/2ebb810c02b0e1e7abaa62e2c0e27f7268232efb))
+* **extension:** resolve unhandled promise rejection and safely handle clipboard and extension messaging ([8ee79b1](https://github.com/SudhirDevOps1/SafeVault/commit/8ee79b18ea4adb0cdfa62ec273794b4fb485bcef))
+
 ## [0.3.0](https://github.com/SudhirDevOps1/SafeVault/compare/v0.2.1...v0.3.0) (2026-10-15)
 
 
