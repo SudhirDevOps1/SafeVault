@@ -337,61 +337,71 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Update Badge Count for Current Tab
 async function updateBadgeForTab(tabId, url) {
-  if (!url || !url.startsWith('http')) {
-    await chrome.action.setBadgeText({ tabId, text: '' });
+  if (!tabId || !url || !url.startsWith('http')) {
+    if (tabId) {
+      try { await chrome.action.setBadgeText({ tabId, text: '' }).catch(() => {}); } catch {}
+    }
     return;
   }
-  const session = await chrome.storage.session.get(['isUnlocked', 'credentialsJson']);
-  if (!session.isUnlocked || !session.credentialsJson) {
-    await chrome.action.setBadgeText({ tabId, text: '' });
-    return;
-  }
-
-  // Check autofill settings & blocked sites
-  const localData = await chrome.storage.local.get(['safevault_autofill_settings']);
-  let settings = { autofillMatchingMode: 'wildcard', blockedSites: [] };
-  if (localData?.safevault_autofill_settings) {
-    try { settings = JSON.parse(localData.safevault_autofill_settings); } catch {}
-  }
-
-  const targetHost = extractFullHostname(url);
-  const isBlocked = (settings.blockedSites || []).some(b => {
-    const clean = (b || '').toLowerCase().trim();
-    return clean && (targetHost === clean || targetHost.endsWith('.' + clean));
-  });
-
-  if (isBlocked) {
-    await chrome.action.setBadgeText({ tabId, text: '' });
-    return;
-  }
-
   try {
-    const credentials = JSON.parse(session.credentialsJson);
+    let isUnlocked = inMemorySession.isUnlocked;
+    let credentialsJson = inMemorySession.credentialsJson;
+    if (!isUnlocked) {
+      const session = await chrome.storage.session.get(['isUnlocked', 'credentialsJson']).catch(() => ({}));
+      isUnlocked = !!session?.isUnlocked;
+      credentialsJson = session?.credentialsJson || '[]';
+    }
+    if (!isUnlocked || !credentialsJson || credentialsJson === '[]') {
+      try { await chrome.action.setBadgeText({ tabId, text: '' }).catch(() => {}); } catch {}
+      return;
+    }
+
+    // Check autofill settings & blocked sites
+    const localData = await chrome.storage.local.get(['safevault_autofill_settings']).catch(() => ({}));
+    let settings = { autofillMatchingMode: 'wildcard', blockedSites: [] };
+    if (localData?.safevault_autofill_settings) {
+      try { settings = JSON.parse(localData.safevault_autofill_settings); } catch {}
+    }
+
+    const targetHost = extractFullHostname(url);
+    const isBlocked = (settings.blockedSites || []).some(b => {
+      const clean = (b || '').toLowerCase().trim();
+      return clean && (targetHost === clean || targetHost.endsWith('.' + clean));
+    });
+
+    if (isBlocked) {
+      try { await chrome.action.setBadgeText({ tabId, text: '' }).catch(() => {}); } catch {}
+      return;
+    }
+
+    const credentials = JSON.parse(credentialsJson);
     const matches = credentials.filter(c => isCredentialMatch(c, url, settings.autofillMatchingMode || 'wildcard'));
 
     if (matches.length > 0) {
-      await chrome.action.setBadgeText({ tabId, text: String(matches.length) });
-      await chrome.action.setBadgeBackgroundColor({ tabId, color: '#10b981' }); // Emerald Green
+      await chrome.action.setBadgeText({ tabId, text: String(matches.length) }).catch(() => {});
+      await chrome.action.setBadgeBackgroundColor({ tabId, color: '#10b981' }).catch(() => {}); // Emerald Green
     } else {
-      await chrome.action.setBadgeText({ tabId, text: '' });
+      await chrome.action.setBadgeText({ tabId, text: '' }).catch(() => {});
     }
   } catch {
-    await chrome.action.setBadgeText({ tabId, text: '' });
+    try { await chrome.action.setBadgeText({ tabId, text: '' }).catch(() => {}); } catch {}
   }
 }
 
 // Track Tab Updates to Update Badge
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url) {
-    updateBadgeForTab(tabId, tab.url);
+  if (changeInfo.status === 'complete' && tab?.url) {
+    updateBadgeForTab(tabId, tab.url).catch(() => {});
   }
 });
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  const tab = await chrome.tabs.get(activeInfo.tabId).catch(() => null);
-  if (tab?.url) {
-    updateBadgeForTab(activeInfo.tabId, tab.url);
-  }
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId).catch(() => null);
+    if (tab?.url) {
+      updateBadgeForTab(activeInfo.tabId, tab.url).catch(() => {});
+    }
+  } catch {}
 });
 
 // Background Auto-Lock Alarms & Idle Detection

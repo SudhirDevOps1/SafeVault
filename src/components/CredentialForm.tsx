@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useVaultStore } from '@/stores/vaultStore';
 import PasswordGenerator from './PasswordGenerator';
+import { ICON_OPTIONS, COLOR_OPTIONS } from './ServiceLogo';
 import type { Credential } from '@/types';
 
 interface CredentialFormProps {
@@ -26,6 +27,9 @@ export default function CredentialForm({ credential, onClose }: CredentialFormPr
   const [totpSecret, setTotpSecret] = useState(credential?.totpSecret || '');
   const [category, setCategory] = useState(credential?.category || 'Login');
   const [favorite, setFavorite] = useState(credential?.favorite || false);
+  const [customIcon, setCustomIcon] = useState(credential?.customIcon || '');
+  const [customColor, setCustomColor] = useState(credential?.customColor || '');
+  const [showCustomization, setShowCustomization] = useState(!!credential?.customIcon || !!credential?.customColor);
   const [showPassword, setShowPassword] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
   const [showTotp, setShowTotp] = useState(false);
@@ -89,11 +93,21 @@ export default function CredentialForm({ credential, onClose }: CredentialFormPr
     if (!title.trim()) return;
     setSaving(true);
     try {
-      let extraData = {};
-      if (category === 'Payment Card') {
-        extraData = { cardNumber, cardHolder, cardExpiry, cardCVV, cardType };
+      let extraData: any = {
+        customIcon: customIcon || undefined,
+        customColor: customColor || undefined,
+      };
+      if (category === 'Payment Card' || category === 'Cards') {
+        extraData.cardNumber = cardNumber;
+        extraData.cardHolder = cardHolder;
+        extraData.cardExpiry = cardExpiry;
+        extraData.cardCVV = cardCVV;
+        extraData.cardType = cardType;
       } else if (category === 'Passkey') {
-        extraData = { passkeyId, passkeyRpId, passkeyUsername, passkeyPublicKey };
+        extraData.passkeyId = passkeyId;
+        extraData.passkeyRpId = passkeyRpId;
+        extraData.passkeyUsername = passkeyUsername;
+        extraData.passkeyPublicKey = passkeyPublicKey;
       }
 
       if (isEditing && credential) {
@@ -190,6 +204,77 @@ export default function CredentialForm({ credential, onClose }: CredentialFormPr
                 className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-sm"
               />
             </div>
+          </div>
+
+          {/* Custom Icon & Accent Color Picker */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowCustomization(!showCustomization)}
+              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition-colors font-medium py-1 cursor-pointer"
+            >
+              <span>🎨 Customize Icon & Color</span>
+              {showCustomization ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+
+            {showCustomization && (
+              <div className="mt-2.5 p-3.5 bg-white/5 border border-white/10 rounded-2xl space-y-3">
+                {/* Accent Color */}
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-2">Accent Color Theme</span>
+                  <div className="flex flex-wrap gap-2">
+                    {COLOR_OPTIONS.map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setCustomColor(customColor === c.id ? '' : c.id)}
+                        className={`w-6 h-6 rounded-full bg-gradient-to-br ${c.bg} border ${c.border} transition-all cursor-pointer ${
+                          customColor === c.id ? 'ring-2 ring-white scale-110 shadow-lg' : 'opacity-70 hover:opacity-100'
+                        }`}
+                        title={c.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Icon */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Custom Brand Icon</span>
+                    {customIcon && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomIcon('')}
+                        className="text-[10px] text-gray-400 hover:text-white"
+                      >
+                        Reset to auto
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                    {ICON_OPTIONS.map(i => {
+                      const IconComp = i.icon;
+                      const isSelected = customIcon === i.id;
+                      return (
+                        <button
+                          key={i.id}
+                          type="button"
+                          onClick={() => setCustomIcon(customIcon === i.id ? '' : i.id)}
+                          className={`p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300 ring-1 ring-indigo-400'
+                              : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                          }`}
+                          title={i.label}
+                        >
+                          <IconComp className="w-4 h-4" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {category === 'Payment Card' ? (

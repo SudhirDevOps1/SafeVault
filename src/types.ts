@@ -33,6 +33,9 @@ export interface Credential {
   // Email Alias tracking (Proton Pass / SimpleLogin / AliasVault grade)
   aliasStatus?: 'active' | 'paused' | 'blocked';
   aliasBaseEmail?: string;
+  // Customization: custom icon and accent color
+  customIcon?: string;
+  customColor?: string;
 }
 
 export interface VaultMetadata {

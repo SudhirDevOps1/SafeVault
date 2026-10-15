@@ -5,7 +5,7 @@ import type { Credential } from '@/types';
 import { generateTOTP } from '@/utils/totp';
 import { useClipboard } from '@/hooks/useClipboard';
 import TOTPDisplay from './TOTPDisplay';
-
+import ServiceLogo from './ServiceLogo';
 import { autofillActiveTab } from '@/utils/extensionAutofill';
 
 export default function CredentialList() {
@@ -14,8 +14,6 @@ export default function CredentialList() {
   const searchQuery = useVaultStore(state => state.searchQuery);
   const sidebarView = useVaultStore(state => state.sidebarView);
   const setSelectedCredential = useVaultStore(state => state.setSelectedCredential);
-  const networkApprovedThisSession = useVaultStore(state => state.networkApprovedThisSession);
-  const disableRemoteFavicons = useVaultStore(state => state.disableRemoteFavicons);
 
   const [currentTabDomain, setCurrentTabDomain] = useState<string | null>(null);
   const [autofillSuccessId, setAutofillSuccessId] = useState<string | null>(null);
@@ -121,37 +119,6 @@ export default function CredentialList() {
     return filtered;
   }, [credentials, searchQuery, sidebarView]);
 
-  const getFavicon = (url: string) => {
-    if (disableRemoteFavicons) return null;
-    try {
-      const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
-      return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
-    } catch {
-      return null;
-    }
-  };
-
-  const getInitials = (title: string) => {
-    return title.trim().charAt(0).toUpperCase() || '?';
-  };
-
-  const getInitialsBg = (title: string) => {
-    const colors = [
-      'bg-red-500/20 text-red-400',
-      'bg-blue-500/20 text-blue-400',
-      'bg-emerald-500/20 text-emerald-400',
-      'bg-amber-500/20 text-amber-400',
-      'bg-indigo-500/20 text-indigo-400',
-      'bg-purple-500/20 text-purple-400',
-      'bg-pink-500/20 text-pink-400',
-    ];
-    let sum = 0;
-    for (let i = 0; i < title.length; i++) {
-      sum += title.charCodeAt(i);
-    }
-    return colors[sum % colors.length];
-  };
-
   if (filteredCredentials.length === 0 && matchingCurrentTabCredentials.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20 px-4 text-center">
@@ -197,17 +164,27 @@ export default function CredentialList() {
                 <div
                   key={'match-' + c.id}
                   onClick={() => setSelectedCredential(c.id)}
-                  className="flex items-center justify-between p-2 rounded-lg bg-emerald-900/20 hover:bg-emerald-900/40 border border-emerald-500/30 transition-colors cursor-pointer"
+                  className="flex items-center justify-between p-2 rounded-xl bg-emerald-900/20 hover:bg-emerald-900/40 border border-emerald-500/30 transition-colors cursor-pointer gap-2"
                 >
-                  <div className="min-w-0 pr-2">
-                    <div className="text-xs font-medium text-white truncate">{c.title}</div>
-                    <div className="text-[11px] text-gray-400 truncate">{c.username || 'No username'}</div>
+                  <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                    <ServiceLogo
+                      url={c.url}
+                      title={c.title}
+                      category={c.category}
+                      customIcon={c.customIcon}
+                      customColor={c.customColor}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-white truncate">{c.title}</div>
+                      <div className="text-[11px] text-gray-400 truncate">{c.username || 'No username'}</div>
+                    </div>
                   </div>
                   <button
                     onClick={(e) => handleQuickAutofill(c, e)}
                     className={`shrink-0 flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-md transition-all ${
                       isFilled
-                        ? 'bg-emerald-500 text-gray-950'
+                        ? 'bg-emerald-500 text-gray-950 font-bold'
                         : 'bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-gray-950 border border-emerald-500/40'
                     }`}
                   >
@@ -218,7 +195,7 @@ export default function CredentialList() {
                       </>
                     ) : (
                       <>
-                        <Zap className="w-3 h-3" />
+                        <Zap className="w-3 h-3 fill-current" />
                         <span>Auto-fill</span>
                       </>
                     )}
@@ -234,7 +211,6 @@ export default function CredentialList() {
       <div className="divide-y divide-white/5">
         {filteredCredentials.map((cred) => {
           const isSelected = selectedCredentialId === cred.id;
-          const favicon = (cred.url && networkApprovedThisSession) ? getFavicon(cred.url) : null;
           const isFilled = autofillSuccessId === cred.id;
 
           return (
@@ -245,20 +221,15 @@ export default function CredentialList() {
                 isSelected ? 'bg-emerald-500/10 border-l-2 border-emerald-500' : 'border-l-2 border-transparent'
               }`}
             >
-              {/* Icon */}
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden font-semibold text-sm relative ${getInitialsBg(cred.title)}`}>
-                <span className="absolute inset-0 flex items-center justify-center">{getInitials(cred.title)}</span>
-                {favicon && (
-                  <img 
-                    src={favicon} 
-                    alt="" 
-                    className="w-full h-full object-cover relative z-10 bg-gray-900" 
-                    onError={(e) => { 
-                      (e.target as HTMLImageElement).remove(); 
-                    }} 
-                  />
-                )}
-              </div>
+              {/* Real Service Logo */}
+              <ServiceLogo
+                url={cred.url}
+                title={cred.title}
+                category={cred.category}
+                customIcon={cred.customIcon}
+                customColor={cred.customColor}
+                size="md"
+              />
 
               {/* Content */}
               <div className="flex-1 min-w-0">
